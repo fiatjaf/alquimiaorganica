@@ -1,0 +1,31 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  border: 13px dotted #564e47;
+  position: relative;
+}
+body main {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 50%;
+  height: 63%;
+  margin: auto;
+  text-align: center;
+  font-size: 90%;
+  font-family: 'Ubuntu', sans-serif;
+}
+body main img {
+  max-width: 90%;
+}
+body main address {
+  margin-top: 5px;
+}
