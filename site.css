@@ -7,7 +7,7 @@ body {
   box-sizing: border-box;
 }
 body {
-  border: 13px dotted #564e47;
+  border: 13px solid #564e47;
   position: relative;
 }
 body main {
