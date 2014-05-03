@@ -24,8 +24,48 @@ body main {
   font-family: 'Ubuntu', sans-serif;
 }
 body main img {
-  max-width: 90%;
+  max-height: 39%;
+  margin-bottom: 3%;
 }
 body main address {
   margin-top: 5px;
+}
+.subscribe {
+  padding-top: 2%;
+  width: 60%;
+  margin: auto;
+}
+.subscribe * {
+  display: block;
+}
+.subscribe h3 {
+  margin: 5px;
+}
+.subscribe i {
+  margin: 7px;
+}
+.subscribe label {
+  float: left;
+  text-align: right;
+  margin-right: 1%;
+  width: 25%;
+  padding-top: 5px;
+  font-size: 1em;
+}
+.subscribe input {
+  padding: 5px;
+  width: 65%;
+  font-family: Helvetica, sans-serif;
+  font-size: 1em;
+  margin: 0px 0px 10px 0px;
+  border: 1px solid #789541;
+}
+.subscribe input[type="submit"] {
+  width: 30%;
+  float: right;
+  clear: both;
+  background: white;
+}
+.subscribe input:focus {
+  border: 2px solid #564e47;
 }

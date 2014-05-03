@@ -1,0 +1,71 @@
+@verde: #789541;
+@marrom: #564e47;
+
+html,body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    border: 13px solid @marrom;
+    position: relative;
+    main {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 50%;
+        height: 90%;
+        margin: auto;
+        text-align: center;
+        font-size: 90%;
+        font-family: 'Ubuntu',sans-serif;
+        img {
+            max-height: 39%;
+            margin-bottom: 3%;
+        }
+        address {
+            margin-top: 5px;
+        }
+    }
+}
+.subscribe {
+    padding-top: 2%;
+    width: 60%;
+    margin: auto;
+    * {
+        display: block;
+    }
+
+    h3 { margin: 5px }
+    i { margin: 7px }    
+
+    label {
+        float: left;
+        text-align: right;
+        margin-right: 1%;
+        width: 25%;
+        padding-top: 5px;
+        font-size: 1em;
+    }
+    input {
+        padding: 5px;
+        width: 65%;
+        font-family: Helvetica,sans-serif;
+        font-size: 1em;
+        margin: 0px 0px 10px 0px;
+        border: 1px solid @verde;
+    }
+    input[type="submit"] {
+        width: 30%;
+        float: right;
+        clear: both;
+        background: white;
+    }
+    input:focus {
+        border: 2px solid @marrom;
+    }
+}

@@ -1,8 +1,7 @@
 all:
 	coffee --bare -c .
-	lessc default.less > site.css
+	lessc site.less > site.css
 
 run:
-	coffee --bare -c .
-	lessc default.less > site.css
+	make
 	python -m SimpleHTTPServer 3000
