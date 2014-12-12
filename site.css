@@ -1,14 +1,20 @@
+button.add-new {
+  margin: 10px auto;
+  display: block;
+}
 .orders {
   margin: 10px 0 10px -15px;
 }
 .order {
   background: aliceblue;
   float: left;
+  margin: 1px;
   padding: 10px;
-  max-width: 210px;
+  width: 210px;
 }
 .order textarea {
   width: 100% !important;
+  min-height: 174px;
 }
 .order.editing {
   width: 100%;

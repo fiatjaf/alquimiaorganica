@@ -1,5 +1,5 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var Firebase, button, cuid, div, firebaseref, hg, input, makeOrder, state, textarea, theState, vrenderMain, week, _ref;
+var Firebase, button, cuid, div, firebaseref, form, hg, input, label, makeOrder, orderDefaults, parseMeta, state, textarea, theState, vrenderListedOrder, vrenderMain, week, xtend, _ref;
 
 Firebase = require('firebase');
 
@@ -7,28 +7,66 @@ hg = require('mercury');
 
 cuid = require('cuid');
 
+xtend = require('xtend');
+
 week = require('current-week-number');
+
+parseMeta = require('./parsemeta.coffee');
 
 firebaseref = new Firebase('https://week.firebaseio.com/alquimia');
 
-_ref = require('virtual-elements'), div = _ref.div, textarea = _ref.textarea, input = _ref.input, button = _ref.button;
+_ref = require('virtual-elements'), div = _ref.div, form = _ref.form, label = _ref.label, textarea = _ref.textarea, input = _ref.input, button = _ref.button;
 
 makeOrder = function(data) {
-  return hg.state({
-    key: hg.value(data.key || cuid.slug()),
-    date: hg.value(data.date || (new Date).toISOString()),
-    week: hg.value(data.week || week()),
-    content: hg.value(data.content || '')
-  });
+  var k, orderObservables, v, _ref1;
+  orderObservables = {};
+  _ref1 = orderDefaults(data);
+  for (k in _ref1) {
+    v = _ref1[k];
+    orderObservables[k] = hg.value(v);
+  }
+  return hg.struct(orderObservables);
+};
+
+orderDefaults = function(data) {
+  return {
+    date: data.date || (new Date).toISOString(),
+    week: data.week || week(),
+    name: data.name || '',
+    phone: data.phone || '',
+    addr: data.addr || '',
+    content: data.content || ''
+  };
 };
 
 theState = function() {
   return hg.state({
     currentWeek: hg.value(week()),
     orders: hg.varhash({}, makeOrder),
+    creating_order: hg.value(null),
     handles: {
       edit: function(state, data) {
-        return firebaseref.child(data.key).child('content').set(data.content);
+        var content, meta, orderData, p;
+        p = data.content.split('\n\n');
+        meta = parseMeta(p[0]);
+        if (!meta) {
+          meta = {};
+          content = data.content;
+        } else {
+          meta = meta;
+          content = p.slice(1).join('\n\n');
+        }
+        orderData = xtend(state.orders.get(data.key), meta);
+        orderData.content = content;
+        return firebaseref.child(data.key).set(orderData);
+      },
+      addNew: function(state) {
+        return state.creating_order.set(true);
+      },
+      saveNew: function(state, data) {
+        return firebaseref.child(cuid.slug()).set(orderDefaults(data), function() {
+          return state.creating_order.set(false);
+        });
       }
     }
   });
@@ -50,32 +88,96 @@ firebaseref.on('child_removed', function(snap) {
 
 vrenderMain = function(state) {
   var data, key;
-  return div({
-    'className': 'orders'
-  }, (function() {
+  return div({}, !state.creating_order ? button({
+    className: 'btn btn-info add-new',
+    'ev-click': state.handles.addNew
+  }, 'Fazer seu pedido') : void 0, div({
+    className: 'orders'
+  }, state.creating_order || state.editing ? div({
+    className: 'order editing'
+  }, state.creating_order ? form({
+    className: 'form-horizontal',
+    'ev-submit': hg.valueEvent(state.handles.saveNew)
+  }, div({
+    className: 'form-group'
+  }, label({
+    className: 'col-sm-2 control-label',
+    htmlFor: 'name'
+  }, 'Nome:'), div({
+    className: 'col-sm-10'
+  }, input({
+    type: 'text',
+    className: 'form-control',
+    id: 'name',
+    name: 'name'
+  }))), div({
+    className: 'form-group'
+  }, label({
+    className: 'col-sm-2 control-label',
+    htmlFor: 'phone'
+  }, 'Telefone:'), div({
+    className: 'col-sm-10'
+  }, input({
+    type: 'text',
+    className: 'form-control',
+    id: 'phone',
+    name: 'phone'
+  }))), div({
+    className: 'form-group'
+  }, label({
+    className: 'col-sm-2 control-label',
+    htmlFor: 'addr'
+  }, 'Endereço:'), div({
+    className: 'col-sm-10'
+  }, input({
+    type: 'text',
+    className: 'form-control',
+    id: 'addr',
+    name: 'addr'
+  }))), textarea({
+    className: 'form-control',
+    name: 'content',
+    rows: 5,
+    placeholder: '1 penca de banana\nuns 10 tomates\n1 abobrinha'
+  }), button({
+    className: 'btn btn-primary'
+  }, 'Enviar pedido')) : void 0) : void 0, (function() {
     var _ref1, _results;
     _ref1 = state.orders;
     _results = [];
     for (key in _ref1) {
       data = _ref1[key];
-      _results.push(div({
-        'className': 'order'
-      }, textarea({
-        'name': 'content',
-        'ev-input': hg.valueEvent(state.handles.edit, {
-          key: key
-        })
-      }, data.content)));
+      _results.push(hg.partial(vrenderListedOrder, key, data, state.handles));
     }
     return _results;
-  })());
+  })()));
+};
+
+vrenderListedOrder = function(key, data, parentHandles) {
+  var content;
+  content = data.content;
+  if (data.confirmado) {
+    content = 'confirmado\n' + content;
+  }
+  if (data.date) {
+    content = data.date + '\n' + content;
+  }
+  content = '\n\n' + content;
+  return div({
+    className: 'order'
+  }, textarea({
+    name: 'content',
+    'ev-input': hg.valueEvent(parentHandles.edit, {
+      key: key
+    })
+  }, content));
 };
 
 hg.app(document.getElementById('pedidos'), state, vrenderMain);
 
 
 
-},{"cuid":4,"current-week-number":5,"firebase":6,"mercury":7,"virtual-elements":99}],2:[function(require,module,exports){
+},{"./parsemeta.coffee":124,"cuid":4,"current-week-number":5,"firebase":6,"mercury":7,"virtual-elements":99,"xtend":123}],2:[function(require,module,exports){
 
 },{}],3:[function(require,module,exports){
 // shim for using process in browser
@@ -4735,4 +4837,36 @@ VirtualNode.prototype.type = "VirtualNode"
 module.exports=require(95)
 },{"./version":119,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js":95}],122:[function(require,module,exports){
 module.exports=require(84)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js":84}]},{},[1]);
+},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js":84}],123:[function(require,module,exports){
+module.exports=require(41)
+},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js":41}],124:[function(require,module,exports){
+module.exports = function(str) {
+  var key, line, meta, ok, parts, value, _i, _len, _ref;
+  ok = false;
+  meta = {};
+  _ref = str.split('\n');
+  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+    line = _ref[_i];
+    if (line.indexOf(':') !== -1) {
+      parts = line.split(':');
+      key = parts[0].trim();
+      value = parts[1].trim();
+      if (key && value) {
+        ok = true;
+        meta[key] = value;
+      }
+    } else if (line.indexOf(' ') === -1) {
+      line = line.trim();
+      if (line) {
+        meta[line] = true;
+      }
+    }
+  }
+  if (ok) {
+    return meta;
+  }
+};
+
+
+
+},{}]},{},[1]);
