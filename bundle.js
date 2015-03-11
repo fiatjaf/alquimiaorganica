@@ -1,115 +1,118 @@
-(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var Firebase, button, cuid, div, firebaseref, form, hg, input, label, makeOrder, orderDefaults, parseMeta, state, textarea, theState, vrenderListedOrder, vrenderMain, week, xtend, _ref;
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/home/fiatjaf/comp/alquimiaorganica/app.coffee":[function(require,module,exports){
+var Baobab, Firebase, button, channels, cuid, div, elem, firebaseref, form, handles, hg, input, label, mainloop, orderDefaults, state, textarea, vrenderListedOrder, vrenderMain, week, _ref;
 
 Firebase = require('firebase');
+
+Baobab = require('baobab');
 
 hg = require('mercury');
 
 cuid = require('cuid');
 
-xtend = require('xtend');
-
 week = require('current-week-number');
-
-parseMeta = require('./parsemeta.coffee');
 
 firebaseref = new Firebase('https://week.firebaseio.com/alquimia');
 
-_ref = require('virtual-elements'), div = _ref.div, form = _ref.form, label = _ref.label, textarea = _ref.textarea, input = _ref.input, button = _ref.button;
-
-makeOrder = function(data) {
-  var k, orderObservables, v, _ref1;
-  orderObservables = {};
-  _ref1 = orderDefaults(data);
-  for (k in _ref1) {
-    v = _ref1[k];
-    orderObservables[k] = hg.value(v);
-  }
-  return hg.struct(orderObservables);
-};
+_ref = require('virtual-elements'), div = _ref.div, form = _ref.form, label = _ref.label, textarea = _ref.textarea, input = _ref.input, button = _ref.button, label = _ref.label;
 
 orderDefaults = function(data) {
   return {
-    date: data.date || (new Date).toISOString(),
+    key: data.key || cuid.slug(),
+    created: data.created || (new Date).toISOString(),
+    modified: data.created ? (new Date).toISOString() : null,
     week: data.week || week(),
-    name: data.name || '',
+    customer: data.customer || '',
     phone: data.phone || '',
     addr: data.addr || '',
     content: data.content || ''
   };
 };
 
-theState = function() {
-  return hg.state({
-    currentWeek: hg.value(week()),
-    orders: hg.varhash({}, makeOrder),
-    creating_order: hg.value(null),
-    handles: {
-      edit: function(state, data) {
-        var content, meta, orderData, p;
-        p = data.content.split('\n\n');
-        meta = parseMeta(p[0]);
-        if (!meta) {
-          meta = {};
-          content = data.content;
-        } else {
-          meta = meta;
-          content = p.slice(1).join('\n\n');
-        }
-        orderData = xtend(state.orders.get(data.key), meta);
-        orderData.content = content;
-        return firebaseref.child(data.key).set(orderData);
-      },
-      addNew: function(state) {
-        return state.creating_order.set(true);
-      },
-      saveNew: function(state, data) {
-        return firebaseref.child(cuid.slug()).set(orderDefaults(data), function() {
-          return state.creating_order.set(false);
-        });
-      }
-    }
-  });
+state = Baobab({
+  currentWeek: week(),
+  orders: {},
+  editing: null
+}, {
+  clone: true,
+  autoCommit: false,
+  shiftReferences: true
+});
+
+handles = {
+  edit: function(state, data) {
+    var order;
+    order = state.orders.get(data.key);
+    state.set('editing', order.key);
+    return state.commit();
+  },
+  addNew: function(state) {
+    var order;
+    order = orderDefaults({});
+    state.select('orders').set(order.key, order);
+    state.set('editing', order.key);
+    return state.commit();
+  },
+  save: function(state, data) {
+    var order;
+    order = orderDefaults(data);
+    return firebaseref.child(data.key).set(order, function() {
+      state.set('editing', null);
+      return state.commit();
+    });
+  }
 };
 
-state = theState();
-
-firebaseref.orderByChild('week').equalTo(state.currentWeek()).on('child_added', function(snap) {
-  return state.orders.put(snap.key(), snap.val());
+firebaseref.orderByChild('week').equalTo(state.select('currentWeek').get()).on('child_added', function(fsnap) {
+  state.select('orders').set(fsnap.key(), fsnap.val());
+  return state.commit();
 });
 
-firebaseref.on('child_changed', function(snap) {
-  return state.orders.put(snap.key(), snap.val());
+firebaseref.on('child_changed', function(fsnap) {
+  state.select('orders').set(fsnap.key(), fsnap.val());
+  return state.commit();
 });
 
-firebaseref.on('child_removed', function(snap) {
-  return state.orders["delete"](snap.key());
+firebaseref.on('child_removed', function(fsnap) {
+  state.select('orders').unset(fsnap.key());
+  return state.commit();
 });
 
-vrenderMain = function(state) {
-  var data, key;
-  return div({}, !state.creating_order ? button({
+vrenderMain = function(snap, handles) {
+  var data, key, orderBeingEdited;
+  if (snap.editing) {
+    orderBeingEdited = snap.orders[snap.editing];
+  }
+  return div({}, !snap.editing ? button({
     className: 'btn btn-info add-new',
-    'ev-click': state.handles.addNew
+    'ev-click': handles.addNew
   }, 'Fazer seu pedido') : void 0, div({
     className: 'orders'
-  }, state.creating_order || state.editing ? div({
+  }, snap.editing ? div({
     className: 'order editing'
-  }, state.creating_order ? form({
+  }, form({
     className: 'form-horizontal',
-    'ev-submit': hg.valueEvent(state.handles.saveNew)
-  }, div({
+    'ev-submit': hg.submitEvent(handles.save, orderBeingEdited)
+  }, input({
+    type: 'hidden',
+    name: 'key',
+    value: orderBeingEdited.key
+  }), input({
+    type: 'hidden',
+    name: 'created',
+    value: orderBeingEdited.created
+  }), div({
     className: 'form-group'
   }, label({
     className: 'col-sm-2 control-label',
-    htmlFor: 'name'
+    htmlFor: 'customer'
   }, 'Nome:'), div({
     className: 'col-sm-10'
   }, input({
     type: 'text',
     className: 'form-control',
-    id: 'name',
-    name: 'name'
+    id: 'customer',
+    name: 'customer',
+    value: orderBeingEdited.customer
   }))), div({
     className: 'form-group'
   }, label({
@@ -121,7 +124,8 @@ vrenderMain = function(state) {
     type: 'text',
     className: 'form-control',
     id: 'phone',
-    name: 'phone'
+    name: 'phone',
+    value: orderBeingEdited.phone
   }))), div({
     className: 'form-group'
   }, label({
@@ -133,141 +137,2921 @@ vrenderMain = function(state) {
     type: 'text',
     className: 'form-control',
     id: 'addr',
-    name: 'addr'
+    name: 'addr',
+    value: orderBeingEdited.addr
   }))), textarea({
     className: 'form-control',
     name: 'content',
+    value: orderBeingEdited.content,
     rows: 5,
     placeholder: '1 penca de banana\nuns 10 tomates\n1 abobrinha'
   }), button({
     className: 'btn btn-primary'
-  }, 'Enviar pedido')) : void 0) : void 0, (function() {
+  }, 'Enviar pedido'))) : void 0, (function() {
     var _ref1, _results;
-    _ref1 = state.orders;
+    _ref1 = snap.orders;
     _results = [];
     for (key in _ref1) {
       data = _ref1[key];
-      _results.push(hg.partial(vrenderListedOrder, key, data, state.handles));
+      if (key !== snap.editing) {
+        _results.push(hg.partial(vrenderListedOrder, key, data, handles));
+      }
     }
     return _results;
   })()));
 };
 
 vrenderListedOrder = function(key, data, parentHandles) {
-  var content;
-  content = data.content;
-  if (data.confirmado) {
-    content = 'confirmado\n' + content;
-  }
-  if (data.date) {
-    content = data.date + '\n' + content;
-  }
-  content = '\n\n' + content;
   return div({
     className: 'order'
-  }, textarea({
+  }, label({
+    htmlFor: 'content'
+  }), textarea({
+    id: 'content',
+    disabled: true,
     name: 'content',
-    'ev-input': hg.valueEvent(parentHandles.edit, {
+    'ev-click': hg.clickEvent(parentHandles.edit, {
       key: key
     })
-  }, content));
+  }, data.content));
 };
 
-hg.app(document.getElementById('pedidos'), state, vrenderMain);
+channels = function(funcs, context) {
+  var createHandle;
+  createHandle = function(acc, name) {
+    var handle;
+    handle = hg.Delegator.allocateHandle(funcs[name].bind(null, context));
+    acc[name] = handle;
+    return acc;
+  };
+  return Object.keys(funcs).reduce(createHandle, {});
+};
+
+elem = document.getElementById('pedidos');
+
+handles = channels(handles, state);
+
+mainloop = (require('./baobab-loop'))(state.get(), vrenderMain, handles, {
+  diff: hg.diff,
+  create: hg.create,
+  patch: hg.patch
+});
+
+elem.appendChild(mainloop.target);
+
+state.on('update', function(b) {
+  return mainloop.update(b.target.get());
+});
 
 
 
-},{"./parsemeta.coffee":124,"cuid":4,"current-week-number":5,"firebase":6,"mercury":7,"virtual-elements":99,"xtend":123}],2:[function(require,module,exports){
+},{"./baobab-loop":"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee","baobab":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/index.js","cuid":"/home/fiatjaf/comp/alquimiaorganica/node_modules/cuid/dist/browser-cuid.js","current-week-number":"/home/fiatjaf/comp/alquimiaorganica/node_modules/current-week-number/index.js","firebase":"/home/fiatjaf/comp/alquimiaorganica/node_modules/firebase/lib/firebase-web.js","mercury":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/index.js","virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee":[function(require,module,exports){
+var InvalidUpdateInRender, TypedError, main, raf;
 
-},{}],3:[function(require,module,exports){
-// shim for using process in browser
+raf = require('raf');
 
-var process = module.exports = {};
+TypedError = require('error/typed');
 
-process.nextTick = (function () {
-    var canSetImmediate = typeof window !== 'undefined'
-    && window.setImmediate;
-    var canMutationObserver = typeof window !== 'undefined'
-    && window.MutationObserver;
-    var canPost = typeof window !== 'undefined'
-    && window.postMessage && window.addEventListener
-    ;
+InvalidUpdateInRender = TypedError({
+  type: 'main-loop.invalid.update.in-render',
+  message: 'main-loop: Unexpected update occurred in loop.\n' + 'We are currently rendering a view, ' + 'you can\'t change state right now.\n' + 'The diff is: {stringDiff}.\n' + 'SUGGESTED FIX: find the state mutation in your view ' + 'or rendering function and remove it.\n' + 'The view should not have any side effects.\n',
+  diff: null,
+  stringDiff: null
+});
 
-    if (canSetImmediate) {
-        return function (f) { return window.setImmediate(f) };
+main = function(initialState, view, handles, opts) {
+  var create, currentState, diff, inRenderingTransaction, patch, redraw, redrawScheduled, target, tree, update;
+  opts = opts || {};
+  currentState = initialState;
+  create = opts.create;
+  diff = opts.diff;
+  patch = opts.patch;
+  redrawScheduled = false;
+  tree = opts.initialTree || view(currentState, handles);
+  target = opts.target || create(tree, opts);
+  inRenderingTransaction = false;
+  currentState = null;
+  update = function(state) {
+    if (inRenderingTransaction) {
+      throw InvalidUpdateInRender({
+        diff: state._diff,
+        stringDiff: JSON.stringify(state._diff)
+      });
     }
+    if (currentState === null && !redrawScheduled) {
+      redrawScheduled = true;
+      raf(redraw);
+    }
+    currentState = state;
+  };
+  redraw = function() {
+    var newTree, patches;
+    redrawScheduled = false;
+    if (currentState === null) {
+      return;
+    }
+    inRenderingTransaction = true;
+    newTree = view(currentState, handles);
+    if (opts.createOnly) {
+      inRenderingTransaction = false;
+      create(newTree, opts);
+    } else {
+      patches = diff(tree, newTree, opts);
+      inRenderingTransaction = false;
+      target = patch(target, patches, opts);
+    }
+    tree = newTree;
+    currentState = null;
+  };
+  return {
+    target: target,
+    update: update
+  };
+};
 
-    var queue = [];
+module.exports = main;
 
-    if (canMutationObserver) {
-        var hiddenDiv = document.createElement("div");
-        var observer = new MutationObserver(function () {
-            var queueList = queue.slice();
-            queue.length = 0;
-            queueList.forEach(function (fn) {
-                fn();
-            });
-        });
 
-        observer.observe(hiddenDiv, { attributes: true });
 
-        return function nextTick(fn) {
-            if (!queue.length) {
-                hiddenDiv.setAttribute('yes', 'no');
-            }
-            queue.push(fn);
+},{"error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/typed.js","raf":"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/defaults.js":[function(require,module,exports){
+/**
+ * Baobab Default Options
+ * =======================
+ *
+ */
+module.exports = {
+
+  // Should the tree handle its transactions on its own?
+  autoCommit: true,
+
+  // Should the transactions be handled asynchronously?
+  asynchronous: true,
+
+  // Should the tree clone data when giving it back to the user?
+  clone: false,
+
+  // Which cloning function should the tree use?
+  cloningFunction: null,
+
+  // Should cursors be singletons?
+  cursorSingletons: true,
+
+  // Maximum records in the tree's history
+  maxHistory: 0,
+
+  // Collection of react mixins to merge with the tree's ones
+  mixins: [],
+
+  // Should the tree shift its internal reference when applying mutations?
+  shiftReferences: false,
+
+  // Custom typology object to use along with the validation utilities
+  typology: null,
+
+  // Validation specifications
+  validate: null
+};
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/index.js":[function(require,module,exports){
+/**
+ * Baobab Public Interface
+ * ========================
+ *
+ * Exposes the main library classes.
+ */
+var Baobab = require('./src/baobab.js'),
+    helpers = require('./src/helpers.js');
+
+// Non-writable version
+Object.defineProperty(Baobab, 'version', {
+  value: '0.4.0'
+});
+
+// Exposing helpers
+Baobab.getIn = helpers.getIn;
+
+// Exporting
+module.exports = Baobab;
+
+},{"./src/baobab.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/baobab.js","./src/helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js":[function(require,module,exports){
+(function() {
+  'use strict';
+
+  /**
+   * Here is the list of every allowed parameter when using Emitter#on:
+   * @type {Object}
+   */
+  var __allowedOptions = {
+    once: 'boolean',
+    scope: 'object'
+  };
+
+
+  /**
+   * The emitter's constructor. It initializes the handlers-per-events store and
+   * the global handlers store.
+   *
+   * Emitters are useful for non-DOM events communication. Read its methods
+   * documentation for more information about how it works.
+   *
+   * @return {Emitter}         The fresh new instance.
+   */
+  var Emitter = function() {
+    this._enabled = true;
+    this._children = [];
+    this._handlers = {};
+    this._handlersAll = [];
+  };
+
+
+  /**
+   * This method binds one or more functions to the emitter, handled to one or a
+   * suite of events. So, these functions will be executed anytime one related
+   * event is emitted.
+   *
+   * It is also possible to bind a function to any emitted event by not
+   * specifying any event to bind the function to.
+   *
+   * Recognized options:
+   * *******************
+   *  - {?boolean} once   If true, the handlers will be unbound after the first
+   *                      execution. Default value: false.
+   *  - {?object}  scope  If a scope is given, then the listeners will be called
+   *                      with this scope as "this".
+   *
+   * Variant 1:
+   * **********
+   * > myEmitter.on('myEvent', function(e) { console.log(e); });
+   * > // Or:
+   * > myEmitter.on('myEvent', function(e) { console.log(e); }, { once: true });
+   *
+   * @param  {string}   event   The event to listen to.
+   * @param  {function} handler The function to bind.
+   * @param  {?object}  options Eventually some options.
+   * @return {Emitter}          Returns this.
+   *
+   * Variant 2:
+   * **********
+   * > myEmitter.on(
+   * >   ['myEvent1', 'myEvent2'],
+   * >   function(e) { console.log(e); }
+   * >);
+   * > // Or:
+   * > myEmitter.on(
+   * >   ['myEvent1', 'myEvent2'],
+   * >   function(e) { console.log(e); }
+   * >   { once: true }}
+   * >);
+   *
+   * @param  {array}    events  The events to listen to.
+   * @param  {function} handler The function to bind.
+   * @param  {?object}  options Eventually some options.
+   * @return {Emitter}          Returns this.
+   *
+   * Variant 3:
+   * **********
+   * > myEmitter.on({
+   * >   myEvent1: function(e) { console.log(e); },
+   * >   myEvent2: function(e) { console.log(e); }
+   * > });
+   * > // Or:
+   * > myEmitter.on({
+   * >   myEvent1: function(e) { console.log(e); },
+   * >   myEvent2: function(e) { console.log(e); }
+   * > }, { once: true });
+   *
+   * @param  {object}  bindings An object containing pairs event / function.
+   * @param  {?object}  options Eventually some options.
+   * @return {Emitter}          Returns this.
+   *
+   * Variant 4:
+   * **********
+   * > myEmitter.on(function(e) { console.log(e); });
+   * > // Or:
+   * > myEmitter.on(function(e) { console.log(e); }, { once: true});
+   *
+   * @param  {function} handler The function to bind to every events.
+   * @param  {?object}  options Eventually some options.
+   * @return {Emitter}          Returns this.
+   */
+  Emitter.prototype.on = function(a, b, c) {
+    var i,
+        l,
+        k,
+        event,
+        eArray,
+        bindingObject;
+
+    // Variant 1 and 2:
+    if (typeof b === 'function') {
+      eArray = typeof a === 'string' ?
+        [a] :
+        a;
+
+      for (i = 0, l = eArray.length; i !== l; i += 1) {
+        event = eArray[i];
+
+        // Check that event is not '':
+        if (!event)
+          continue;
+
+        if (!this._handlers[event])
+          this._handlers[event] = [];
+
+        bindingObject = {
+          handler: b
         };
+
+        for (k in c || {})
+          if (__allowedOptions[k])
+            bindingObject[k] = c[k];
+          else
+            throw new Error(
+              'The option "' + k + '" is not recognized by Emmett.'
+            );
+
+        this._handlers[event].push(bindingObject);
+      }
+
+    // Variant 3:
+    } else if (a && typeof a === 'object' && !Array.isArray(a))
+      for (event in a)
+        Emitter.prototype.on.call(this, event, a[event], b);
+
+    // Variant 4:
+    else if (typeof a === 'function') {
+      bindingObject = {
+        handler: a
+      };
+
+      for (k in c || {})
+        if (__allowedOptions[k])
+          bindingObject[k] = c[k];
+        else
+          throw new Error(
+            'The option "' + k + '" is not recognized by Emmett.'
+          );
+
+      this._handlersAll.push(bindingObject);
     }
 
-    if (canPost) {
-        window.addEventListener('message', function (ev) {
-            var source = ev.source;
-            if ((source === window || source === null) && ev.data === 'process-tick') {
-                ev.stopPropagation();
-                if (queue.length > 0) {
-                    var fn = queue.shift();
-                    fn();
-                }
-            }
-        }, true);
+    // No matching variant:
+    else
+      throw new Error('Wrong arguments.');
 
-        return function nextTick(fn) {
-            queue.push(fn);
-            window.postMessage('process-tick', '*');
+    return this;
+  };
+
+
+  /**
+   * This method works exactly as the previous #on, but will add an options
+   * object if none is given, and set the option "once" to true.
+   *
+   * The polymorphism works exactly as with the #on method.
+   */
+  Emitter.prototype.once = function(a, b, c) {
+    // Variant 1 and 2:
+    if (typeof b === 'function') {
+      c = c || {};
+      c.once = true;
+      this.on(a, b, c);
+
+    // Variants 3 and 4:
+    } else if (
+      // Variant 3:
+      (a && typeof a === 'object' && !Array.isArray(a)) ||
+      // Variant 4:
+      (typeof a === 'function')
+    ) {
+      b = b || {};
+      b.once = true;
+      this.on(a, b);
+
+    // No matching variant:
+    } else
+      throw new Error('Wrong arguments.');
+
+    return this;
+  };
+
+
+  /**
+   * This method unbinds one or more functions from events of the emitter. So,
+   * these functions will no more be executed when the related events are
+   * emitted. If the functions were not bound to the events, nothing will
+   * happen, and no error will be thrown.
+   *
+   * Variant 1:
+   * **********
+   * > myEmitter.off('myEvent', myHandler);
+   *
+   * @param  {string}   event   The event to unbind the handler from.
+   * @param  {function} handler The function to unbind.
+   * @return {Emitter}          Returns this.
+   *
+   * Variant 2:
+   * **********
+   * > myEmitter.off(['myEvent1', 'myEvent2'], myHandler);
+   *
+   * @param  {array}    events  The events to unbind the handler from.
+   * @param  {function} handler The function to unbind.
+   * @return {Emitter}          Returns this.
+   *
+   * Variant 3:
+   * **********
+   * > myEmitter.off({
+   * >   myEvent1: myHandler1,
+   * >   myEvent2: myHandler2
+   * > });
+   *
+   * @param  {object} bindings An object containing pairs event / function.
+   * @return {Emitter}         Returns this.
+   *
+   * Variant 4:
+   * **********
+   * > myEmitter.off(myHandler);
+   *
+   * @param  {function} handler The function to unbind from every events.
+   * @return {Emitter}          Returns this.
+   */
+  Emitter.prototype.off = function(events, handler) {
+    var i,
+        n,
+        j,
+        m,
+        k,
+        a,
+        event,
+        eArray = typeof events === 'string' ?
+          [events] :
+          events;
+
+    if (arguments.length === 1 && typeof eArray === 'function') {
+      handler = arguments[0];
+
+      // Handlers bound to events:
+      for (k in this._handlers) {
+        a = [];
+        for (i = 0, n = this._handlers[k].length; i !== n; i += 1)
+          if (this._handlers[k][i].handler !== handler)
+            a.push(this._handlers[k][i]);
+        this._handlers[k] = a;
+      }
+
+      a = [];
+      for (i = 0, n = this._handlersAll.length; i !== n; i += 1)
+        if (this._handlersAll[i].handler !== handler)
+          a.push(this._handlersAll[i]);
+      this._handlersAll = a;
+    }
+
+    else if (arguments.length === 2) {
+      for (i = 0, n = eArray.length; i !== n; i += 1) {
+        event = eArray[i];
+        if (this._handlers[event]) {
+          a = [];
+          for (j = 0, m = this._handlers[event].length; j !== m; j += 1)
+            if (this._handlers[event][j].handler !== handler)
+              a.push(this._handlers[event][j]);
+
+          this._handlers[event] = a;
+        }
+
+        if (this._handlers[event] && this._handlers[event].length === 0)
+          delete this._handlers[event];
+      }
+    }
+
+    return this;
+  };
+
+
+  /**
+   * This method unbinds every handlers attached to every or any events. So,
+   * these functions will no more be executed when the related events are
+   * emitted. If the functions were not bound to the events, nothing will
+   * happen, and no error will be thrown.
+   *
+   * Usage:
+   * ******
+   * > myEmitter.unbindAll();
+   *
+   * @return {Emitter}      Returns this.
+   */
+  Emitter.prototype.unbindAll = function() {
+    var k;
+
+    this._handlersAll = [];
+    for (k in this._handlers)
+      delete this._handlers[k];
+
+    return this;
+  };
+
+
+  /**
+   * This method emits the specified event(s), and executes every handlers bound
+   * to the event(s).
+   *
+   * Use cases:
+   * **********
+   * > myEmitter.emit('myEvent');
+   * > myEmitter.emit('myEvent', myData);
+   * > myEmitter.emit(['myEvent1', 'myEvent2']);
+   * > myEmitter.emit(['myEvent1', 'myEvent2'], myData);
+   *
+   * @param  {string|array} events The event(s) to emit.
+   * @param  {object?}      data   The data.
+   * @return {Emitter}             Returns this.
+   */
+  Emitter.prototype.emit = function(events, data) {
+    var i,
+        n,
+        j,
+        m,
+        z,
+        a,
+        event,
+        child,
+        handlers,
+        eventName,
+        self = this,
+        eArray = typeof events === 'string' ?
+          [events] :
+          events;
+
+    // Check that the emitter is enabled:
+    if (!this._enabled)
+      return this;
+
+    data = data === undefined ? {} : data;
+
+    for (i = 0, n = eArray.length; i !== n; i += 1) {
+      eventName = eArray[i];
+      handlers = (this._handlers[eventName] || []).concat(this._handlersAll);
+
+      if (handlers.length) {
+        event = {
+          type: eventName,
+          data: data || {},
+          target: this
         };
+        a = [];
+
+        for (j = 0, m = handlers.length; j !== m; j += 1) {
+
+          // We have to verify that the handler still exists in the array,
+          // as it might have been mutated already
+          if (
+            (
+              this._handlers[eventName] &&
+              this._handlers[eventName].indexOf(handlers[j]) >= 0
+            ) ||
+            this._handlersAll.indexOf(handlers[j]) >= 0
+          ) {
+            handlers[j].handler.call(
+              'scope' in handlers[j] ? handlers[j].scope : this,
+              event
+            );
+
+            // Since the listener callback can mutate the _handlers,
+            // we register the handlers we want to remove, not the ones
+            // we want to keep
+            if (handlers[j].once)
+              a.push(handlers[j]);
+          }
+        }
+
+        // Go through handlers to remove
+        for (z = 0; z < a.length; z++) {
+          this._handlers[eventName].splice(a.indexOf(a[z]), 1);
+        }
+      }
     }
 
-    return function nextTick(fn) {
-        setTimeout(fn, 0);
+    // Events propagation:
+    for (i = 0, n = this._children.length; i !== n; i += 1) {
+      child = this._children[i];
+      child.emit.apply(child, arguments);
+    }
+
+    return this;
+  };
+
+
+  /**
+   * This method creates a new instance of Emitter and binds it as a child. Here
+   * is what children do:
+   *  - When the parent emits an event, the children will emit the same later
+   *  - When a child is killed, it is automatically unreferenced from the parent
+   *  - When the parent is killed, all children will be killed as well
+   *
+   * @return {Emitter} Returns the fresh new child.
+   */
+  Emitter.prototype.child = function() {
+    var self = this,
+        child = new Emitter();
+
+    child.on('emmett:kill', function() {
+      if (self._children)
+        for (var i = 0, l = self._children.length; i < l; i++)
+          if (self._children[i] === child) {
+            self._children.splice(i, 1);
+            break;
+          }
+    });
+    this._children.push(child);
+
+    return child;
+  };
+
+  /**
+   * This returns an array of handler functions corresponding to the given
+   * event or every handler functions if an event were not to be given.
+   *
+   * @param  {?string} event Name of the event.
+   * @return {Emitter} Returns this.
+   */
+  function mapHandlers(a) {
+    var i, l, h = [];
+
+    for (i = 0, l = a.length; i < l; i++)
+      h.push(a[i].handler);
+
+    return h;
+  }
+
+  Emitter.prototype.listeners = function(event) {
+    var handlers = [],
+        k,
+        i,
+        l;
+
+    // If no event is passed, we return every handlers
+    if (!event) {
+      handlers = mapHandlers(this._handlersAll);
+
+      for (k in this._handlers)
+        handlers = handlers.concat(mapHandlers(this._handlers[k]));
+
+      // Retrieving handlers per children
+      for (i = 0, l = this._children.length; i < l; i++)
+        handlers = handlers.concat(this._children[i].listeners());
+    }
+
+    // Else we only retrieve the needed handlers
+    else {
+      handlers = mapHandlers(this._handlers[event]);
+
+      // Retrieving handlers per children
+      for (i = 0, l = this._children.length; i < l; i++)
+        handlers = handlers.concat(this._children[i].listeners(event));
+    }
+
+    return handlers;
+  };
+
+
+  /**
+   * This method will first dispatch a "emmett:kill" event, and then unbinds all
+   * listeners and make it impossible to ever rebind any listener to any event.
+   */
+  Emitter.prototype.kill = function() {
+    this.emit('emmett:kill');
+
+    this.unbindAll();
+    this._handlers = null;
+    this._handlersAll = null;
+    this._enabled = false;
+
+    if (this._children)
+      for (var i = 0, l = this._children.length; i < l; i++)
+        this._children[i].kill();
+
+    this._children = null;
+  };
+
+
+  /**
+   * This method disabled the emitter, which means its emit method will do
+   * nothing.
+   *
+   * @return {Emitter} Returns this.
+   */
+  Emitter.prototype.disable = function() {
+    this._enabled = false;
+
+    return this;
+  };
+
+
+  /**
+   * This method enables the emitter.
+   *
+   * @return {Emitter} Returns this.
+   */
+  Emitter.prototype.enable = function() {
+    this._enabled = true;
+
+    return this;
+  };
+
+
+  /**
+   * Version:
+   */
+  Emitter.version = '2.1.2';
+
+
+  // Export:
+  if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports)
+      exports = module.exports = Emitter;
+    exports.Emitter = Emitter;
+  } else if (typeof define === 'function' && define.amd)
+    define('emmett', [], function() {
+      return Emitter;
+    });
+  else
+    this.Emitter = Emitter;
+}).call(this);
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/typology/typology.js":[function(require,module,exports){
+/**
+ * typology.js - A data validation library for Node.js and the browser,
+ *
+ * Version: 0.3.1
+ * Sources: http://github.com/jacomyal/typology
+ * Doc:     http://github.com/jacomyal/typology#readme
+ *
+ * License:
+ * --------
+ * Copyright © 2014 Alexis Jacomy (@jacomyal), Guillaume Plique (@Yomguithereal)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * The Software is provided "as is", without warranty of any kind, express or
+ * implied, including but not limited to the warranties of merchantability,
+ * fitness for a particular purpose and noninfringement. In no event shall the
+ * authors or copyright holders be liable for any claim, damages or other
+ * liability, whether in an action of contract, tort or otherwise, arising
+ * from, out of or in connection with the software or the use or other dealings
+ * in the Software.
+ */
+(function(global) {
+  'use strict';
+
+  /**
+   * Code conventions:
+   * *****************
+   *  - 80 characters max per line
+   *  - Write "__myVar" for any global private variable
+   *  - Write "_myVar" for any instance private variable
+   *  - Write "myVar" any local variable
+   */
+
+
+
+  /**
+   * PRIVATE GLOBALS:
+   * ****************
+   */
+
+  /**
+   * This object is a dictionnary that maps "[object Something]" strings to the
+   * typology form "something":
+   */
+  var __class2type = {};
+
+  /**
+   * This array is the list of every types considered native by typology:
+   */
+  var __nativeTypes = ['*'];
+
+  (function() {
+    var k,
+        className,
+        classes = [
+          'Arguments',
+          'Boolean',
+          'Number',
+          'String',
+          'Function',
+          'Array',
+          'Date',
+          'RegExp',
+          'Object'
+        ];
+
+    // Fill types
+    for (k in classes) {
+      className = classes[k];
+      __nativeTypes.push(className.toLowerCase());
+      __class2type['[object ' + className + ']'] = className.toLowerCase();
+    }
+  })();
+
+
+
+  /**
+   * CONSTRUCTOR:
+   * ************
+   */
+  function Typology(defs) {
+    /**
+     * INSTANCE PRIVATES:
+     * ******************
+     */
+
+    var _self = this;
+
+    /**
+     * This objects will contain every instance-specific custom types:
+     */
+    var _customTypes = {};
+
+    /**
+     * This function will recursively scan an object to check wether or not it
+     * matches a given type. It will return null if it matches, and an Error
+     * object else.
+     *
+     * Examples:
+     * *********
+     * 1. When the type matches:
+     *  > _scan('abc', 'string');
+     *  will return null.
+     *
+     * 2. When a top-level type does not match:
+     *  > _scan('abc', 'number');
+     *  will return an Error object with the following information:
+     *   - message: Expected a "number" but found a "string".
+     *
+     * 3. When a sub-object type does not its type:
+     *  > _scan({ a: 'abc' }, { a: 'number' });
+     *  will return an Error object with the following information:
+     *   - message: Expected a "number" but found a "string".
+     *   - path: [ 'a' ]
+     *
+     * 4. When a deep sub-object type does not its type:
+     *  > _scan({ a: [ 123, 'abc' ] }, { a: ['number'] });
+     *  will return an Error object with the following information:
+     *   - message: Expected a "number" but found a "string".
+     *   - path: [ 'a', 1 ]
+     *
+     * 5. When a required key is missing:
+     *  > _scan({}, { a: 'number' });
+     *  will return an Error object with the following information:
+     *   - message: Expected a "number" but found a "undefined".
+     *   - path: [ 'a' ]
+     *
+     * 6. When an unexpected key is present:
+     *  > _scan({ a: 123, b: 456 }, { a: 'number' });
+     *  will return an Error object with the following information:
+     *   - message: Unexpected key "b".
+     *
+     * @param  {*}      obj  The value to validate.
+     * @param  {type}   type The type.
+     * @return {?Error}      Returns null or an Error object.
+     */
+    function _scan(obj, type) {
+      var a,
+          i,
+          l,
+          k,
+          error,
+          subError,
+          hasStar,
+          hasTypeOf,
+          optional = false,
+          exclusive = false,
+          typeOf = _self.get(obj);
+
+      if (_self.get(type) === 'string') {
+        a = type.replace(/^[\?\!]/, '').split(/\|/);
+        l = a.length;
+        for (i = 0; i < l; i++)
+          if (__nativeTypes.indexOf(a[i]) < 0 && !(a[i] in _customTypes))
+            throw new Error('Invalid type.');
+
+        if (type.match(/^\?/))
+          optional = true;
+
+        if (type.replace(/^\?/, '').match(/^\!/))
+          exclusive = true;
+
+        if (exclusive && optional)
+          throw new Error('Invalid type.');
+
+        for (i in a)
+          if (_customTypes[a[i]])
+            if (
+              (typeof _customTypes[a[i]].type === 'function') ?
+                (_customTypes[a[i]].type.call(_self, obj) === true) :
+                !_scan(obj, _customTypes[a[i]].type)
+            ) {
+              if (exclusive) {
+                error = new Error();
+                error.message = 'Expected a "' + type + '" but found a ' +
+                                '"' + a[i] + '".';
+              error.expected = type;
+              error.type = a[i];
+              error.value = obj;
+                return error;
+              } else
+                return null;
+            }
+
+        if (obj === null || obj === undefined) {
+          if (!exclusive && !optional) {
+            error = new Error();
+            error.message = 'Expected a "' + type + '" but found a ' +
+                            '"' + typeOf + '".';
+            error.expected = type;
+            error.type = typeOf;
+            error.value = obj;
+            return error;
+          } else
+            return null;
+
+        } else {
+          hasStar = ~a.indexOf('*');
+          hasTypeOf = ~a.indexOf(typeOf);
+          if (exclusive && (hasStar || hasTypeOf)) {
+            error = new Error();
+            error.message = 'Expected a "' + type + '" but found a ' +
+                            '"' + (hasTypeOf ? typeOf : '*') + '".';
+            error.type = hasTypeOf ? typeOf : '*';
+            error.expected = type;
+            error.value = obj;
+            return error;
+
+          } else if (!exclusive && !(hasStar || hasTypeOf)) {
+            error = new Error();
+            error.message = 'Expected a "' + type + '" but found a ' +
+                            '"' + typeOf + '".';
+            error.expected = type;
+            error.type = typeOf;
+            error.value = obj;
+            return error;
+
+          } else
+            return null;
+        }
+
+      } else if (_self.get(type) === 'object') {
+        if (typeOf !== 'object') {
+          error = new Error();
+          error.message = 'Expected an object but found a "' + typeOf + '".';
+          error.expected = type;
+          error.type = typeOf;
+          error.value = obj;
+          return error;
+        }
+
+        for (k in type)
+          if ((subError = _scan(obj[k], type[k]))) {
+            error = subError;
+            error.path = error.path ?
+              [k].concat(error.path) :
+              [k];
+            return error;
+          }
+
+        for (k in obj)
+          if (type[k] === undefined) {
+            error = new Error();
+            error.message = 'Unexpected key "' + k + '".';
+            error.type = typeOf;
+            error.value = obj;
+            return error;
+          }
+
+        return null;
+
+      } else if (_self.get(type) === 'array') {
+        if (type.length !== 1)
+          throw new Error('Invalid type.');
+
+        if (typeOf !== 'array') {
+          error = new Error();
+          error.message = 'Expected an array but found a "' + typeOf + '".';
+          error.expected = type;
+          error.type = typeOf;
+          error.value = obj;
+          return error;
+        }
+
+        l = obj.length;
+        for (i = 0; i < l; i++)
+          if ((subError = _scan(obj[i], type[0]))) {
+            error = subError;
+            error.path = error.path ?
+              [i].concat(error.path) :
+              [i];
+            return error;
+          }
+
+        return null;
+      } else
+        throw new Error('Invalid type.');
+    }
+
+
+
+    /**
+     * INSTANCE METHODS:
+     * *****************
+     */
+
+    /**
+     * This method registers a custom type into the Typology instance. A type
+     * is registered under a unique name, and is described by an object (like
+     * classical C structures) or a function.
+     *
+     * Variant 1:
+     * **********
+     * > types.add('user', { id: 'string', name: '?string' });
+     *
+     * @param  {string}   id   The unique id of the type.
+     * @param  {object}   type The corresponding structure.
+     * @return {Typology}      Returns this.
+     *
+     * Variant 2:
+     * **********
+     * > types.add('integer', function(value) {
+     * >   return typeof value === 'number' && value === value | 0;
+     * > });
+     *
+     * @param  {string}   id   The unique id of the type.
+     * @param  {function} type The function validating the type.
+     * @return {Typology}      Returns this.
+     *
+     * Variant 3:
+     * **********
+     * > types.add({
+     * >   id: 'user',
+     * >   type: { id: 'string', name: '?string' }
+     * > });
+     *
+     * > types.add({
+     * >   id: 'integer',
+     * >   type: function(value) {
+     * >     return typeof value === 'number' && value === value | 0;
+     * >   }
+     * > });
+     *
+     * @param  {object}   specs An object describing fully the type.
+     * @return {Typology}       Returns this.
+     *
+     * Recognized parameters:
+     * **********************
+     * Here is the exhaustive list of every accepted parameters in the specs
+     * object:
+     *
+     *   {string}          id    The unique id of the type.
+     *   {function|object} type  The function or the structure object
+     *                           validating the type.
+     *   {?[string]}       proto Eventually an array of ids of types that are
+     *                           referenced in the structure but do not exist
+     *                           yet.
+     */
+    this.add = function(a1, a2) {
+      var o,
+          k,
+          a,
+          id,
+          tmp,
+          type;
+
+      // Polymorphism:
+      if (arguments.length === 1) {
+        if (this.get(a1) === 'object') {
+          o = a1;
+          id = o.id;
+          type = o.type;
+        } else
+          throw new Error('If types.add is called with one argument, ' +
+                          'this one has to be an object.');
+      } else if (arguments.length === 2) {
+        if (typeof a1 !== 'string' || !a1)
+          throw new Error('If types.add is called with more than one ' +
+                          'argument, the first one must be the string id.');
+        else
+          id = a1;
+
+        type = a2;
+      } else
+        throw new Error('types.add has to be called ' +
+                        'with one or two arguments.');
+
+      if (this.get(id) !== 'string' || id.length === 0)
+        throw new Error('A type requires an string id.');
+
+      if (_customTypes[id] !== undefined && _customTypes[id] !== 'proto')
+        throw new Error('The type "' + id + '" already exists.');
+
+      if (~__nativeTypes.indexOf(id))
+        throw new Error('"' + id + '" is a reserved type name.');
+
+      _customTypes[id] = 1;
+
+      // Check given prototypes:
+      a = (o || {}).proto || [];
+      a = Array.isArray(a) ? a : [a];
+      tmp = {};
+      for (k in a)
+        if (_customTypes[a[k]] === undefined) {
+          _customTypes[a[k]] = 1;
+          tmp[a[k]] = 1;
+        }
+
+      if ((this.get(type) !== 'function') && !this.isValid(type))
+        throw new Error('A type requires a valid definition. ' +
+                        'This one can be a preexistant type or else ' +
+                        'a function testing given objects.');
+
+      // Effectively add the type:
+      _customTypes[id] = (o === undefined) ?
+        {
+          id: id,
+          type: type
+        } :
+        {};
+
+      if (o !== undefined)
+        for (k in o)
+          _customTypes[id][k] = o[k];
+
+      // Delete prototypes:
+      for (k in tmp)
+        if (k !== id)
+          delete _customTypes[k];
+
+      return this;
     };
-})();
 
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
+    /**
+     * This method returns true if a custom type is already registered in this
+     * instance under the given key.
+     *
+     * @param  {string}  key A type name.
+     * @return {boolean}     Returns true if the key is registered.
+     */
+    this.has = function(key) {
+      return !!_customTypes[key];
+    };
 
-function noop() {}
+    /**
+     * This method returns the native type of a given value.
+     *
+     * Examples:
+     * *********
+     * > types.get({ a: 1 }); // returns "object"
+     * > types.get('abcde');  // returns "string"
+     * > types.get(1234567);  // returns "number"
+     * > types.get([1, 2]);   // returns "array"
+     *
+     * @param  {*}      value Anything.
+     * @return {string}       Returns the native type of the value.
+     */
+    this.get = function(obj) {
+      return (obj === null || obj === undefined) ?
+        String(obj) :
+        __class2type[Object.prototype.toString.call(obj)] || 'object';
+    };
 
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
+    /**
+     * This method validates some value against a given type. If the flag throws
+     * has a truthy value, then the method will throw an error instead of
+     * returning false.
+     *
+     * To know more about the error thrown, you can read the documentation of
+     * the private method _scan.
+     *
+     * Examples:
+     * *********
+     * > types.check({ a: 1 }, 'object');                      // returns true
+     * > types.check({ a: 1 }, { a: 'string' });               // returns true
+     * > types.check({ a: 1 }, { a: 'string', b: '?number' }); // returns true
+     *
+     * > types.check({ a: 1 }, { a: 'string', b: 'number' }); // returns false
+     * > types.check({ a: 1 }, { a: 'number' });              // returns false
+     * > types.check({ a: 1 }, 'array');                      // returns false
+     *
+     * > types.check({ a: 1 }, 'array', true); // throws an Error
+     *
+     * @param  {*}        value  Anything.
+     * @param  {type}     type   A valid type.
+     * @param  {?boolean} throws If true, this method will throw an error
+     *                           instead of returning false.
+     * @return {boolean}         Returns true if the value matches the type, and
+     *                           not else.
+     */
+    this.check = function(obj, type, throws) {
+      var result = _scan(obj, type);
+      if (throws && result)
+        throw result;
+      else
+        return !result;
+    };
 
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
+    /**
+     * This method validates a type. If the type is not referenced or is not
+     * valid, it will return false.
+     *
+     * To know more about that function, don't hesitate to read the related
+     * unit tests.
+     *
+     * Examples:
+     * *********
+     * > types.isValid('string');        // returns true
+     * > types.isValid('?string');       // returns true
+     * > types.isValid('!string');       // returns true
+     * > types.isValid('string|number'); // returns true
+     * > types.isValid({ a: 'string' }); // returns true
+     * > types.isValid(['string']);      // returns true
+     *
+     * > types.isValid('!?string');                // returns false
+     * > types.isValid('myNotDefinedType');        // returns false
+     * > types.isValid(['myNotDefinedType']);      // returns false
+     * > types.isValid({ a: 'myNotDefinedType' }); // returns false
+     *
+     * > types.isValid('user');               // returns false
+     * > types.add('user', { id: 'string' }); // makes the type become valid
+     * > types.isValid('user');               // returns true
+     *
+     * @param  {*}       type The type to get checked.
+     * @return {boolean}      Returns true if the type is valid, and false else.
+     */
+    this.isValid = function(type) {
+      var a,
+          k,
+          i;
+
+      if (this.get(type) === 'string') {
+        a = type.replace(/^[\?\!]/, '').split(/\|/);
+        for (i in a)
+          if (__nativeTypes.indexOf(a[i]) < 0 && !(a[i] in _customTypes))
+            return false;
+        return true;
+
+      } else if (this.get(type) === 'object') {
+        for (k in type)
+          if (!this.isValid(type[k]))
+            return false;
+        return true;
+
+      } else if (this.get(type) === 'array')
+        return type.length === 1 ?
+          this.isValid(type[0]) :
+          false;
+      else
+        return false;
+    };
+
+
+
+    /**
+     * INSTANTIATION ROUTINE:
+     * **********************
+     */
+
+    // Add a type "type" to shortcut the #isValid method:
+    this.add('type', (function(v) {
+      return this.isValid(v);
+    }).bind(this));
+
+    // Add a type "primitive" to match every primitive types (including null):
+    this.add('primitive', function(v) {
+      return !v || !(v instanceof Object || typeof v === 'object');
+    });
+
+    // Adding custom types at instantiation:
+    defs = defs || {};
+    if (this.get(defs) !== 'object')
+      throw Error('Invalid argument.');
+
+    for (var k in defs)
+      this.add(k, defs[k]);
+  }
+
+
+
+  /**
+   * GLOBAL PUBLIC API:
+   * ******************
+   */
+
+  // Creating a "main" typology instance to export:
+  var types = Typology;
+  Typology.call(types);
+
+  // Version:
+  Object.defineProperty(types, 'version', {
+    value: '0.3.1'
+  });
+
+
+
+  /**
+   * EXPORT:
+   * *******
+   */
+  if (typeof exports !== 'undefined') {
+    if (typeof module !== 'undefined' && module.exports)
+      exports = module.exports = types;
+    exports.types = types;
+  } else if (typeof define === 'function' && define.amd)
+    define('typology', [], function() {
+      return types;
+    });
+  else
+    this.types = types;
+})(this);
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/baobab.js":[function(require,module,exports){
+/**
+ * Baobab Data Structure
+ * ======================
+ *
+ * A handy data tree with cursors.
+ */
+var Cursor = require('./cursor.js'),
+    EventEmitter = require('emmett'),
+    Typology = require('typology'),
+    helpers = require('./helpers.js'),
+    update = require('./update.js'),
+    merge = require('./merge.js'),
+    mixins = require('./mixins.js'),
+    defaults = require('../defaults.js'),
+    type = require('./type.js');
+
+function complexHash(type) {
+  return type + '$' +
+    (new Date()).getTime() + (''  + Math.random()).replace('0.', '');
+}
+
+/**
+ * Main Class
+ */
+function Baobab(initialData, opts) {
+  if (arguments.length < 1)
+    initialData = {};
+
+  // New keyword optional
+  if (!(this instanceof Baobab))
+    return new Baobab(initialData, opts);
+
+  if (!type.Object(initialData) && !type.Array(initialData))
+    throw Error('Baobab: invalid data.');
+
+  // Extending
+  EventEmitter.call(this);
+
+  // Merging defaults
+  this.options = helpers.shallowMerge(defaults, opts);
+  this._cloner = this.options.cloningFunction || helpers.deepClone;
+
+  // Privates
+  this._transaction = {};
+  this._future = undefined;
+  this._history = [];
+  this._cursors = {};
+
+  // Internal typology
+  this.typology = this.options.typology ?
+    (this.options.typology instanceof Typology ?
+      this.options.typology :
+      new Typology(this.options.typology)) :
+    new Typology();
+
+  // Internal validation
+  this.validate = this.options.validate || null;
+
+  if (this.validate)
+    try {
+      this.typology.check(initialData, this.validate, true);
+    }
+    catch (e) {
+      e.message = '/' + e.path.join('/') + ': ' + e.message;
+      throw e;
+    }
+
+  // Properties
+  this.data = this._cloner(initialData);
+
+  // Mixin
+  this.mixin = mixins.baobab(this);
+}
+
+helpers.inherits(Baobab, EventEmitter);
+
+/**
+ * Private prototype
+ */
+Baobab.prototype._archive = function() {
+  if (this.options.maxHistory <= 0)
+    return;
+
+  var record = {
+    data: this._cloner(this.data)
+  };
+
+  // Replacing
+  if (this._history.length === this.options.maxHistory) {
+    this._history.pop();
+  }
+  this._history.unshift(record);
+
+  return record;
 };
 
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
+/**
+ * Prototype
+ */
+Baobab.prototype.commit = function(referenceRecord) {
+  var self = this,
+      log;
+
+  if (referenceRecord) {
+
+    // Override
+    this.data = referenceRecord.data;
+    log = referenceRecord.log;
+  }
+  else {
+
+    // Shifting root reference
+    if (this.options.shiftReferences)
+      this.data = helpers.shallowClone(this.data);
+
+    // Applying modification (mutation)
+    var record = this._archive();
+    log = update(this.data, this._transaction, this.options);
+
+    if (record)
+      record.log = log;
+  }
+
+  if (this.validate) {
+    var errors = [],
+        l = log.length,
+        d,
+        i;
+
+    for (i = 0; i < l; i++) {
+      d = helpers.getIn(this.validate, log[i]);
+
+      if (!d)
+        continue;
+
+      try {
+        this.typology.check(this.get(log[i]), d, true);
+      }
+      catch (e) {
+        e.path = log[i].concat((e.path || []));
+        errors.push(e);
+      }
+    }
+
+    if (errors.length)
+      this.emit('invalid', {errors: errors});
+  }
+
+  // Baobab-level update event
+  this.emit('update', {
+    log: log
+  });
+
+  // Resetting
+  this._transaction = {};
+
+  if (this._future)
+    this._future = clearTimeout(this._future);
+
+  return this;
 };
 
-},{}],4:[function(require,module,exports){
+Baobab.prototype.select = function(path) {
+  if (arguments.length > 1)
+    path = helpers.arrayOf(arguments);
+
+  if (!type.Path(path))
+    throw Error('Baobab.select: invalid path.');
+
+  // Casting to array
+  path = !type.Array(path) ? [path] : path;
+
+  // Complex path?
+  var complex = type.ComplexPath(path);
+
+  var solvedPath;
+
+  if (complex)
+    solvedPath = helpers.solvePath(this.data, path);
+
+  // Registering a new cursor or giving the already existing one for path
+  if (!this.options.cursorSingletons) {
+    return new Cursor(this, path);
+  }
+  else {
+    var hash = path.map(function(step) {
+      if (type.Function(step))
+        return complexHash('fn');
+      else if (type.Object(step))
+        return complexHash('ob');
+      else
+        return step;
+    }).join('λ');
+
+    if (!this._cursors[hash]) {
+      var cursor = new Cursor(this, path, solvedPath, hash);
+      this._cursors[hash] = cursor;
+      return cursor;
+    }
+    else {
+      return this._cursors[hash];
+    }
+  }
+};
+
+Baobab.prototype.reference = function(path) {
+  var data;
+
+  if (arguments.length > 1)
+    path = helpers.arrayOf(arguments);
+
+  if (!type.Path(path))
+    throw Error('Baobab.get: invalid path.');
+
+  return helpers.getIn(
+    this.data, type.String(path) || type.Number(path) ? [path] : path
+  );
+};
+
+Baobab.prototype.get = function() {
+  var ref = this.reference.apply(this, arguments);
+
+  return this.options.clone ? this._cloner(ref) : ref;
+};
+
+Baobab.prototype.clone = function(path) {
+  return this._cloner(this.reference.apply(this, arguments));
+};
+
+Baobab.prototype.set = function(key, val) {
+
+  if (arguments.length < 2)
+    throw Error('Baobab.set: expects a key and a value.');
+
+  var spec = {};
+  spec[key] = {$set: val};
+
+  return this.update(spec);
+};
+
+Baobab.prototype.unset = function(key) {
+  if (!key && key !== 0)
+    throw Error('Baobab.unset: expects a valid key to unset.');
+
+  var spec = {};
+  spec[key] = {$unset: true};
+
+  return this.update(spec);
+};
+
+Baobab.prototype.update = function(spec) {
+  var self = this;
+
+  if (!type.Object(spec))
+    throw Error('Baobab.update: wrong specification.');
+
+  this._transaction = merge(spec, this._transaction);
+
+  // Should we let the user commit?
+  if (!this.options.autoCommit)
+    return this;
+
+  // Should we update synchronously?
+  if (!this.options.asynchronous)
+    return this.commit();
+
+  // Updating asynchronously
+  if (!this._future)
+    this._future = setTimeout(self.commit.bind(self, null), 0);
+
+  return this;
+};
+
+Baobab.prototype.hasHistory = function() {
+  return !!this._history.length;
+};
+
+Baobab.prototype.getHistory = function() {
+  return this._history;
+};
+
+Baobab.prototype.undo = function() {
+  if (!this.hasHistory())
+    throw Error('Baobab.undo: no history recorded, cannot undo.');
+
+  var lastRecord = this._history.shift();
+  this.commit(lastRecord);
+};
+
+Baobab.prototype.release = function() {
+  this.kill();
+  delete this.data;
+  delete this._transaction;
+  delete this._history;
+
+  // Releasing cursors
+  for (var k in this._cursors)
+    this._cursors[k].release();
+  delete this._cursors;
+};
+
+/**
+ * Output
+ */
+Baobab.prototype.toJSON = function() {
+  return this.reference();
+};
+
+/**
+ * Export
+ */
+module.exports = Baobab;
+
+},{"../defaults.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/defaults.js","./cursor.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/cursor.js","./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./merge.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/merge.js","./mixins.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/mixins.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js","./update.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/update.js","emmett":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js","typology":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/typology/typology.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/combination.js":[function(require,module,exports){
+/**
+ * Baobab Cursor Combination
+ * ==========================
+ *
+ * A useful abstraction dealing with cursor's update logical combinations.
+ */
+var EventEmitter = require('emmett'),
+    helpers = require('./helpers.js'),
+    type = require('./type.js');
+
+/**
+ * Utilities
+ */
+function bindCursor(c, cursor) {
+  cursor.on('update', c.cursorListener);
+}
+
+/**
+ * Main Class
+ */
+function Combination(operator /*, &cursors */) {
+  var self = this;
+
+  // Safeguard
+  if (arguments.length < 2)
+    throw Error('baobab.Combination: not enough arguments.');
+
+  var first = arguments[1],
+      rest = helpers.arrayOf(arguments).slice(2);
+
+  if (first instanceof Array) {
+    rest = first.slice(1);
+    first = first[0];
+  }
+
+  if (!type.Cursor(first))
+    throw Error('baobab.Combination: argument should be a cursor.');
+
+  if (operator !== 'or' && operator !== 'and')
+    throw Error('baobab.Combination: invalid operator.');
+
+  // Extending event emitter
+  EventEmitter.call(this);
+
+  // Properties
+  this.cursors = [first];
+  this.operators = [];
+  this.root = first.root;
+
+  // State
+  this.updates = new Array(this.cursors.length);
+
+  // Listeners
+  this.cursorListener = function() {
+    self.updates[self.cursors.indexOf(this)] = true;
+  };
+
+  this.treeListener = function() {
+    var shouldFire = self.updates[0],
+        i,
+        l;
+
+    for (i = 1, l = self.cursors.length; i < l; i++) {
+      shouldFire = self.operators[i - 1] === 'or' ?
+        shouldFire || self.updates[i] :
+        shouldFire && self.updates[i];
+    }
+
+    if (shouldFire)
+      self.emit('update');
+
+    // Waiting for next update
+    self.updates = new Array(self.cursors.length);
+  };
+
+  // Initial bindings
+  this.root.on('update', this.treeListener);
+  bindCursor(this, first);
+
+  // Attaching any other passed cursors
+  rest.forEach(function(cursor) {
+    this[operator](cursor);
+  }, this);
+}
+
+helpers.inherits(Combination, EventEmitter);
+
+/**
+ * Prototype
+ */
+function makeOperator(operator) {
+  Combination.prototype[operator] = function(cursor) {
+
+    // Safeguard
+    if (!type.Cursor(cursor))
+      throw Error('baobab.Combination.' + operator + ': argument should be a cursor.');
+
+    if (~this.cursors.indexOf(cursor))
+      throw Error('baobab.Combination.' + operator + ': cursor already in combination.');
+
+    this.cursors.push(cursor);
+    this.operators.push(operator);
+    this.updates.length++;
+    bindCursor(this, cursor);
+
+    return this;
+  };
+}
+
+makeOperator('or');
+makeOperator('and');
+
+Combination.prototype.release = function() {
+
+  // Dropping own listeners
+  this.kill();
+
+  // Dropping cursors listeners
+  this.cursors.forEach(function(cursor) {
+    cursor.off('update', this.cursorListener);
+  }, this);
+
+  // Dropping tree listener
+  this.root.off('update', this.treeListener);
+
+  // Cleaning
+  this.cursors = null;
+  this.operators = null;
+  this.root = null;
+  this.updates = null;
+};
+
+/**
+ * Exporting
+ */
+module.exports = Combination;
+
+},{"./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js","emmett":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/cursor.js":[function(require,module,exports){
+/**
+ * Baobab Cursor Abstraction
+ * ==========================
+ *
+ * Nested selection into a baobab tree.
+ */
+var EventEmitter = require('emmett'),
+    Combination = require('./combination.js'),
+    mixins = require('./mixins.js'),
+    helpers = require('./helpers.js'),
+    type = require('./type.js');
+
+/**
+ * Main Class
+ */
+function Cursor(root, path, solvedPath, hash) {
+  var self = this;
+
+  // Extending event emitter
+  EventEmitter.call(this);
+
+  // Enforcing array
+  path = path || [];
+
+  // Properties
+  this.root = root;
+  this.path = path;
+  this.hash = hash;
+  this.relevant = this.reference() !== undefined;
+
+  // Complex path?
+  this.complexPath = !!solvedPath;
+  this.solvedPath = this.complexPath ? solvedPath : this.path;
+
+  // Root listeners
+  this.updateHandler = function(e) {
+    var log = e.data.log,
+        shouldFire = false,
+        c, p, l, m, i, j;
+
+    // Solving path if needed
+    if (self.complexPath)
+      self.solvedPath = helpers.solvePath(self.root.data, self.path);
+
+    // If no handlers are attached, we stop
+    if (!this._handlers.update.length && !this._handlersAll.length)
+      return;
+
+    // If selector listens at root, we fire
+    if (!self.path.length)
+      return self.emit('update');
+
+    // Checking update log to see whether the cursor should update.
+    root:
+    for (i = 0, l = log.length; i < l; i++) {
+      c = log[i];
+
+      for (j = 0, m = c.length; j < m; j++) {
+        p = c[j];
+
+        // If path is not relevant to us, we break
+        if (p !== '' + self.solvedPath[j])
+          break;
+
+        // If we reached last item and we are relevant, we fire
+        if (j + 1 === m || j + 1 === self.solvedPath.length) {
+          shouldFire = true;
+          break root;
+        }
+      }
+    }
+
+    // Handling relevancy
+    var data = self.reference() !== undefined;
+
+    if (self.relevant) {
+      if (data && shouldFire) {
+        self.emit('update');
+      }
+      else if (!data) {
+        self.emit('irrelevant');
+        self.relevant = false;
+      }
+    }
+    else {
+      if (data && shouldFire) {
+        self.emit('relevant');
+        self.emit('update');
+        self.relevant = true;
+      }
+    }
+  };
+
+  // Listening
+  this.root.on('update', this.updateHandler);
+
+  // Making mixin
+  this.mixin = mixins.cursor(this);
+}
+
+helpers.inherits(Cursor, EventEmitter);
+
+/**
+ * Predicates
+ */
+Cursor.prototype.isRoot = function() {
+  return !this.path.length;
+};
+
+Cursor.prototype.isLeaf = function() {
+  return type.Primitive(this.reference());
+};
+
+Cursor.prototype.isBranch = function() {
+  return !this.isLeaf() && !this.isRoot();
+};
+
+/**
+ * Traversal
+ */
+Cursor.prototype.select = function(path) {
+  if (arguments.length > 1)
+    path = helpers.arrayOf(arguments);
+
+  if (!type.Path(path))
+    throw Error('baobab.Cursor.select: invalid path.');
+  return this.root.select(this.path.concat(path));
+};
+
+Cursor.prototype.up = function() {
+  if (this.solvedPath && this.solvedPath.length)
+    return this.root.select(this.path.slice(0, -1));
+  else
+    return null;
+};
+
+Cursor.prototype.left = function() {
+  var last = +this.solvedPath[this.solvedPath.length - 1];
+
+  if (isNaN(last))
+    throw Error('baobab.Cursor.left: cannot go left on a non-list type.');
+
+  return last ?
+    this.root.select(this.solvedPath.slice(0, -1).concat(last - 1)) :
+    null;
+};
+
+Cursor.prototype.leftmost = function() {
+  var last = +this.solvedPath[this.solvedPath.length - 1];
+
+  if (isNaN(last))
+    throw Error('baobab.Cursor.leftmost: cannot go left on a non-list type.');
+
+  return this.root.select(this.solvedPath.slice(0, -1).concat(0));
+};
+
+Cursor.prototype.right = function() {
+  var last = +this.solvedPath[this.solvedPath.length - 1];
+
+  if (isNaN(last))
+    throw Error('baobab.Cursor.right: cannot go right on a non-list type.');
+
+  if (last + 1 === this.up().reference().length)
+    return null;
+
+  return this.root.select(this.solvedPath.slice(0, -1).concat(last + 1));
+};
+
+Cursor.prototype.rightmost = function() {
+  var last = +this.solvedPath[this.solvedPath.length - 1];
+
+  if (isNaN(last))
+    throw Error('baobab.Cursor.right: cannot go right on a non-list type.');
+
+  var list = this.up().reference();
+
+  return this.root.select(this.solvedPath.slice(0, -1).concat(list.length - 1));
+};
+
+Cursor.prototype.down = function() {
+  var last = +this.solvedPath[this.solvedPath.length - 1];
+
+  if (!(this.reference() instanceof Array))
+    return null;
+
+  return this.root.select(this.solvedPath.concat(0));
+};
+
+/**
+ * Access
+ */
+Cursor.prototype.get = function(path) {
+  if (arguments.length > 1)
+    path = helpers.arrayOf(arguments);
+
+  if (type.Step(path))
+    return this.root.get(this.solvedPath.concat(path));
+  else
+    return this.root.get(this.solvedPath);
+};
+
+Cursor.prototype.reference = function(path) {
+  if (arguments.length > 1)
+    path = helpers.arrayOf(arguments);
+
+  if (type.Step(path))
+    return this.root.reference(this.solvedPath.concat(path));
+  else
+    return this.root.reference(this.solvedPath);
+};
+
+Cursor.prototype.clone = function(path) {
+  if (arguments.length > 1)
+    path = helpers.arrayOf(arguments);
+
+  if (type.Step(path))
+    return this.root.clone(this.solvedPath.concat(path));
+  else
+    return this.root.clone(this.solvedPath);
+};
+
+/**
+ * Update
+ */
+Cursor.prototype.set = function(key, value) {
+  if (arguments.length < 2)
+    throw Error('baobab.Cursor.set: expecting at least key/value.');
+
+  var spec = {};
+  spec[key] = {$set: value};
+  return this.update(spec);
+};
+
+Cursor.prototype.edit = function(value) {
+  return this.update({$set: value});
+};
+
+Cursor.prototype.unset = function(key) {
+  if (!key && key !== 0)
+    throw Error('baobab.Cursor.unset: expects a valid key to unset.');
+
+  var spec = {};
+  spec[key] = {$unset: true};
+  return this.update(spec);
+};
+
+Cursor.prototype.remove = function() {
+  return this.update({$unset: true});
+};
+
+Cursor.prototype.apply = function(fn) {
+  if (typeof fn !== 'function')
+    throw Error('baobab.Cursor.apply: argument is not a function.');
+
+  return this.update({$apply: fn});
+};
+
+// TODO: maybe composing should be done here rather than in the merge
+Cursor.prototype.thread = function(fn) {
+  if (typeof fn !== 'function')
+    throw Error('baobab.Cursor.thread: argument is not a function.');
+
+  return this.update({$thread: fn});
+};
+
+// TODO: consider dropping the ahead testing
+Cursor.prototype.push = function(value) {
+  if (!(this.reference() instanceof Array))
+    throw Error('baobab.Cursor.push: trying to push to non-array value.');
+
+  if (arguments.length > 1)
+    return this.update({$push: helpers.arrayOf(arguments)});
+  else
+    return this.update({$push: value});
+};
+
+Cursor.prototype.unshift = function(value) {
+  if (!(this.reference() instanceof Array))
+    throw Error('baobab.Cursor.push: trying to push to non-array value.');
+
+  if (arguments.length > 1)
+    return this.update({$unshift: helpers.arrayOf(arguments)});
+  else
+    return this.update({$unshift: value});
+};
+
+Cursor.prototype.merge = function(o) {
+  if (!type.Object(o))
+    throw Error('baobab.Cursor.merge: trying to merge a non-object.');
+
+  if (!type.Object(this.reference()))
+    throw Error('baobab.Cursor.merge: trying to merge into a non-object.');
+
+  this.update({$merge: o});
+};
+
+Cursor.prototype.update = function(spec) {
+  this.root.update(helpers.pathObject(this.solvedPath, spec));
+  return this;
+};
+
+/**
+ * Combination
+ */
+Cursor.prototype.or = function(otherCursor) {
+  return new Combination('or', this, otherCursor);
+};
+
+Cursor.prototype.and = function(otherCursor) {
+  return new Combination('and', this, otherCursor);
+};
+
+/**
+ * Releasing
+ */
+Cursor.prototype.release = function() {
+  this.root.off('update', this.updateHandler);
+  if (this.hash)
+    delete this.root._cursors[this.hash];
+  this.root = null;
+  this.kill();
+};
+
+/**
+ * Output
+ */
+Cursor.prototype.toJSON = function() {
+  return this.reference();
+};
+
+type.Cursor = function (value) {
+  return value instanceof Cursor;
+};
+
+/**
+ * Export
+ */
+module.exports = Cursor;
+
+},{"./combination.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/combination.js","./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./mixins.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/mixins.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js","emmett":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js":[function(require,module,exports){
+/**
+ * Baobab Helpers
+ * ===============
+ *
+ * Miscellaneous helper functions.
+ */
+var type = require('./type.js');
+
+// Make a real array of an array-like object
+function arrayOf(o) {
+  return Array.prototype.slice.call(o);
+}
+
+// Shallow merge
+function shallowMerge(o1, o2) {
+  var o = {},
+      k;
+
+  for (k in o1) o[k] = o1[k];
+  for (k in o2) o[k] = o2[k];
+
+  return o;
+}
+
+// Clone a regexp
+function cloneRegexp(re) {
+  var pattern = re.source,
+      flags = '';
+
+  if (re.global) flags += 'g';
+  if (re.multiline) flags += 'm';
+  if (re.ignoreCase) flags += 'i';
+  if (re.sticky) flags += 'y';
+  if (re.unicode) flags += 'u';
+
+  return new RegExp(pattern, flags);
+}
+
+// Cloning function
+function clone(deep, item) {
+  if (!item ||
+      typeof item !== 'object' ||
+      item instanceof Error ||
+      item instanceof ArrayBuffer)
+    return item;
+
+  // Array
+  if (type.Array(item)) {
+    if (deep) {
+      var i, l, a = [];
+      for (i = 0, l = item.length; i < l; i++)
+        a.push(deepClone(item[i]));
+      return a;
+    }
+    else {
+      return item.slice(0);
+    }
+  }
+
+  // Date
+  if (type.Date(item))
+    return new Date(item.getTime());
+
+  // RegExp
+  if (item instanceof RegExp)
+    return cloneRegexp(item);
+
+  // Object
+  if (type.Object(item)) {
+    var k, o = {};
+
+    if (item.constructor && item.constructor !== Object)
+      o = Object.create(item.constructor.prototype);
+
+    for (k in item)
+      if (item.hasOwnProperty(k))
+        o[k] = deep ? deepClone(item[k]) : item[k];
+    return o;
+  }
+
+  return item;
+}
+
+// Shallow & deep cloning functions
+var shallowClone = clone.bind(null, false),
+    deepClone = clone.bind(null, true);
+
+// Simplistic composition
+function compose(fn1, fn2) {
+  return function(arg) {
+    return fn2(fn1(arg));
+  };
+}
+
+// Get first item matching predicate in list
+function first(a, fn) {
+  var i, l;
+  for (i = 0, l = a.length; i < l; i++) {
+    if (fn(a[i]))
+      return a[i];
+  }
+  return;
+}
+
+function index(a, fn) {
+  var i, l;
+  for (i = 0, l = a.length; i < l; i++) {
+    if (fn(a[i]))
+      return i;
+  }
+  return -1;
+}
+
+// Compare object to spec
+function compare(object, spec) {
+  var ok = true,
+      k;
+
+  for (k in spec) {
+    if (type.Object(spec[k])) {
+      ok = ok && compare(object[k]);
+    }
+    else if (type.Array(spec[k])) {
+      ok = ok && !!~spec[k].indexOf(object[k]);
+    }
+    else {
+      if (object[k] !== spec[k])
+        return false;
+    }
+  }
+
+  return ok;
+}
+
+function firstByComparison(object, spec) {
+  return first(object, function(e) {
+    return compare(e, spec);
+  });
+}
+
+function indexByComparison(object, spec) {
+  return index(object, function(e) {
+    return compare(e, spec);
+  });
+}
+
+// Retrieve nested objects
+function getIn(object, path) {
+  path = path || [];
+
+  var c = object,
+      i,
+      l;
+
+  for (i = 0, l = path.length; i < l; i++) {
+    if (!c)
+      return;
+
+    if (typeof path[i] === 'function') {
+      if (!type.Array(c))
+        return;
+
+      c = first(c, path[i]);
+    }
+    else if (typeof path[i] === 'object') {
+      if (!type.Array(c))
+        return;
+
+      c = firstByComparison(c, path[i]);
+    }
+    else {
+      c = c[path[i]];
+    }
+  }
+
+  return c;
+}
+
+// Solve a complex path
+function solvePath(object, path) {
+  var solvedPath = [],
+      c = object,
+      idx,
+      i,
+      l;
+
+  for (i = 0, l = path.length; i < l; i++) {
+    if (!c)
+      return null;
+
+    if (typeof path[i] === 'function') {
+      if (!type.Array(c))
+        return;
+
+      idx = index(c, path[i]);
+      solvedPath.push(idx);
+      c = c[idx];
+    }
+    else if (typeof path[i] === 'object') {
+      if (!type.Array(c))
+        return;
+
+      idx = indexByComparison(c, path[i]);
+      solvedPath.push(idx);
+      c = c[idx];
+    }
+    else {
+      solvedPath.push(path[i]);
+      c = c[path[i]];
+    }
+  }
+
+  return solvedPath;
+}
+
+// Return a fake object relative to the given path
+function pathObject(path, spec) {
+  var l = path.length,
+      o = {},
+      c = o,
+      i;
+
+  if (!l)
+    o = spec;
+
+  for (i = 0; i < l; i++) {
+    c[path[i]] = (i + 1 === l) ? spec : {};
+    c = c[path[i]];
+  }
+
+  return o;
+}
+
+function inherits(ctor, superCtor) {
+  ctor.super_ = superCtor;
+  var TempCtor = function () {};
+  TempCtor.prototype = superCtor.prototype;
+  ctor.prototype = new TempCtor();
+  ctor.prototype.constructor = ctor;
+}
+
+module.exports = {
+  arrayOf: arrayOf,
+  deepClone: deepClone,
+  shallowClone: shallowClone,
+  shallowMerge: shallowMerge,
+  compose: compose,
+  getIn: getIn,
+  inherits: inherits,
+  pathObject: pathObject,
+  solvePath: solvePath
+};
+
+},{"./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/merge.js":[function(require,module,exports){
+/**
+ * Baobab Merge
+ * =============
+ *
+ * A function used to merge updates in the stack.
+ */
+var helpers = require('./helpers.js'),
+    type = require('./type.js');
+
+// Helpers
+function hasKey(o, key) {
+  return key in (o || {});
+}
+
+function conflict(a, b, key) {
+  return hasKey(a, key) && hasKey(b, key);
+}
+
+// Main function
+function merge() {
+  var res = {},
+      current,
+      next,
+      l = arguments.length,
+      i,
+      k;
+
+  for (i = l - 1; i >= 0; i--) {
+
+    // Upper $set/$apply... and conflicts
+    // When solving conflicts, here is the priority to apply:
+    // -- 0) $unset
+    // -- 1) $set
+    // -- 2) $merge
+    // -- 3) $apply
+    // -- 4) $chain
+    if (arguments[i].$unset) {
+      delete res.$set;
+      delete res.$apply;
+      delete res.$merge;
+      res.$unset = arguments[i].$unset;
+    }
+    else if (arguments[i].$set) {
+      delete res.$apply;
+      delete res.$merge;
+      delete res.$unset;
+      res.$set = arguments[i].$set;
+      continue;
+    }
+    else if (arguments[i].$merge) {
+      delete res.$set;
+      delete res.$apply;
+      delete res.$unset;
+      res.$merge = arguments[i].$merge;
+      continue;
+    }
+    else if (arguments[i].$apply){
+      delete res.$set;
+      delete res.$merge;
+      delete res.$unset;
+      res.$apply = arguments[i].$apply;
+      continue;
+    }
+    else if (arguments[i].$chain) {
+      delete res.$set;
+      delete res.$merge;
+      delete res.$unset;
+
+      if (res.$apply)
+        res.$apply = helpers.compose(res.$apply, arguments[i].$chain);
+      else
+        res.$apply = arguments[i].$chain;
+      continue;
+    }
+
+    for (k in arguments[i]) {
+      current = res[k];
+      next = arguments[i][k];
+
+      if (current && type.Object(next)) {
+
+        // $push conflict
+        if (conflict(current, next, '$push')) {
+          if (type.Array(current.$push))
+            current.$push = current.$push.concat(next.$push);
+          else
+            current.$push = [current.$push].concat(next.$push);
+        }
+
+        // $unshift conflict
+        else if (conflict(current, next, '$unshift')) {
+          if (type.Array(next.$unshift))
+            current.$unshift = next.$unshift.concat(current.$unshift);
+          else
+            current.$unshift = [next.$unshift].concat(current.$unshift);
+        }
+
+        // No conflict
+        else {
+          res[k] = merge(next, current);
+        }
+      }
+      else {
+        res[k] = next;
+      }
+    }
+  }
+
+  return res;
+}
+
+module.exports = merge;
+
+},{"./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/mixins.js":[function(require,module,exports){
+/**
+ * Baobab React Mixins
+ * ====================
+ *
+ * Compilation of react mixins designed to deal with cursors integration.
+ */
+var Combination = require('./combination.js'),
+    type = require('./type.js');
+
+module.exports = {
+  baobab: function(baobab) {
+    return {
+
+      // Run Baobab mixin first to allow mixins to access cursors
+      mixins: [{
+        getInitialState: function() {
+
+          // Binding baobab to instance
+          this.tree = baobab;
+
+          // Is there any cursors to create?
+          if (!this.cursor && !this.cursors)
+            return {};
+
+          // Is there conflicting definitions?
+          if (this.cursor && this.cursors)
+            throw Error('baobab.mixin: you cannot have both ' +
+                        '`component.cursor` and `component.cursors`. Please ' +
+                        'make up your mind.');
+
+          // Type
+          this.__type = null;
+
+          // Making update handler
+          this.__updateHandler = (function() {
+            this.setState(this.__getCursorData());
+          }).bind(this);
+
+          if (this.cursor) {
+            if (!type.MixinCursor(this.cursor))
+              throw Error('baobab.mixin.cursor: invalid data (cursor, string or array).');
+
+            if (!type.Cursor(this.cursor))
+              this.cursor = baobab.select(this.cursor);
+
+            this.__getCursorData = (function() {
+              return {cursor: this.cursor.get()};
+            }).bind(this);
+            this.__type = 'single';
+          }
+          else if (this.cursors) {
+            if (['object', 'array'].indexOf(type(this.cursors)) === -1)
+              throw Error('baobab.mixin.cursor: invalid data (object or array).');
+
+            if (type.Array(this.cursors)) {
+              this.cursors = this.cursors.map(function(path) {
+                return type.Cursor(path) ? path : baobab.select(path);
+              });
+
+              this.__getCursorData = (function() {
+                return {cursors: this.cursors.map(function(cursor) {
+                  return cursor.get();
+                })};
+              }).bind(this);
+              this.__type = 'array';
+            }
+            else {
+              for (var k in this.cursors) {
+                if (!type.Cursor(this.cursors[k]))
+                  this.cursors[k] = baobab.select(this.cursors[k]);
+              }
+
+              this.__getCursorData = (function() {
+                var d = {};
+                for (k in this.cursors)
+                  d[k] = this.cursors[k].get();
+                return {cursors: d};
+              }).bind(this);
+              this.__type = 'object';
+            }
+          }
+
+          return this.__getCursorData();
+        },
+        componentDidMount: function() {
+          if (this.__type === 'single') {
+            this.__combination = new Combination('or', [this.cursor]);
+            this.__combination.on('update', this.__updateHandler);
+          }
+          else if (this.__type === 'array') {
+            this.__combination = new Combination('or', this.cursors);
+            this.__combination.on('update', this.__updateHandler);
+          }
+          else if (this.__type === 'object') {
+            this.__combination = new Combination(
+              'or',
+              Object.keys(this.cursors).map(function(k) {
+                return this.cursors[k];
+              }, this)
+            );
+            this.__combination.on('update', this.__updateHandler);
+          }
+        },
+        componentWillUnmount: function() {
+          if (this.__combination)
+            this.__combination.release();
+        }
+      }].concat(baobab.options.mixins)
+    };
+  },
+  cursor: function(cursor) {
+    return {
+
+      // Run cursor mixin first to allow mixins to access cursors
+      mixins: [{
+        getInitialState: function() {
+
+          // Binding cursor to instance
+          this.cursor = cursor;
+
+          // Making update handler
+          this.__updateHandler = (function() {
+            this.setState({cursor: this.cursor.get()});
+          }).bind(this);
+
+          return {cursor: this.cursor.get()};
+        },
+        componentDidMount: function() {
+
+          // Listening to updates
+          this.cursor.on('update', this.__updateHandler);
+        },
+        componentWillUnmount: function() {
+
+          // Unbinding handler
+          this.cursor.off('update', this.__updateHandler);
+        }
+      }].concat(cursor.root.options.mixins)
+    };
+  }
+};
+
+},{"./combination.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/combination.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js":[function(require,module,exports){
+/**
+ * Baobab Type Checking
+ * =====================
+ *
+ * Misc helpers functions used throughout the library to perform some type
+ * tests at runtime.
+ *
+ * @christianalfoni
+ */
+
+// Not reusing methods as it will just be an extra
+// call on the stack
+var type = function (value) {
+  if (Array.isArray(value)) {
+    return 'array';
+  } else if (typeof value === 'object' && value !== null) {
+    return 'object';
+  } else if (typeof value === 'string') {
+    return 'string';
+  } else if (typeof value === 'number') {
+    return 'number';
+  } else if (typeof value === 'boolean') {
+    return 'boolean';
+  } else if (typeof value === 'function') {
+    return 'function';
+  } else if (value === null) {
+    return 'null';
+  } else if (value === undefined) {
+    return 'undefined';
+  } else if (value instanceof Date) {
+    return 'date';
+  } else {
+    return 'invalid';
+  }
+};
+
+type.Array = function (value) {
+  return Array.isArray(value);
+};
+
+type.Object = function (value) {
+  return !Array.isArray(value) && typeof value === 'object' && value !== null;
+};
+
+type.String = function (value) {
+  return typeof value === 'string';
+};
+
+type.Number = function (value) {
+  return typeof value === 'number';
+};
+
+type.Boolean = function (value) {
+  return typeof value === 'boolean';
+};
+
+type.Function = function (value) {
+  return typeof value === 'function';
+};
+
+type.Primitive = function (value) {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+};
+
+type.Date = function (value) {
+  return value instanceof Date;
+};
+
+type.Step = function (value) {
+  var valueType = type(value);
+  var notValid = ['null', 'undefined', 'invalid', 'date'];
+  return notValid.indexOf(valueType) === -1;
+};
+
+// Should undefined be allowed?
+type.Path = function (value) {
+  var types = ['object', 'string', 'number', 'function', 'undefined'];
+  if (type.Array(value)) {
+    for (var x = 0; x < value.length; x++) {
+      if (types.indexOf(type(value[x])) === -1) {
+        return false;
+      }
+    }
+  } else {
+    return types.indexOf(type(value)) >= 0;
+  }
+  return true;
+
+};
+
+// string|number|array|cursor
+type.MixinCursor = function (value) {
+  var allowedValues = ['string', 'number', 'array'];
+  return allowedValues.indexOf(type(value)) >= 0 || type.Cursor(value);
+};
+
+// Already know this is an array
+type.ComplexPath = function (value) {
+  var complexTypes = ['object', 'function'];
+  for (var x = 0; x < value.length; x++) {
+    if (complexTypes.indexOf(type(value[x])) >= 0) {
+      return true;
+    }
+  }
+  return false;
+};
+
+module.exports = type;
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/update.js":[function(require,module,exports){
+/**
+ * Baobab Update
+ * ==============
+ *
+ * A handy method to mutate an atom according to the given specification.
+ * Mostly inspired by http://facebook.github.io/react/docs/update.html
+ */
+var helpers = require('./helpers.js'),
+    type = require('./type.js');
+
+var COMMANDS = {};
+[
+  '$set',
+  '$push',
+  '$unshift',
+  '$apply',
+  '$merge'
+].forEach(function(c) {
+  COMMANDS[c] = true;
+});
+
+// Helpers
+function makeError(path, message) {
+  var e = new Error('baobab.update: ' + message + ' at path /' +
+                    path.toString());
+
+  e.path = path;
+  return e;
+}
+
+// Core function
+function update(target, spec, opts) {
+  opts = opts || {};
+  var log = {};
+
+  // Closure mutating the internal object
+  (function mutator(o, spec, path) {
+    path = path || [];
+
+    var hash = path.join('λ'),
+        fn,
+        h,
+        k,
+        v;
+
+    for (k in spec) {
+      if (COMMANDS[k]) {
+        v = spec[k];
+
+        // Logging update
+        log[hash] = true;
+
+        // Applying
+        switch (k) {
+          case '$push':
+            if (!type.Array(o))
+              throw makeError(path, 'using command $push to a non array');
+
+            if (!type.Array(v))
+              o.push(v);
+            else
+              o.push.apply(o, v);
+            break;
+          case '$unshift':
+            if (!type.Array(o))
+              throw makeError(path, 'using command $unshift to a non array');
+
+            if (!type.Array(v))
+              o.unshift(v);
+            else
+              o.unshift.apply(o, v);
+            break;
+        }
+      }
+      else {
+        h = hash ? hash + 'λ' + k : k;
+
+        if ('$unset' in (spec[k] || {})) {
+
+          // Logging update
+          log[h] = true;
+          delete o[k];
+        }
+        else if ('$set' in (spec[k] || {})) {
+          v = spec[k].$set;
+
+          // Logging update
+          log[h] = true;
+          o[k] = v;
+        }
+        else if ('$apply' in (spec[k] || {})) {
+          fn = spec[k].$apply;
+
+          if (typeof fn !== 'function')
+            throw makeError(path.concat(k), 'using command $apply with a non function');
+
+          // Logging update
+          log[h] = true;
+          o[k] = fn.call(null, o[k]);
+        }
+        else if ('$merge' in (spec[k] || {})) {
+          v = spec[k].$merge;
+
+          if (!type.Object(o[k]))
+            throw makeError(path.concat(k), 'using command $merge on a non-object');
+
+          // Logging update
+          log[h] = true;
+          o[k] = helpers.shallowMerge(o[k], v);
+        }
+        else if (opts.shiftReferences &&
+                 ('$push' in (spec[k] || {}) ||
+                  '$unshift' in (spec[k] || {}))) {
+          if ('$push' in (spec[k] || {})) {
+            v = spec[k].$push;
+
+            if (!type.Array(o[k]))
+              throw makeError(path.concat(k), 'using command $push to a non array');
+            o[k] = o[k].concat(v);
+          }
+          if ('$unshift' in (spec[k] || {})) {
+            v = spec[k].$unshift;
+
+            if (!type.Array(o[k]))
+              throw makeError(path.concat(k), 'using command $unshift to a non array');
+            o[k] = (v instanceof Array ? v : [v]).concat(o[k]);
+          }
+
+          // Logging update
+          log[h] = true;
+        }
+        else {
+
+          // If nested object does not exist, we create it
+          if (typeof o[k] === 'undefined')
+            o[k] = {};
+
+          // Shifting reference
+          if (opts.shiftReferences)
+            o[k] = helpers.shallowClone(o[k]);
+
+          // Recur
+          mutator(
+            o[k],
+            spec[k],
+            path.concat(k)
+          );
+        }
+      }
+    }
+  })(target, spec);
+
+  return Object.keys(log).map(function(hash) {
+    return hash.split('λ');
+  });
+}
+
+// Exporting
+module.exports = update;
+
+},{"./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/cuid/dist/browser-cuid.js":[function(require,module,exports){
 /**
  * cuid.js
  * Collision-resistant UID generator for browsers and node.
@@ -379,7 +3163,7 @@ process.chdir = function (dir) {
 
 }(this.applitude || this));
 
-},{}],5:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/current-week-number/index.js":[function(require,module,exports){
 /**
  * current-week-number <https://github.com/tunnckoCore/current-week-number>
  *
@@ -425,7 +3209,156 @@ module.exports = function currentWeekNumber(date) {
   return weekNumber;
 };
 
-},{}],6:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
+module.exports = function(obj) {
+    if (typeof obj === 'string') return camelCase(obj);
+    return walk(obj);
+};
+
+function walk (obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (isDate(obj) || isRegex(obj)) return obj;
+    if (isArray(obj)) return map(obj, walk);
+    return reduce(objectKeys(obj), function (acc, key) {
+        var camel = camelCase(key);
+        acc[camel] = walk(obj[key]);
+        return acc;
+    }, {});
+}
+
+function camelCase(str) {
+    return str.replace(/[_.-](\w|$)/g, function (_,x) {
+        return x.toUpperCase();
+    });
+}
+
+var isArray = Array.isArray || function (obj) {
+    return Object.prototype.toString.call(obj) === '[object Array]';
+};
+
+var isDate = function (obj) {
+    return Object.prototype.toString.call(obj) === '[object Date]';
+};
+
+var isRegex = function (obj) {
+    return Object.prototype.toString.call(obj) === '[object RegExp]';
+};
+
+var has = Object.prototype.hasOwnProperty;
+var objectKeys = Object.keys || function (obj) {
+    var keys = [];
+    for (var key in obj) {
+        if (has.call(obj, key)) keys.push(key);
+    }
+    return keys;
+};
+
+function map (xs, f) {
+    if (xs.map) return xs.map(f);
+    var res = [];
+    for (var i = 0; i < xs.length; i++) {
+        res.push(f(xs[i], i));
+    }
+    return res;
+}
+
+function reduce (xs, f, acc) {
+    if (xs.reduce) return xs.reduce(f, acc);
+    for (var i = 0; i < xs.length; i++) {
+        acc = f(acc, xs[i], i);
+    }
+    return acc;
+}
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
+var nargs = /\{([0-9a-zA-Z]+)\}/g
+var slice = Array.prototype.slice
+
+module.exports = template
+
+function template(string) {
+    var args
+
+    if (arguments.length === 2 && typeof arguments[1] === "object") {
+        args = arguments[1]
+    } else {
+        args = slice.call(arguments, 1)
+    }
+
+    if (!args || !args.hasOwnProperty) {
+        args = {}
+    }
+
+    return string.replace(nargs, function replaceArg(match, i, index) {
+        var result
+
+        if (string[index - 1] === "{" &&
+            string[index + match.length] === "}") {
+            return i
+        } else {
+            result = args.hasOwnProperty(i) ? args[i] : null
+            if (result === null || result === undefined) {
+                return ""
+            }
+
+            return result
+        }
+    })
+}
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/typed.js":[function(require,module,exports){
+'use strict';
+
+var camelize = require('camelize');
+var template = require('string-template');
+var extend = require('xtend/mutable');
+
+module.exports = TypedError;
+
+function TypedError(args) {
+    if (!args) {
+        throw new Error('args is required');
+    }
+    if (!args.type) {
+        throw new Error('args.type is required');
+    }
+
+    var message = args.message;
+
+    if (args.type && !args.name) {
+        var errorName = camelize(args.type) + 'Error';
+        args.name = errorName[0].toUpperCase() + errorName.substr(1);
+    }
+
+    extend(createError, args);
+    createError._name = args.name;
+
+    return createError;
+
+    function createError(opts) {
+        var result = new Error();
+
+        Object.defineProperty(result, 'type', {
+            value: result.type,
+            enumerable: true,
+            writable: true,
+            configurable: true
+        });
+
+        var options = extend({}, args, opts);
+
+        extend(result, options);
+        if (opts && opts.message) {
+            result.message = template(opts.message, options);
+        } else if (message) {
+            result.message = template(message, options);
+        }
+
+        return result;
+    }
+}
+
+},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/firebase/lib/firebase-web.js":[function(require,module,exports){
 /*! @license Firebase v2.0.6 - License: https://www.firebase.com/terms/terms-of-service.html */ (function() {var h,aa=this;function n(a){return void 0!==a}function ba(){}function ca(a){a.Qb=function(){return a.ef?a.ef:a.ef=new a}}
 function da(a){var b=typeof a;if("object"==b)if(a){if(a instanceof Array)return"array";if(a instanceof Object)return b;var c=Object.prototype.toString.call(a);if("[object Window]"==c)return"object";if("[object Array]"==c||"number"==typeof a.length&&"undefined"!=typeof a.splice&&"undefined"!=typeof a.propertyIsEnumerable&&!a.propertyIsEnumerable("splice"))return"array";if("[object Function]"==c||"undefined"!=typeof a.call&&"undefined"!=typeof a.propertyIsEnumerable&&!a.propertyIsEnumerable("call"))return"function"}else return"null";
 else if("function"==b&&"undefined"==typeof a.call)return"object";return b}function ea(a){return"array"==da(a)}function fa(a){var b=da(a);return"array"==b||"object"==b&&"number"==typeof a.length}function p(a){return"string"==typeof a}function ga(a){return"number"==typeof a}function ha(a){return"function"==da(a)}function ia(a){var b=typeof a;return"object"==b&&null!=a||"function"==b}function ja(a,b,c){return a.call.apply(a.bind,arguments)}
@@ -674,7 +3607,7 @@ O.prototype.Je=function(a,b){D("Firebase.resetPassword",2,2,arguments.length);cc
 function qb(a,b){x(!b||!0===a||!1===a,"Can't turn on custom loggers persistently.");!0===a?("undefined"!==typeof console&&("function"===typeof console.log?ob=q(console.log,console):"object"===typeof console.log&&(ob=function(a){console.log(a)})),b&&Ba.set("logging_enabled",!0)):a?ob=a:(ob=null,Ba.remove("logging_enabled"))}O.enableLogging=qb;O.ServerValue={TIMESTAMP:{".sv":"timestamp"}};O.SDK_VERSION="2.0.6";O.INTERNAL=Y;O.Context=Ah;O.TEST_ACCESS=$;})();
 module.exports = Firebase;
 
-},{}],7:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/index.js":[function(require,module,exports){
 'use strict';
 
 var SingleEvent = require('geval/single');
@@ -779,7 +3712,7 @@ function app(elem, observ, render, opts) {
     return observ(loop.update);
 }
 
-},{"dom-delegator":10,"geval/multiple":23,"geval/single":24,"main-loop":25,"observ":45,"observ-array":33,"observ-struct":40,"observ-varhash":42,"observ/computed":44,"observ/watch":46,"value-event/base-event":47,"value-event/change":48,"value-event/click":49,"value-event/event":50,"value-event/key":51,"value-event/submit":57,"value-event/value":58,"vdom-thunk":60,"virtual-dom/vdom/create-element":75,"virtual-dom/vdom/patch":78,"virtual-dom/virtual-hyperscript":83,"virtual-dom/virtual-hyperscript/svg":85,"virtual-dom/vtree/diff":96,"xtend":97}],8:[function(require,module,exports){
+},{"dom-delegator":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/index.js","geval/multiple":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/multiple.js","geval/single":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/single.js","main-loop":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/index.js","observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js","observ-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/index.js","observ-struct":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/index.js","observ-varhash":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/index.js","observ/computed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/computed.js","observ/watch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/watch.js","value-event/base-event":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","value-event/change":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/change.js","value-event/click":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/click.js","value-event/event":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/event.js","value-event/key":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/key.js","value-event/submit":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/submit.js","value-event/value":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/value.js","vdom-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/index.js","virtual-dom/vdom/create-element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/create-element.js","virtual-dom/vdom/patch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch.js","virtual-dom/virtual-hyperscript":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/index.js","virtual-dom/virtual-hyperscript/svg":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/svg.js","virtual-dom/vtree/diff":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vtree/diff.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/immutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/add-event.js":[function(require,module,exports){
 var DataSet = require("data-set")
 
 module.exports = addEvent
@@ -799,7 +3732,7 @@ function addEvent(target, type, handler) {
     }
 }
 
-},{"data-set":12}],9:[function(require,module,exports){
+},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/dom-delegator.js":[function(require,module,exports){
 var globalDocument = require("global/document")
 var DataSet = require("data-set")
 var createStore = require("weakmap-shim/create-store")
@@ -988,7 +3921,7 @@ function Handle() {
     this.type = "dom-delegator-handle"
 }
 
-},{"./add-event.js":8,"./proxy-event.js":20,"./remove-event.js":21,"data-set":12,"global/document":15,"weakmap-shim/create-store":18}],10:[function(require,module,exports){
+},{"./add-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/add-event.js","./proxy-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/proxy-event.js","./remove-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/remove-event.js","data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/index.js":[function(require,module,exports){
 var Individual = require("individual")
 var cuid = require("cuid")
 var globalDocument = require("global/document")
@@ -1050,7 +3983,7 @@ function Delegator(opts) {
 Delegator.allocateHandle = DOMDelegator.allocateHandle;
 Delegator.transformHandle = DOMDelegator.transformHandle;
 
-},{"./dom-delegator.js":9,"cuid":4,"global/document":15,"individual":16}],11:[function(require,module,exports){
+},{"./dom-delegator.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/dom-delegator.js","cuid":"/home/fiatjaf/comp/alquimiaorganica/node_modules/cuid/dist/browser-cuid.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js":[function(require,module,exports){
 module.exports = createHash
 
 function createHash(elem) {
@@ -1074,7 +4007,7 @@ function createHash(elem) {
     return hash
 }
 
-},{}],12:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js":[function(require,module,exports){
 var createStore = require("weakmap-shim/create-store")
 var Individual = require("individual")
 
@@ -1094,7 +4027,7 @@ function DataSet(elem) {
     return store.hash
 }
 
-},{"./create-hash.js":11,"individual":16,"weakmap-shim/create-store":13}],13:[function(require,module,exports){
+},{"./create-hash.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
 var hiddenStore = require('./hidden-store.js');
 
 module.exports = createStore;
@@ -1113,7 +4046,7 @@ function createStore() {
     };
 }
 
-},{"./hidden-store.js":14}],14:[function(require,module,exports){
+},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
 module.exports = hiddenStore;
 
 function hiddenStore(obj, key) {
@@ -1131,7 +4064,7 @@ function hiddenStore(obj, key) {
     return store;
 }
 
-},{}],15:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js":[function(require,module,exports){
 (function (global){
 var topLevel = typeof global !== 'undefined' ? global :
     typeof window !== 'undefined' ? window : {}
@@ -1150,7 +4083,7 @@ if (typeof document !== 'undefined') {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"min-document":2}],16:[function(require,module,exports){
+},{"min-document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js":[function(require,module,exports){
 (function (global){
 var root = typeof window !== 'undefined' ?
     window : typeof global !== 'undefined' ?
@@ -1172,7 +4105,7 @@ function Individual(key, value) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],17:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1197,7 +4130,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],18:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
 var hiddenStore = require('./hidden-store.js');
 
 module.exports = createStore;
@@ -1218,9 +4151,9 @@ function createStore() {
     };
 }
 
-},{"./hidden-store.js":19}],19:[function(require,module,exports){
-module.exports=require(14)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":14}],20:[function(require,module,exports){
+},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/proxy-event.js":[function(require,module,exports){
 var inherits = require("inherits")
 
 var ALL_PROPS = [
@@ -1300,7 +4233,7 @@ function KeyEvent(ev) {
 
 inherits(KeyEvent, ProxyEvent)
 
-},{"inherits":17}],21:[function(require,module,exports){
+},{"inherits":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/inherits/inherits_browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/remove-event.js":[function(require,module,exports){
 var DataSet = require("data-set")
 
 module.exports = removeEvent
@@ -1321,7 +4254,7 @@ function removeEvent(target, type, handler) {
     }
 }
 
-},{"data-set":12}],22:[function(require,module,exports){
+},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/event.js":[function(require,module,exports){
 module.exports = Event
 
 function Event() {
@@ -1349,7 +4282,7 @@ function Event() {
     }
 }
 
-},{}],23:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/multiple.js":[function(require,module,exports){
 var event = require("./single.js")
 
 module.exports = multiple
@@ -1361,7 +4294,7 @@ function multiple(names) {
     }, {})
 }
 
-},{"./single.js":24}],24:[function(require,module,exports){
+},{"./single.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/single.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/single.js":[function(require,module,exports){
 var Event = require('./event.js')
 
 module.exports = Single
@@ -1378,7 +4311,7 @@ function Single() {
     }
 }
 
-},{"./event.js":22}],25:[function(require,module,exports){
+},{"./event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/index.js":[function(require,module,exports){
 var raf = require("raf")
 var TypedError = require("error/typed")
 
@@ -1443,116 +4376,24 @@ function main(initialState, view, opts) {
         var newTree = view(currentState)
 
         if (opts.createOnly) {
+            inRenderingTransaction = false
             create(newTree, opts)
         } else {
             var patches = diff(tree, newTree, opts)
+            inRenderingTransaction = false
             target = patch(target, patches, opts)
         }
 
-        inRenderingTransaction = false
         tree = newTree
         currentState = null
     }
 }
 
-},{"error/typed":28,"raf":29}],26:[function(require,module,exports){
-module.exports = function(obj) {
-    if (typeof obj === 'string') return camelCase(obj);
-    return walk(obj);
-};
-
-function walk (obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    if (isDate(obj) || isRegex(obj)) return obj;
-    if (isArray(obj)) return map(obj, walk);
-    return reduce(objectKeys(obj), function (acc, key) {
-        var camel = camelCase(key);
-        acc[camel] = walk(obj[key]);
-        return acc;
-    }, {});
-}
-
-function camelCase(str) {
-    return str.replace(/[_.-](\w|$)/g, function (_,x) {
-        return x.toUpperCase();
-    });
-}
-
-var isArray = Array.isArray || function (obj) {
-    return Object.prototype.toString.call(obj) === '[object Array]';
-};
-
-var isDate = function (obj) {
-    return Object.prototype.toString.call(obj) === '[object Date]';
-};
-
-var isRegex = function (obj) {
-    return Object.prototype.toString.call(obj) === '[object RegExp]';
-};
-
-var has = Object.prototype.hasOwnProperty;
-var objectKeys = Object.keys || function (obj) {
-    var keys = [];
-    for (var key in obj) {
-        if (has.call(obj, key)) keys.push(key);
-    }
-    return keys;
-};
-
-function map (xs, f) {
-    if (xs.map) return xs.map(f);
-    var res = [];
-    for (var i = 0; i < xs.length; i++) {
-        res.push(f(xs[i], i));
-    }
-    return res;
-}
-
-function reduce (xs, f, acc) {
-    if (xs.reduce) return xs.reduce(f, acc);
-    for (var i = 0; i < xs.length; i++) {
-        acc = f(acc, xs[i], i);
-    }
-    return acc;
-}
-
-},{}],27:[function(require,module,exports){
-var nargs = /\{([0-9a-zA-Z]+)\}/g
-var slice = Array.prototype.slice
-
-module.exports = template
-
-function template(string) {
-    var args
-
-    if (arguments.length === 2 && typeof arguments[1] === "object") {
-        args = arguments[1]
-    } else {
-        args = slice.call(arguments, 1)
-    }
-
-    if (!args || !args.hasOwnProperty) {
-        args = {}
-    }
-
-    return string.replace(nargs, function replaceArg(match, i, index) {
-        var result
-
-        if (string[index - 1] === "{" &&
-            string[index + match.length] === "}") {
-            return i
-        } else {
-            result = args.hasOwnProperty(i) ? args[i] : null
-            if (result === null || result === undefined) {
-                return ""
-            }
-
-            return result
-        }
-    })
-}
-
-},{}],28:[function(require,module,exports){
+},{"error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js","raf":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/camelize/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/string-template/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js":[function(require,module,exports){
 var camelize = require("camelize")
 var template = require("string-template")
 var extend = require("xtend/mutable")
@@ -1577,7 +4418,7 @@ function TypedError(args) {
         args.name = errorName[0].toUpperCase() + errorName.substr(1)
     }
 
-    createError.type = args.type;
+    extend(createError, args);
     createError._name = args.name;
 
     return createError;
@@ -1602,7 +4443,7 @@ function TypedError(args) {
 }
 
 
-},{"camelize":26,"string-template":27,"xtend/mutable":98}],29:[function(require,module,exports){
+},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/index.js":[function(require,module,exports){
 var now = require('performance-now')
   , global = typeof window === 'undefined' ? {} : window
   , vendors = ['moz', 'webkit']
@@ -1684,7 +4525,7 @@ module.exports.cancel = function() {
   caf.apply(global, arguments)
 }
 
-},{"performance-now":30}],30:[function(require,module,exports){
+},{"performance-now":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/node_modules/performance-now/lib/performance-now.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/node_modules/performance-now/lib/performance-now.js":[function(require,module,exports){
 (function (process){
 // Generated by CoffeeScript 1.6.3
 (function() {
@@ -1724,7 +4565,7 @@ module.exports.cancel = function() {
 */
 
 }).call(this,require('_process'))
-},{"_process":3}],31:[function(require,module,exports){
+},{"_process":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js":[function(require,module,exports){
 var setNonEnumerable = require("./lib/set-non-enumerable.js");
 
 module.exports = addListener
@@ -1754,7 +4595,45 @@ function addListener(observArray, observ) {
     })
 }
 
-},{"./lib/set-non-enumerable.js":34}],32:[function(require,module,exports){
+},{"./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js":[function(require,module,exports){
+var addListener = require('./add-listener.js')
+
+module.exports = applyPatch
+
+function applyPatch (valueList, args) {
+    var obs = this
+    var valueArgs = args.map(unpack)
+
+    valueList.splice.apply(valueList, valueArgs)
+    obs._list.splice.apply(obs._list, args)
+
+    var extraRemoveListeners = args.slice(2).map(function (observ) {
+        return typeof observ === "function" ?
+            addListener(obs, observ) :
+            null
+    })
+
+    extraRemoveListeners.unshift(args[0], args[1])
+    var removedListeners = obs._removeListeners.splice
+        .apply(obs._removeListeners, extraRemoveListeners)
+
+    removedListeners.forEach(function (removeObservListener) {
+        if (removeObservListener) {
+            removeObservListener()
+        }
+    })
+
+    return valueArgs
+}
+
+function unpack(value, index){
+    if (index === 0 || index === 1) {
+        return value
+    }
+    return typeof value === "function" ? value() : value
+}
+
+},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-methods.js":[function(require,module,exports){
 var ObservArray = require("./index.js")
 
 var slice = Array.prototype.slice
@@ -1784,8 +4663,8 @@ function ArrayMethods(obs) {
     obs.pop = observArrayPop
     obs.shift = observArrayShift
     obs.unshift = observArrayUnshift
-    obs.reverse = notImplemented
-    obs.sort = notImplemented
+    obs.reverse = require("./array-reverse.js")
+    obs.sort = require("./array-sort.js")
 
     methods.forEach(function (tuple) {
         obs[tuple[0]] = tuple[1]
@@ -1821,7 +4700,103 @@ function notImplemented() {
     throw new Error("Pull request welcome")
 }
 
-},{"./index.js":33}],33:[function(require,module,exports){
+},{"./array-reverse.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-reverse.js","./array-sort.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-sort.js","./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-reverse.js":[function(require,module,exports){
+var applyPatch = require("./apply-patch.js")
+var setNonEnumerable = require('./lib/set-non-enumerable.js')
+
+module.exports = reverse
+
+function reverse() {
+    var obs = this
+    var changes = fakeDiff(obs._list.slice().reverse())
+    var valueList = obs().slice().reverse()
+
+    var valueChanges = changes.map(applyPatch.bind(obs, valueList))
+
+    setNonEnumerable(valueList, "_diff", valueChanges)
+
+    obs._observSet(valueList)
+    return changes
+}
+
+function fakeDiff(arr) {
+    var _diff
+    var len = arr.length
+
+    if(len % 2) {
+        var midPoint = (len -1) / 2
+        var a = [0, midPoint].concat(arr.slice(0, midPoint))
+        var b = [midPoint +1, midPoint].concat(arr.slice(midPoint +1, len))
+        var _diff = [a, b]
+    } else {
+        _diff = [ [0, len].concat(arr) ]
+    }
+
+    return _diff
+}
+
+},{"./apply-patch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-sort.js":[function(require,module,exports){
+var applyPatch = require("./apply-patch.js")
+var setNonEnumerable = require("./lib/set-non-enumerable.js")
+
+module.exports = sort
+
+function sort(compare) {
+    var obs = this
+    var list = obs._list.slice()
+
+    var unpacked = unpack(list)
+
+    var sorted = unpacked
+            .map(function(it) { return it.val })
+            .sort(compare)
+
+    var packed = repack(sorted, unpacked)
+
+    //fake diff - for perf
+    //adiff on 10k items === ~3200ms
+    //fake on 10k items === ~110ms
+    var changes = [ [ 0, packed.length ].concat(packed) ]
+
+    var valueChanges = changes.map(applyPatch.bind(obs, sorted))
+
+    setNonEnumerable(sorted, "_diff", valueChanges)
+
+    obs._observSet(sorted)
+    return changes
+}
+
+function unpack(list) {
+    var unpacked = []
+    for(var i = 0; i < list.length; i++) {
+        unpacked.push({
+            val: ("function" == typeof list[i]) ? list[i]() : list[i],
+            obj: list[i]
+        })
+    }
+    return unpacked
+}
+
+function repack(sorted, unpacked) {
+    var packed = []
+
+    while(sorted.length) {
+        var s = sorted.shift()
+        var indx = indexOf(s, unpacked)
+        if(~indx) packed.push(unpacked.splice(indx, 1)[0].obj)
+    }
+
+    return packed
+}
+
+function indexOf(n, h) {
+    for(var i = 0; i < h.length; i++) {
+        if(n === h[i].val) return i
+    }
+    return -1
+}
+
+},{"./apply-patch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/index.js":[function(require,module,exports){
 var Observ = require("observ")
 
 // circular dep between ArrayMethods & this file
@@ -1908,7 +4883,7 @@ function getLength() {
     return this._list.length
 }
 
-},{"./add-listener.js":31,"./array-methods.js":32,"./put.js":36,"./set.js":37,"./splice.js":38,"./transaction.js":39,"observ":45}],34:[function(require,module,exports){
+},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js","./array-methods.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-methods.js","./put.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/put.js","./set.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/set.js","./splice.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/splice.js","./transaction.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/transaction.js","observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js":[function(require,module,exports){
 module.exports = setNonEnumerable;
 
 function setNonEnumerable(object, key, value) {
@@ -1920,7 +4895,7 @@ function setNonEnumerable(object, key, value) {
     });
 }
 
-},{}],35:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/node_modules/adiff/index.js":[function(require,module,exports){
 function head (a) {
   return a[0]
 }
@@ -2223,7 +5198,7 @@ var exports = module.exports = function (deps, exports) {
 }
 exports(null, exports)
 
-},{}],36:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/put.js":[function(require,module,exports){
 var addListener = require("./add-listener.js")
 var setNonEnumerable = require("./lib/set-non-enumerable.js");
 
@@ -2262,8 +5237,8 @@ function put(index, value) {
     obs._observSet(valueList)
     return value
 }
-},{"./add-listener.js":31,"./lib/set-non-enumerable.js":34}],37:[function(require,module,exports){
-var addListener = require("./add-listener.js")
+},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/set.js":[function(require,module,exports){
+var applyPatch = require("./apply-patch.js")
 var setNonEnumerable = require("./lib/set-non-enumerable.js")
 var adiff = require("adiff")
 
@@ -2271,7 +5246,7 @@ module.exports = set
 
 function set(rawList) {
     if (!Array.isArray(rawList)) rawList = []
-        
+
     var obs = this
     var changes = adiff.diff(obs._list, rawList)
     var valueList = obs().slice()
@@ -2284,39 +5259,7 @@ function set(rawList) {
     return changes
 }
 
-function applyPatch (valueList, args) {
-    var obs = this
-    var valueArgs = args.map(unpack)
-
-    valueList.splice.apply(valueList, valueArgs)
-    obs._list.splice.apply(obs._list, args)
-
-    var extraRemoveListeners = args.slice(2).map(function (observ) {
-        return typeof observ === "function" ?
-            addListener(obs, observ) :
-            null
-    })
-
-    extraRemoveListeners.unshift(args[0], args[1])
-    var removedListeners = obs._removeListeners.splice
-        .apply(obs._removeListeners, extraRemoveListeners)
-
-    removedListeners.forEach(function (removeObservListener) {
-        if (removeObservListener) {
-            removeObservListener()
-        }
-    })
-
-    return valueArgs
-}
-
-function unpack(value, index){
-    if (index === 0 || index === 1) {
-        return value
-    }
-    return typeof value === "function" ? value() : value
-}
-},{"./add-listener.js":31,"./lib/set-non-enumerable.js":34,"adiff":35}],38:[function(require,module,exports){
+},{"./apply-patch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js","adiff":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/node_modules/adiff/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/splice.js":[function(require,module,exports){
 var slice = Array.prototype.slice
 
 var addListener = require("./add-listener.js")
@@ -2368,7 +5311,7 @@ function splice(index, amount) {
     return removed
 }
 
-},{"./add-listener.js":31,"./lib/set-non-enumerable.js":34}],39:[function(require,module,exports){
+},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/transaction.js":[function(require,module,exports){
 module.exports = transaction
 
 function transaction (func) {
@@ -2380,7 +5323,7 @@ function transaction (func) {
     }
 
 }
-},{}],40:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/index.js":[function(require,module,exports){
 var Observ = require("observ")
 var extend = require("xtend")
 
@@ -2490,7 +5433,7 @@ function ObservStruct(struct) {
     return obs
 }
 
-},{"observ":45,"xtend":41}],41:[function(require,module,exports){
+},{"observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js":[function(require,module,exports){
 module.exports = extend
 
 function extend() {
@@ -2509,7 +5452,7 @@ function extend() {
     return target
 }
 
-},{}],42:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/index.js":[function(require,module,exports){
 var Observ = require('observ')
 var extend = require('xtend')
 
@@ -2523,12 +5466,6 @@ function ObservVarhash (hash, createValue) {
   var initialState = {}
   var currentTransaction = NO_TRANSACTION
 
-  for (var key in hash) {
-    var observ = hash[key]
-    checkKey(key)
-    initialState[key] = isFn(observ) ? observ() : observ
-  }
-
   var obs = Observ(initialState)
   setNonEnumerable(obs, '_removeListeners', {})
 
@@ -2537,7 +5474,7 @@ function ObservVarhash (hash, createValue) {
   setNonEnumerable(obs, 'put', put.bind(obs, createValue))
   setNonEnumerable(obs, 'delete', del.bind(obs))
 
-  for (key in hash) {
+  for (var key in hash) {
     obs[key] = typeof hash[key] === 'function' ?
       hash[key] : createValue(hash[key], key)
 
@@ -2545,6 +5482,14 @@ function ObservVarhash (hash, createValue) {
       obs._removeListeners[key] = obs[key](watch(obs, key, currentTransaction))
     }
   }
+
+  var newState = {}
+  for (key in hash) {
+    var observ = obs[key]
+    checkKey(key)
+    newState[key] = isFn(observ) ? observ() : observ
+  }
+  obs.set(newState)
 
   obs(function (newState) {
     if (currentTransaction === newState) {
@@ -2575,8 +5520,8 @@ function put (createValue, key, val) {
     throw new Error('cannot varhash.put(key, undefined).')
   }
 
-  var observ = typeof observ === 'function' ?
-    createValue(val, key) : val
+  var observ = typeof val === 'function' ?
+    val : createValue(val, key)
   var state = extend(this())
 
   state[key] = isFn(observ) ? observ() : observ
@@ -2661,9 +5606,9 @@ function checkKey (key) {
   )
 }
 
-},{"observ":45,"xtend":43}],43:[function(require,module,exports){
-module.exports=require(41)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js":41}],44:[function(require,module,exports){
+},{"observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/node_modules/xtend/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/computed.js":[function(require,module,exports){
 var Observable = require("./index.js")
 
 module.exports = computed
@@ -2684,7 +5629,7 @@ function computed(observables, lambda) {
     return result
 }
 
-},{"./index.js":45}],45:[function(require,module,exports){
+},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js":[function(require,module,exports){
 module.exports = Observable
 
 function Observable(value) {
@@ -2713,7 +5658,7 @@ function Observable(value) {
     }
 }
 
-},{}],46:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/watch.js":[function(require,module,exports){
 module.exports = watch
 
 function watch(observable, listener) {
@@ -2722,7 +5667,7 @@ function watch(observable, listener) {
     return remove
 }
 
-},{}],47:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js":[function(require,module,exports){
 var Delegator = require('dom-delegator')
 
 module.exports = BaseEvent
@@ -2773,13 +5718,13 @@ function BaseEvent(lambda) {
     }
 }
 
-},{"dom-delegator":10}],48:[function(require,module,exports){
+},{"dom-delegator":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/change.js":[function(require,module,exports){
 var extend = require('xtend')
 var getFormData = require('form-data-set/element')
 
 var BaseEvent = require('./base-event.js')
 
-var VALID_CHANGE = ['checkbox', 'file'];
+var VALID_CHANGE = ['checkbox', 'file', 'select-multiple', 'select-one'];
 var VALID_INPUT = ['color', 'date', 'datetime', 'datetime-local', 'email',
     'month', 'number', 'password', 'range', 'search', 'tel', 'text', 'time',
     'url', 'week'];
@@ -2806,7 +5751,7 @@ function changeLambda(ev, broadcast) {
     broadcast(data)
 }
 
-},{"./base-event.js":47,"form-data-set/element":53,"xtend":56}],49:[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/click.js":[function(require,module,exports){
 var BaseEvent = require('./base-event.js');
 
 module.exports = BaseEvent(clickLambda);
@@ -2833,7 +5778,7 @@ function clickLambda(ev, broadcast) {
     broadcast(this.data);
 }
 
-},{"./base-event.js":47}],50:[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/event.js":[function(require,module,exports){
 var BaseEvent = require('./base-event.js');
 
 module.exports = BaseEvent(eventLambda);
@@ -2842,7 +5787,7 @@ function eventLambda(ev, broadcast) {
     broadcast(this.data);
 }
 
-},{"./base-event.js":47}],51:[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/key.js":[function(require,module,exports){
 var BaseEvent = require('./base-event.js');
 
 module.exports = BaseEvent(keyLambda);
@@ -2855,7 +5800,7 @@ function keyLambda(ev, broadcast) {
     }
 }
 
-},{"./base-event.js":47}],52:[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/dom-walk/index.js":[function(require,module,exports){
 var slice = Array.prototype.slice
 
 module.exports = iterativelyWalk
@@ -2881,7 +5826,7 @@ function iterativelyWalk(nodes, cb) {
     }
 }
 
-},{}],53:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js":[function(require,module,exports){
 var walk = require('dom-walk')
 
 var FormData = require('./index.js')
@@ -2890,6 +5835,9 @@ module.exports = getFormData
 
 function buildElems(rootElem) {
     var hash = {}
+    if (rootElem.name) {
+    	hash[rootElem.name] = rootElem
+    }
 
     walk(rootElem, function (child) {
         if (child.name) {
@@ -2907,7 +5855,7 @@ function getFormData(rootElem) {
     return FormData(elements)
 }
 
-},{"./index.js":54,"dom-walk":52}],54:[function(require,module,exports){
+},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/index.js","dom-walk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/dom-walk/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/index.js":[function(require,module,exports){
 /*jshint maxcomplexity: 10*/
 
 module.exports = FormData
@@ -2984,7 +5932,7 @@ function filterNull(val) {
     return val !== null
 }
 
-},{}],55:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/has-keys.js":[function(require,module,exports){
 module.exports = hasKeys
 
 function hasKeys(source) {
@@ -2993,7 +5941,7 @@ function hasKeys(source) {
         typeof source === "function")
 }
 
-},{}],56:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js":[function(require,module,exports){
 var hasKeys = require("./has-keys")
 
 module.exports = extend
@@ -3018,7 +5966,7 @@ function extend() {
     return target
 }
 
-},{"./has-keys":55}],57:[function(require,module,exports){
+},{"./has-keys":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/has-keys.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/submit.js":[function(require,module,exports){
 var extend = require('xtend')
 var getFormData = require('form-data-set/element')
 
@@ -3032,6 +5980,7 @@ function submitLambda(ev, broadcast) {
     var target = ev.target
 
     var isValid =
+        (ev.type === 'submit' && target.tagName === 'FORM') ||
         (ev.type === 'click' && target.tagName === 'BUTTON') ||
         (ev.type === 'click' && target.type === 'submit') ||
         (
@@ -3056,7 +6005,7 @@ function submitLambda(ev, broadcast) {
     broadcast(data);
 }
 
-},{"./base-event.js":47,"form-data-set/element":53,"xtend":56}],58:[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/value.js":[function(require,module,exports){
 var extend = require('xtend')
 var getFormData = require('form-data-set/element')
 
@@ -3071,7 +6020,7 @@ function valueLambda(ev, broadcast) {
     broadcast(data);
 }
 
-},{"./base-event.js":47,"form-data-set/element":53,"xtend":56}],59:[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/immutable-thunk.js":[function(require,module,exports){
 function Thunk(fn, args, key, eqArgs) {
     this.fn = fn;
     this.args = args;
@@ -3102,12 +6051,12 @@ function render(previous) {
     }
 }
 
-},{}],60:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/index.js":[function(require,module,exports){
 var Partial = require('./partial');
 
 module.exports = Partial();
 
-},{"./partial":61}],61:[function(require,module,exports){
+},{"./partial":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/partial.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/partial.js":[function(require,module,exports){
 var shallowEq = require('./shallow-eq');
 var Thunk = require('./immutable-thunk');
 
@@ -3141,7 +6090,7 @@ function copyOver(list, offset) {
     return newList;
 }
 
-},{"./immutable-thunk":59,"./shallow-eq":62}],62:[function(require,module,exports){
+},{"./immutable-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/immutable-thunk.js","./shallow-eq":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/shallow-eq.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/shallow-eq.js":[function(require,module,exports){
 module.exports = shallowEq;
 
 function shallowEq(currentArgs, previousArgs) {
@@ -3164,32 +6113,32 @@ function shallowEq(currentArgs, previousArgs) {
     return true;
 }
 
-},{}],63:[function(require,module,exports){
-module.exports=require(11)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js":11}],64:[function(require,module,exports){
-module.exports=require(12)
-},{"./create-hash.js":63,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js":12,"individual":65,"weakmap-shim/create-store":66}],65:[function(require,module,exports){
-module.exports=require(16)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js":16}],66:[function(require,module,exports){
-module.exports=require(13)
-},{"./hidden-store.js":67,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js":13}],67:[function(require,module,exports){
-module.exports=require(14)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":14}],68:[function(require,module,exports){
-module.exports=require(26)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js":26}],69:[function(require,module,exports){
-module.exports=require(27)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js":27}],70:[function(require,module,exports){
-module.exports=require(28)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js":28,"camelize":68,"string-template":69,"xtend/mutable":98}],71:[function(require,module,exports){
-module.exports=require(15)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js":15,"min-document":2}],72:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/create-hash.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js"][0].apply(exports,arguments)
+},{"./create-hash.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/create-hash.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/individual/index.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/individual/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js"][0].apply(exports,arguments)
+},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/typed.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js"][0].apply(exports,arguments)
+},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/global/document.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js"][0].apply(exports,arguments)
+},{"min-document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/is-object/index.js":[function(require,module,exports){
 module.exports = isObject
 
 function isObject(x) {
     return typeof x === "object" && x !== null
 }
 
-},{}],73:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/x-is-array/index.js":[function(require,module,exports){
 var nativeIsArray = Array.isArray
 var toString = Object.prototype.toString
 
@@ -3199,7 +6148,7 @@ function isArray(obj) {
     return toString.call(obj) === "[object Array]"
 }
 
-},{}],74:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/apply-properties.js":[function(require,module,exports){
 var isObject = require("is-object")
 var isHook = require("../vnode/is-vhook.js")
 
@@ -3295,7 +6244,7 @@ function getPrototype(value) {
     }
 }
 
-},{"../vnode/is-vhook.js":88,"is-object":72}],75:[function(require,module,exports){
+},{"../vnode/is-vhook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","is-object":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/is-object/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/create-element.js":[function(require,module,exports){
 var document = require("global/document")
 
 var applyProperties = require("./apply-properties")
@@ -3343,7 +6292,7 @@ function createElement(vnode, opts) {
     return node
 }
 
-},{"../vnode/handle-thunk.js":86,"../vnode/is-vnode.js":89,"../vnode/is-vtext.js":90,"../vnode/is-widget.js":91,"./apply-properties":74,"global/document":71}],76:[function(require,module,exports){
+},{"../vnode/handle-thunk.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/handle-thunk.js","../vnode/is-vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","./apply-properties":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/apply-properties.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/global/document.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/dom-index.js":[function(require,module,exports){
 // Maps a virtual DOM tree onto a real DOM tree in an efficient manner.
 // We don't want to read all of the DOM nodes in the tree so we use
 // the in-order tree indexing to eliminate recursion down certain branches.
@@ -3430,7 +6379,7 @@ function ascending(a, b) {
     return a > b ? 1 : -1
 }
 
-},{}],77:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch-op.js":[function(require,module,exports){
 var applyProperties = require("./apply-properties")
 
 var isWidget = require("../vnode/is-widget.js")
@@ -3602,7 +6551,7 @@ function replaceRoot(oldRoot, newRoot) {
     return newRoot;
 }
 
-},{"../vnode/is-widget.js":91,"../vnode/vpatch.js":94,"./apply-properties":74,"./create-element":75,"./update-widget":79}],78:[function(require,module,exports){
+},{"../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vpatch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vpatch.js","./apply-properties":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/apply-properties.js","./create-element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/create-element.js","./update-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/update-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch.js":[function(require,module,exports){
 var document = require("global/document")
 var isArray = require("x-is-array")
 
@@ -3680,7 +6629,7 @@ function patchIndices(patches) {
     return indices
 }
 
-},{"./dom-index":76,"./patch-op":77,"global/document":71,"x-is-array":73}],79:[function(require,module,exports){
+},{"./dom-index":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/dom-index.js","./patch-op":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch-op.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/global/document.js","x-is-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/x-is-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/update-widget.js":[function(require,module,exports){
 var isWidget = require("../vnode/is-widget.js")
 
 module.exports = updateWidget
@@ -3697,7 +6646,7 @@ function updateWidget(a, b) {
     return false
 }
 
-},{"../vnode/is-widget.js":91}],80:[function(require,module,exports){
+},{"../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/data-set-hook.js":[function(require,module,exports){
 var DataSet = require("data-set")
 
 module.exports = DataSetHook;
@@ -3717,7 +6666,7 @@ DataSetHook.prototype.hook = function (node, propertyName) {
     ds[propName] = this.value;
 };
 
-},{"data-set":64}],81:[function(require,module,exports){
+},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js":[function(require,module,exports){
 var DataSet = require("data-set")
 
 module.exports = DataSetHook;
@@ -3744,7 +6693,7 @@ DataSetHook.prototype.unhook = function(node, propertyName) {
     ds[propName] = undefined;
 }
 
-},{"data-set":64}],82:[function(require,module,exports){
+},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js":[function(require,module,exports){
 module.exports = SoftSetHook;
 
 function SoftSetHook(value) {
@@ -3761,7 +6710,7 @@ SoftSetHook.prototype.hook = function (node, propertyName) {
     }
 };
 
-},{}],83:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/index.js":[function(require,module,exports){
 var TypedError = require("error/typed")
 
 var VNode = require("../vnode/vnode.js")
@@ -3890,7 +6839,7 @@ function isChildren(x) {
     return typeof x === "string" || Array.isArray(x) || isChild(x)
 }
 
-},{"../vnode/is-thunk":87,"../vnode/is-vhook":88,"../vnode/is-vnode":89,"../vnode/is-vtext":90,"../vnode/is-widget":91,"../vnode/vnode.js":93,"../vnode/vtext.js":95,"./hooks/data-set-hook.js":80,"./hooks/ev-hook.js":81,"./hooks/soft-set-hook.js":82,"./parse-tag.js":84,"error/typed":70}],84:[function(require,module,exports){
+},{"../vnode/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","../vnode/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","../vnode/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vnode.js","../vnode/vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js","./hooks/data-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/data-set-hook.js","./hooks/ev-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js","./hooks/soft-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js","./parse-tag.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js","error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/typed.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js":[function(require,module,exports){
 var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/
 var notClassId = /^\.|#/
 
@@ -3941,7 +6890,7 @@ function parseTag(tag, props) {
     return tagName ? tagName.toLowerCase() : "div"
 }
 
-},{}],85:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/svg.js":[function(require,module,exports){
 var h = require("./index.js")
 
 var BLACKLISTED_KEYS = {
@@ -3995,7 +6944,7 @@ function isChildren(x) {
     return typeof x === "string" || Array.isArray(x)
 }
 
-},{"./index.js":83}],86:[function(require,module,exports){
+},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/handle-thunk.js":[function(require,module,exports){
 var isVNode = require("./is-vnode")
 var isVText = require("./is-vtext")
 var isWidget = require("./is-widget")
@@ -4037,14 +6986,14 @@ function renderThunk(thunk, previous) {
     return renderedThunk
 }
 
-},{"./is-thunk":87,"./is-vnode":89,"./is-vtext":90,"./is-widget":91}],87:[function(require,module,exports){
+},{"./is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","./is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js":[function(require,module,exports){
 module.exports = isThunk
 
 function isThunk(t) {
     return t && t.type === "Thunk"
 }
 
-},{}],88:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js":[function(require,module,exports){
 module.exports = isHook
 
 function isHook(hook) {
@@ -4052,7 +7001,7 @@ function isHook(hook) {
         !hook.hasOwnProperty("hook")
 }
 
-},{}],89:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js":[function(require,module,exports){
 var version = require("./version")
 
 module.exports = isVirtualNode
@@ -4061,7 +7010,7 @@ function isVirtualNode(x) {
     return x && x.type === "VirtualNode" && x.version === version
 }
 
-},{"./version":92}],90:[function(require,module,exports){
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js":[function(require,module,exports){
 var version = require("./version")
 
 module.exports = isVirtualText
@@ -4070,17 +7019,17 @@ function isVirtualText(x) {
     return x && x.type === "VirtualText" && x.version === version
 }
 
-},{"./version":92}],91:[function(require,module,exports){
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js":[function(require,module,exports){
 module.exports = isWidget
 
 function isWidget(w) {
     return w && w.type === "Widget"
 }
 
-},{}],92:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js":[function(require,module,exports){
 module.exports = "1"
 
-},{}],93:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vnode.js":[function(require,module,exports){
 var version = require("./version")
 var isVNode = require("./is-vnode")
 var isWidget = require("./is-widget")
@@ -4154,7 +7103,7 @@ function VirtualNode(tagName, properties, children, key, namespace) {
 VirtualNode.prototype.version = version
 VirtualNode.prototype.type = "VirtualNode"
 
-},{"./is-thunk":87,"./is-vhook":88,"./is-vnode":89,"./is-widget":91,"./version":92}],94:[function(require,module,exports){
+},{"./is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","./is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vpatch.js":[function(require,module,exports){
 var version = require("./version")
 
 VirtualPatch.NONE = 0
@@ -4178,7 +7127,7 @@ function VirtualPatch(type, vNode, patch) {
 VirtualPatch.prototype.version = version
 VirtualPatch.prototype.type = "VirtualPatch"
 
-},{"./version":92}],95:[function(require,module,exports){
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js":[function(require,module,exports){
 var version = require("./version")
 
 module.exports = VirtualText
@@ -4190,7 +7139,7 @@ function VirtualText(text) {
 VirtualText.prototype.version = version
 VirtualText.prototype.type = "VirtualText"
 
-},{"./version":92}],96:[function(require,module,exports){
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vtree/diff.js":[function(require,module,exports){
 var isArray = require("x-is-array")
 var isObject = require("is-object")
 
@@ -4568,26 +7517,11 @@ function appendPatch(apply, patch) {
     }
 }
 
-},{"../vnode/handle-thunk":86,"../vnode/is-thunk":87,"../vnode/is-vhook":88,"../vnode/is-vnode":89,"../vnode/is-vtext":90,"../vnode/is-widget":91,"../vnode/vpatch":94,"is-object":72,"x-is-array":73}],97:[function(require,module,exports){
-module.exports=require(41)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js":41}],98:[function(require,module,exports){
-module.exports = extend
-
-function extend(target) {
-    for (var i = 1; i < arguments.length; i++) {
-        var source = arguments[i]
-
-        for (var key in source) {
-            if (source.hasOwnProperty(key)) {
-                target[key] = source[key]
-            }
-        }
-    }
-
-    return target
-}
-
-},{}],99:[function(require,module,exports){
+},{"../vnode/handle-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/handle-thunk.js","../vnode/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","../vnode/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","../vnode/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vpatch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vpatch.js","is-object":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/is-object/index.js","x-is-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/x-is-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/index.js"][0].apply(exports,arguments)
+},{"performance-now":"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/node_modules/performance-now/lib/performance-now.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/node_modules/performance-now/lib/performance-now.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/node_modules/performance-now/lib/performance-now.js"][0].apply(exports,arguments)
+},{"_process":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js":[function(require,module,exports){
 var tags = ['a', 'abbr', 'acronym', 'address', 'applet', 'area', 'article', 'aside', 'audio', 'b', 'base', 'basefont', 'bdi', 'bdo', 'big', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'datalist', 'dd', 'del', 'details', 'dfn', 'dialog', 'dir', 'div', 'dl', 'dt', 'em', 'embed', 'fieldset', 'figcaption', 'figure', 'font', 'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'i', 'iframe', 'img', 'input', 'ins', 'kbd', 'keygen', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark', 'menu', 'menuitem', 'meta', 'meter', 'nav', 'noframes', 'noscript', 'object', 'ol', 'optgroup', 'option', 'output', 'p', 'param', 'pre', 'progress', 'q', 'rp', 'rt', 'ruby', 's', 'samp', 'script', 'section', 'select', 'small', 'source', 'span', 'strike', 'strong', 'style', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'textarea', 'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'tt', 'u', 'ul', 'var', 'video', 'wbr']
 
 module.exports = {}
@@ -4606,7 +7540,7 @@ for (var i = 0; i < tags.length; i++) {
   module.exports[tag] = createElement(tag)
 }
 
-},{"flatten":100,"virtual-hyperscript":104}],100:[function(require,module,exports){
+},{"flatten":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/flatten/index.js","virtual-hyperscript":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/flatten/index.js":[function(require,module,exports){
 module.exports = function flatten(list, depth) {
   depth = (typeof depth == 'number') ? depth : Infinity;
 
@@ -4624,13 +7558,13 @@ module.exports = function flatten(list, depth) {
   }
 };
 
-},{}],101:[function(require,module,exports){
-module.exports=require(80)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/data-set-hook.js":80,"data-set":106}],102:[function(require,module,exports){
-module.exports=require(81)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js":81,"data-set":106}],103:[function(require,module,exports){
-module.exports=require(82)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js":82}],104:[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/data-set-hook.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/data-set-hook.js"][0].apply(exports,arguments)
+},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/ev-hook.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js"][0].apply(exports,arguments)
+},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/soft-set-hook.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/index.js":[function(require,module,exports){
 var TypedError = require("error/typed")
 
 var VNode = require("vtree/vnode.js")
@@ -4759,37 +7693,100 @@ function isChildren(x) {
     return typeof x === "string" || Array.isArray(x) || isChild(x)
 }
 
-},{"./hooks/data-set-hook.js":101,"./hooks/ev-hook.js":102,"./hooks/soft-set-hook.js":103,"./parse-tag.js":122,"error/typed":113,"vtree/is-thunk":114,"vtree/is-vhook":115,"vtree/is-vnode":116,"vtree/is-vtext":117,"vtree/is-widget":118,"vtree/vnode.js":120,"vtree/vtext.js":121}],105:[function(require,module,exports){
-module.exports=require(11)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js":11}],106:[function(require,module,exports){
-module.exports=require(12)
-},{"./create-hash.js":105,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js":12,"individual":107,"weakmap-shim/create-store":108}],107:[function(require,module,exports){
-module.exports=require(16)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js":16}],108:[function(require,module,exports){
-module.exports=require(13)
-},{"./hidden-store.js":109,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js":13}],109:[function(require,module,exports){
-module.exports=require(14)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":14}],110:[function(require,module,exports){
-module.exports=require(26)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js":26}],111:[function(require,module,exports){
-module.exports=require(27)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js":27}],112:[function(require,module,exports){
-module.exports=require(98)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/xtend/mutable.js":98}],113:[function(require,module,exports){
-module.exports=require(28)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js":28,"camelize":110,"string-template":111,"xtend/mutable":112}],114:[function(require,module,exports){
-module.exports=require(87)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js":87}],115:[function(require,module,exports){
-module.exports=require(88)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js":88}],116:[function(require,module,exports){
-module.exports=require(89)
-},{"./version":119,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js":89}],117:[function(require,module,exports){
-module.exports=require(90)
-},{"./version":119,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js":90}],118:[function(require,module,exports){
-module.exports=require(91)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js":91}],119:[function(require,module,exports){
-module.exports=require(92)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js":92}],120:[function(require,module,exports){
+},{"./hooks/data-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/data-set-hook.js","./hooks/ev-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/ev-hook.js","./hooks/soft-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/soft-set-hook.js","./parse-tag.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/parse-tag.js","error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/typed.js","vtree/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-thunk.js","vtree/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vhook.js","vtree/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vnode.js","vtree/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vtext.js","vtree/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-widget.js","vtree/vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vnode.js","vtree/vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vtext.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/create-hash.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/create-hash.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js"][0].apply(exports,arguments)
+},{"./create-hash.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/create-hash.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/individual/index.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/individual/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/individual/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/create-store.js"][0].apply(exports,arguments)
+},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/camelize/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/string-template/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/xtend/mutable.js":[function(require,module,exports){
+module.exports = extend
+
+function extend(target) {
+    for (var i = 1; i < arguments.length; i++) {
+        var source = arguments[i]
+
+        for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+                target[key] = source[key]
+            }
+        }
+    }
+
+    return target
+}
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/typed.js":[function(require,module,exports){
+var camelize = require("camelize")
+var template = require("string-template")
+var extend = require("xtend/mutable")
+
+module.exports = TypedError
+
+function TypedError(args) {
+    if (!args) {
+        throw new Error("args is required");
+    }
+    if (!args.type) {
+        throw new Error("args.type is required");
+    }
+    if (!args.message) {
+        throw new Error("args.message is required");
+    }
+
+    var message = args.message
+
+    if (args.type && !args.name) {
+        var errorName = camelize(args.type) + "Error"
+        args.name = errorName[0].toUpperCase() + errorName.substr(1)
+    }
+
+    createError.type = args.type;
+    createError._name = args.name;
+
+    return createError;
+
+    function createError(opts) {
+        var result = new Error()
+
+        Object.defineProperty(result, "type", {
+            value: result.type,
+            enumerable: true,
+            writable: true,
+            configurable: true
+        })
+
+        var options = extend({}, args, opts)
+
+        extend(result, options)
+        result.message = template(message, options)
+
+        return result
+    }
+}
+
+
+},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-thunk.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vhook.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vnode.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js"][0].apply(exports,arguments)
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vtext.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js"][0].apply(exports,arguments)
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-widget.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vnode.js":[function(require,module,exports){
 var version = require("./version")
 var isVNode = require("./is-vnode")
 var isWidget = require("./is-widget")
@@ -4833,40 +7830,74 @@ function VirtualNode(tagName, properties, children, key, namespace) {
 VirtualNode.prototype.version = version
 VirtualNode.prototype.type = "VirtualNode"
 
-},{"./is-vhook":115,"./is-vnode":116,"./is-widget":118,"./version":119}],121:[function(require,module,exports){
-module.exports=require(95)
-},{"./version":119,"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js":95}],122:[function(require,module,exports){
-module.exports=require(84)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js":84}],123:[function(require,module,exports){
-module.exports=require(41)
-},{"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js":41}],124:[function(require,module,exports){
-module.exports = function(str) {
-  var key, line, meta, ok, parts, value, _i, _len, _ref;
-  ok = false;
-  meta = {};
-  _ref = str.split('\n');
-  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-    line = _ref[_i];
-    if (line.indexOf(':') !== -1) {
-      parts = line.split(':');
-      key = parts[0].trim();
-      value = parts[1].trim();
-      if (key && value) {
-        ok = true;
-        meta[key] = value;
-      }
-    } else if (line.indexOf(' ') === -1) {
-      line = line.trim();
-      if (line) {
-        meta[line] = true;
-      }
+},{"./is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vhook.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vnode.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-widget.js","./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vtext.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js"][0].apply(exports,arguments)
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/parse-tag.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js":[function(require,module,exports){
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js":[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+var queue = [];
+var draining = false;
+
+function drainQueue() {
+    if (draining) {
+        return;
     }
-  }
-  if (ok) {
-    return meta;
-  }
+    draining = true;
+    var currentQueue;
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        var i = -1;
+        while (++i < len) {
+            currentQueue[i]();
+        }
+        len = queue.length;
+    }
+    draining = false;
+}
+process.nextTick = function (fun) {
+    queue.push(fun);
+    if (!draining) {
+        setTimeout(drainQueue, 0);
+    }
 };
 
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
 
+function noop() {}
 
-},{}]},{},[1]);
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/immutable.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/node_modules/xtend/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/xtend/mutable.js"][0].apply(exports,arguments)
+},{}]},{},["/home/fiatjaf/comp/alquimiaorganica/app.coffee"]);
