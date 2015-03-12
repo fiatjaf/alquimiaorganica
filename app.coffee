@@ -1,7 +1,6 @@
 Firebase  = require 'firebase'
 Baobab    = require 'baobab'
 hg        = require 'mercury'
-cuid      = require 'cuid'
 week      = require 'current-week-number'
 
 firebaseref = new Firebase('https://week.firebaseio.com/alquimia')
@@ -9,7 +8,7 @@ firebaseref = new Firebase('https://week.firebaseio.com/alquimia')
 
 # model and DOM handles
 orderDefaults = (data) ->
-  key: data.key or cuid.slug()
+  key: data.key
   created: data.created or (new Date).toISOString()
   modified: if data.created then (new Date).toISOString() else null
   week: data.week or week()
@@ -29,11 +28,10 @@ state = Baobab
 
 handles =
   edit: (state, data) ->
-    order = state.orders.get(data.key)
-    state.set 'editing', order.key
+    state.set 'editing', data.key
     state.commit()
   addNew: (state) ->
-    order = orderDefaults({})
+    order = orderDefaults(key: state.select('authuid').get())
     state.select('orders').set order.key, order
     state.set 'editing', order.key
     state.commit()
@@ -64,13 +62,15 @@ vrenderMain = (snap, handles) ->
     (button
      className: 'btn btn-info add-new'
      'ev-click': handles.addNew
-    , 'Fazer seu pedido') if not snap.editing
+    , 'Criar um pedido') if not snap.editing and \
+                            snap.authuid not of snap.orders
+                            # only one order can exist for each user
     (div className: 'orders',
       (div
         className: 'order editing'
         (form
           className: 'form-horizontal'
-          'ev-submit': hg.submitEvent(handles.save, orderBeingEdited)
+          'ev-submit': hg.submitEvent(handles.save)
         ,
           (input type: 'hidden', name: 'key', value: orderBeingEdited.key)
           (input type: 'hidden', name: 'created', value: orderBeingEdited.created)
@@ -117,7 +117,7 @@ vrenderMain = (snap, handles) ->
             rows: 5
             placeholder: '1 penca de banana\nuns 10 tomates\n1 abobrinha'
           )
-          (button {className: 'btn btn-primary'}, 'Enviar pedido')
+          (button {className: 'btn btn-primary'}, 'Salvar pedido')
         )
       ) if snap.editing
       hg.partial(vrenderListedOrder, key, data, handles) for key, data of snap.orders when key != snap.editing
@@ -135,18 +135,22 @@ vrenderListedOrder = (key, data, parentHandles) ->
     , data.content)
   )
 
+# do this on startup
+firebaseref.authAnonymously (err, auth) ->
+  if not err and auth
+    state.set 'authuid', auth.uid
+
 # channels transformer func
 channels = (funcs, context) ->
-
   createHandle = (acc, name) ->
     handle = hg.Delegator.allocateHandle(funcs[name].bind(null, context))
     acc[name] = handle
     acc
-
   Object.keys(funcs).reduce createHandle, {}
 
 # run
 elem = document.getElementById('pedidos')
+hg.Delegator()
 handles = channels handles, state
 mainloop = (require './baobab-loop')(state.get(), vrenderMain, handles,
   diff: hg.diff

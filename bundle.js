@@ -1,13 +1,11 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/home/fiatjaf/comp/alquimiaorganica/app.coffee":[function(require,module,exports){
-var Baobab, Firebase, button, channels, cuid, div, elem, firebaseref, form, handles, hg, input, label, mainloop, orderDefaults, state, textarea, vrenderListedOrder, vrenderMain, week, _ref;
+var Baobab, Firebase, button, channels, div, elem, firebaseref, form, handles, hg, input, label, mainloop, orderDefaults, state, textarea, vrenderListedOrder, vrenderMain, week, _ref;
 
 Firebase = require('firebase');
 
 Baobab = require('baobab');
 
 hg = require('mercury');
-
-cuid = require('cuid');
 
 week = require('current-week-number');
 
@@ -17,7 +15,7 @@ _ref = require('virtual-elements'), div = _ref.div, form = _ref.form, label = _r
 
 orderDefaults = function(data) {
   return {
-    key: data.key || cuid.slug(),
+    key: data.key,
     created: data.created || (new Date).toISOString(),
     modified: data.created ? (new Date).toISOString() : null,
     week: data.week || week(),
@@ -40,14 +38,14 @@ state = Baobab({
 
 handles = {
   edit: function(state, data) {
-    var order;
-    order = state.orders.get(data.key);
-    state.set('editing', order.key);
+    state.set('editing', data.key);
     return state.commit();
   },
   addNew: function(state) {
     var order;
-    order = orderDefaults({});
+    order = orderDefaults({
+      key: state.select('authuid').get()
+    });
     state.select('orders').set(order.key, order);
     state.set('editing', order.key);
     return state.commit();
@@ -82,16 +80,16 @@ vrenderMain = function(snap, handles) {
   if (snap.editing) {
     orderBeingEdited = snap.orders[snap.editing];
   }
-  return div({}, !snap.editing ? button({
+  return div({}, !snap.editing && !(snap.authuid in snap.orders) ? button({
     className: 'btn btn-info add-new',
     'ev-click': handles.addNew
-  }, 'Fazer seu pedido') : void 0, div({
+  }, 'Criar um pedido') : void 0, div({
     className: 'orders'
   }, snap.editing ? div({
     className: 'order editing'
   }, form({
     className: 'form-horizontal',
-    'ev-submit': hg.submitEvent(handles.save, orderBeingEdited)
+    'ev-submit': hg.submitEvent(handles.save)
   }, input({
     type: 'hidden',
     name: 'key',
@@ -147,7 +145,7 @@ vrenderMain = function(snap, handles) {
     placeholder: '1 penca de banana\nuns 10 tomates\n1 abobrinha'
   }), button({
     className: 'btn btn-primary'
-  }, 'Enviar pedido'))) : void 0, (function() {
+  }, 'Salvar pedido'))) : void 0, (function() {
     var _ref1, _results;
     _ref1 = snap.orders;
     _results = [];
@@ -176,6 +174,12 @@ vrenderListedOrder = function(key, data, parentHandles) {
   }, data.content));
 };
 
+firebaseref.authAnonymously(function(err, auth) {
+  if (!err && auth) {
+    return state.set('authuid', auth.uid);
+  }
+});
+
 channels = function(funcs, context) {
   var createHandle;
   createHandle = function(acc, name) {
@@ -188,6 +192,8 @@ channels = function(funcs, context) {
 };
 
 elem = document.getElementById('pedidos');
+
+hg.Delegator();
 
 handles = channels(handles, state);
 
@@ -205,7 +211,7 @@ state.on('update', function(b) {
 
 
 
-},{"./baobab-loop":"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee","baobab":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/index.js","cuid":"/home/fiatjaf/comp/alquimiaorganica/node_modules/cuid/dist/browser-cuid.js","current-week-number":"/home/fiatjaf/comp/alquimiaorganica/node_modules/current-week-number/index.js","firebase":"/home/fiatjaf/comp/alquimiaorganica/node_modules/firebase/lib/firebase-web.js","mercury":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/index.js","virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee":[function(require,module,exports){
+},{"./baobab-loop":"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee","baobab":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/index.js","current-week-number":"/home/fiatjaf/comp/alquimiaorganica/node_modules/current-week-number/index.js","firebase":"/home/fiatjaf/comp/alquimiaorganica/node_modules/firebase/lib/firebase-web.js","mercury":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/index.js","virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee":[function(require,module,exports){
 var InvalidUpdateInRender, TypedError, main, raf;
 
 raf = require('raf');

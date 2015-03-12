@@ -4,7 +4,6 @@
   "description": "",
   "main": "app.coffee",
   "dependencies": {
-    "cuid": "~1.2.4",
     "current-week-number": "~1.0.1",
     "firebase": "~2.0.6",
     "mercury": "~11.0.0",
