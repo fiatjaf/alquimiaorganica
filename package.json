@@ -4,17 +4,22 @@
   "description": "",
   "main": "app.coffee",
   "dependencies": {
-    "current-week-number": "~1.0.1",
-    "firebase": "~2.0.6",
-    "mercury": "~11.0.0",
-    "virtual-elements": "~0.0.0",
-    "raf": "^2.0.4",
-    "baobab": "^0.4.0",
-    "error": "^5.2.0"
+    "countdown": "git://github.com/mckamey/countdownjs.git",
+    "lie": "^2.9.1",
+    "moment": "^2.10.3",
+    "moment-weekdays": "git://github.com/kelonye/moment-weekdays.git",
+    "reais": "0.0.4",
+    "superagent": "^1.2.0",
+    "superagent-promise": "^1.0.0",
+    "titulo": "0.0.1",
+    "virtual-dom": "^2.0.1",
+    "virtual-elements": "0.0.2"
   },
   "devDependencies": {
-    "coffeeify": "^1.0.0",
-    "browserify": "^7.0.0",
+    "browserify": "^10.2.4",
+    "browserify-incremental": "^3.0.1",
+    "coffeeify": "^1.1.0",
+    "less": "^2.5.1",
     "watchify": "^2.4.0"
   },
   "scripts": {

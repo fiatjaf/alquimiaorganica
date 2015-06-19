@@ -1,161 +1,265 @@
-Firebase  = require 'firebase'
-Baobab    = require 'baobab'
-hg        = require 'mercury'
-week      = require 'current-week-number'
+Titulo     = require('titulo').toLaxTitleCase
+Reais      = require 'reais'
+Promise    = require 'lie'
+superagent = (require 'superagent-promise')((require 'superagent'), Promise)
+talio      = require 'talio'
+moment     = require 'moment'
+countdown  = require 'countdown'
 
-firebaseref = new Firebase('https://week.firebaseio.com/alquimia')
-{div, form, label, textarea, input, button, label} = require 'virtual-elements'
+countdown.setLabels(
+  ' milissegundo| segundo| minuto| hora| dia| semana| mês| ano| década| século| milênio'
+  ' milissegundos| segundos| minutos| horas| dias| semanas| meses| anos| décadas| séculos| milênios'
+  ' e '
+  ' + '
+  'agora'
+)
 
-# model and DOM handles
-orderDefaults = (data) ->
-  key: data.key
-  created: data.created or (new Date).toISOString()
-  modified: if data.created then (new Date).toISOString() else null
-  week: data.week or week()
-  customer: data.customer or ''
-  phone: data.phone or ''
-  addr: data.addr or ''
-  content: data.content or ''
+{div, span, pre, nav, script, link, iframe,
+ small, i, p, a, button,
+ h1, h2, h3, h4, img,
+ form, legend, fieldset, input, textarea, select,
+ table, thead, tbody, tfoot, tr, th, td,
+ ul, li} = require 'virtual-elements'
 
-state = Baobab
-    currentWeek: week()
-    orders: {}
-    editing: null
-  ,
-    clone: true
-    autoCommit: false
-    shiftReferences: true
+vrenderTable = require 'vrender-table'
 
-handles =
-  edit: (state, data) ->
-    state.set 'editing', data.key
-    state.commit()
-  addNew: (state) ->
-    order = orderDefaults(key: state.select('authuid').get())
-    state.select('orders').set order.key, order
-    state.set 'editing', order.key
-    state.commit()
-  save: (state, data) ->
-    order = orderDefaults(data)
-    firebaseref.child(data.key).set order, ->
-      state.set 'editing', null
-      state.commit()
+nextFriday = moment().day(6).startOf('day').add(5, 'hours')
+State = talio.StateFactory
+  nextTuesday: moment().day(3)
+  nextFriday: nextFriday
+  timeLeft: null
+  order:
+    subject: localStorage.getItem 'lastNome'
+    replyto: localStorage.getItem 'lastReplyTo'
+    description: localStorage.getItem 'lastPedido'
+    addr: localStorage.getItem 'lastAddr'
+  items: []
+  startFrom: 0
+  show: 25
+  modalOpened: null
 
-# modifications reacting to external events
-firebaseref.orderByChild('week')
-           .equalTo(state.select('currentWeek').get())
-           .on 'child_added', (fsnap) ->
-  state.select('orders').set fsnap.key(), fsnap.val()
-  state.commit()
-firebaseref.on 'child_changed', (fsnap) ->
-  state.select('orders').set fsnap.key(), fsnap.val()
-  state.commit()
-firebaseref.on 'child_removed', (fsnap) ->
-  state.select('orders').unset fsnap.key()
-  state.commit()
+handlers =
+  fetchItems: (State) ->
+    superagent
+      .get('http://items.vendasalva.com.br/alquimia/items')
+      .query(limit: 100)
+      .end()
+    .then((res) ->
+      State.change
+        items: -> res.body.items
+    )
+  sendOrder: (State, order) ->
+    localStorage.setItem 'lastNome', order.subject
+    localStorage.setItem 'lastReplyTo', order.replyto
+    localStorage.setItem 'lastPedido', order.description
+    localStorage.setItem 'lastAddr', order.addr
 
-# html skeleton
-vrenderMain = (snap, handles) ->
-  orderBeingEdited = snap.orders[snap.editing] if snap.editing
+    superagent
+      .post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e')
+      .set('Content-Type': 'application/json')
+      .send(order)
+      .end()
+    .then((res) ->
+      console.log res.body
+      here.openModal 'order-posted'
+    ).catch(console.log.bind console)
+  findOrders: (State, orders) ->
+  openModal: (State, modalName) -> State.change 'modalOpened', modalName
+  closeModal: (State) -> State.change 'modalOpened', null
 
-  (div {},
-    (button
-     className: 'btn btn-info add-new'
-     'ev-click': handles.addNew
-    , 'Criar um pedido') if not snap.editing and \
-                            snap.authuid not of snap.orders
-                            # only one order can exist for each user
-    (div className: 'orders',
-      (div
-        className: 'order editing'
-        (form
-          className: 'form-horizontal'
-          'ev-submit': hg.submitEvent(handles.save)
-        ,
-          (input type: 'hidden', name: 'key', value: orderBeingEdited.key)
-          (input type: 'hidden', name: 'created', value: orderBeingEdited.created)
-          (div className: 'form-group',
-            (label {className: 'col-sm-2 control-label', htmlFor: 'customer'}, 'Nome:')
-            (div className: 'col-sm-10',
-              (input
-                type: 'text',
-                className: 'form-control',
-                id: 'customer',
-                name: 'customer'
-                value: orderBeingEdited.customer
-              )
-            )
-          )
-          (div className: 'form-group',
-            (label {className: 'col-sm-2 control-label', htmlFor: 'phone'}, 'Telefone:')
-            (div className: 'col-sm-10',
-              (input
-                type: 'text',
-                className: 'form-control',
-                id: 'phone',
-                name: 'phone'
-                value: orderBeingEdited.phone
-              )
-            )
-          )
-          (div className: 'form-group',
-            (label {className: 'col-sm-2 control-label', htmlFor: 'addr'}, 'Endereço:')
-            (div className: 'col-sm-10',
-              (input
-                type: 'text',
-                className: 'form-control',
-                id: 'addr',
-                name: 'addr'
-                value: orderBeingEdited.addr
-              )
-            )
-          )
-          (textarea
-            className: 'form-control'
-            name: 'content'
-            value: orderBeingEdited.content
-            rows: 5
-            placeholder: '1 penca de banana\nuns 10 tomates\n1 abobrinha'
-          )
-          (button {className: 'btn btn-primary'}, 'Salvar pedido')
+vrenderMain = (state, channels) ->
+  (div className: 'container',
+    (div className: 'row',
+      (div className: 'col-md-2',
+        (img
+          className: 'logo'
+          src: 'img/logo-folha-alpha.png'
         )
-      ) if snap.editing
-      hg.partial(vrenderListedOrder, key, data, handles) for key, data of snap.orders when key != snap.editing
+      )
+      (div className: 'col-md-10',
+        (h1 {}, 'Alquimia Orgânica na sua casa')
+        (h2 {}, "> pedidos para terça, dia #{state.nextTuesday.format 'DD/MM'}")
+      )
+    )
+    (div className: 'row pedido-row',
+      (div className: 'col-md-6',
+        (h1 {}, 'Alguns dos nossos produtos')
+        (h3 {}, 'a título de sugestão')
+        (vrenderTable
+          style: 'primary'
+          data: ({
+            'Produto': Titulo item.name
+            'Preço': Reais.fromInteger(item.price) + if item.unit == '-' then '' else " / #{item.unit}"
+          } for item in state.items.concat(state.items).slice(state.startFrom, state.startFrom + state.show))
+          columns: ['Produto', 'Preço']
+        )
+        (h3 {}, 'Os preços apresentados acima são estimados com base em vendas passadas e podem estar muito errados, portanto são meramente ilustrativos.')
+      )
+      (div className: 'col-md-6',
+        (h1 {},
+          'Faça seu pedido online, receba na sua casa! '
+          (span {className: 'label label-danger'},
+            "você tem #{state.timeLeft} para fazer um bom pedido (até sexta)" if moment().day() < 6 and moment().day() > 2
+          )
+        )
+        (button
+          className: 'btn btn-info'
+          'ev-click': talio.sendClick channels.openModal, 'como-funciona'
+        , 'Como funciona?')
+        (form
+          action: "http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e"
+          method: 'POST'
+          'ev-submit': talio.sendSubmit channels.sendOrder
+        ,
+          (div className: "form-group",
+            (input
+              type: "text"
+              className: "form-control"
+              name: 'subject'
+              placeholder: "Nome"
+            )
+          )
+          (div className: "form-group",
+            (input
+              type: "text"
+              className: "form-control"
+              name: 'replyto'
+              placeholder: "Celular ou email"
+            )
+          )
+          (div className: "form-group",
+            (textarea
+              type: "text"
+              className: "form-control"
+              name: 'addr'
+              placeholder: "Endereço e observações para entrega"
+            )
+          )
+          (div className: "form-group",
+            (textarea
+              type: "text"
+              name: 'description'
+              className: "form-control"
+              placeholder: "Pedido"
+            )
+          )
+          (button
+            type: "submit"
+            className: "btn btn-success"
+          , "Fazer pedido")
+        )
+        (h1 {id: "area"}, 'Área de entrega e taxas')
+        (link
+          rel: "stylesheet"
+          href: "https://gist-assets.github.com/assets/embed-b8c853f42bc1486a246eca98739ff795.css"
+        )
+        (div
+          id: "gist16724469"
+          className: "gist"
+        ,
+          (div className: "gist-file gist-render",
+            (iframe
+              height: "420"
+              width: "620"
+              frameBorder: "0"
+              src: "https://render.githubusercontent.com/view/geojson?url=https://gist.githubusercontent.com/fiatjaf/f3fb3621dbeb38717431/raw/alquimia.geojson"
+            )
+          )
+        )
+      )
+    )
+    (div className: 'row',
+      (div className: 'col-md-12',
+      )
+    )
+    (div
+      className: 'modal fade ' + (if state.modalOpened == 'como-funciona' then 'in' else '')
+      style:
+        display: if state.modalOpened == 'como-funciona' then 'block' else 'none'
+    ,
+      (div className: 'modal-dialog',
+        (div className: 'modal-content',
+          (div className: 'modal-header',
+            (h2 {}, 'Como funciona o serviço de entregas da Alquimia Orgânica')
+            (button
+              className: 'close'
+              'ev-click': talio.sendClick channels.closeModal
+            , '×')
+          )
+          (div className: 'modal-body',
+            (p {}, 'Se você mora na região de Lagoa Santa, quer nossos produtos orgânicos ou outros, mas não tem como vir até nossa loja física, nós entregamos semanalmente na sua casa os produtos que você desejar.')
+            (p {}, 'O procedimento é o seguinte:')
+            (ul {},
+              (li {}, 'Você escreve o seu pedido aí na caixa de texto, de forma livre. Pedidos do tipo "tal fruta se estiver madura" e "mais ou menos tanto" são válidos.')
+              (li {}, 'Na caixa "endereço" você escreve seu endereço, também de forma livre, e nos dá indicações de qual é o melhor horário para entregar ou com quem vamos deixar o pacote.')
+              (li {}, 'Assim que tivermos os produtos em mãos, enviaremos um email ou SMS confirmando o seu pedido.')
+              (li {}, 'Na terça-feira à tarde ou à noite passamos na sua casa e entregamos.')
+              (li {}, 'O pagamento, por enquanto, é apenas em dinheiro, no ato da entrega. Num futuro bem próximo aceitaremos cartões no ato da entrega também.')
+            )
+            (p {}, 'Nenhuma entrega está garantida até o momento da confirmação, já que trabalhamos com produtos sazonais e perecíveis e que podem, numa semana ou noutra, não estar disponíveis.')
+            (p {}, 'Da mesma forma, pode ser que um produto ou outro esteja em quantidade não-nula, mas insuficiente para todos os pedidos. Se isto ocorrer, daremos preferência a quem fez o pedido antes, mas tudo será conversado.')
+            (p {}, 'Pedidos feitos até a manhã de sexta-feita têm mais chance de serem entregues completos ou até mesmo com produtos que não costumamos vender na loja, pois com este prazo nos é possível trazer direto dos nossos fornecedores os produtos pedidos -- se for possível, é claro.')
+            (p {}, 'A taxa de entrega varia de acordo com a localidade, você pode conferir qual é a sua taxa no mapa abaixo.')
+          )
+          (div className: 'modal-footer',
+            (button
+              className: 'btn btn-default'
+              'ev-click': talio.sendClick channels.closeModal
+            , 'Fechar')
+          )
+        )
+      )
+    )
+    (div
+      className: 'modal fade ' + (if state.modalOpened == 'order-posted' then 'in' else '')
+      style:
+        display: if state.modalOpened == 'order-posted' then 'block' else 'none'
+    ,
+      (div className: 'modal-dialog',
+        (div className: 'modal-content',
+          (div className: 'modal-header',
+            (button
+              className: 'close'
+              'ev-click': talio.sendClick channels.closeModal
+            , '×')
+          )
+          (div className: 'modal-body',
+            (p {}, 'Sua ordem foi enviada.')
+            (p {}, 'Entraremos em contato ')
+          )
+          (div className: 'modal-footer',
+            (button
+              className: 'btn btn-default'
+              'ev-click': talio.sendClick channels.closeModal
+            , 'Fechar')
+          )
+        )
+      )
     )
   )
 
-vrenderListedOrder = (key, data, parentHandles) ->
-  (div className: 'order',
-    (label {htmlFor: 'content',})
-    (textarea
-      id: 'content'
-      disabled: true
-      name: 'content'
-      'ev-click': hg.clickEvent(parentHandles.edit, {key: key})
-    , data.content)
-  )
+# startup
+handlers.findOrders State, localStorage.getItem 'my-orders'
+(->
+  updateItems = ->
+    setTimeout ->
+      State.change
+        startFrom: ((State.get 'startFrom') + (State.get 'show')) % (State.get('items').length)
+      updateItems()
+    , 8000
+  updateItems()
+  handlers.fetchItems State
+)() # items
+((src) ->
+  bg = new Image
+  bg.src = src
+  bg.onload = -> document.body.style.backgroundImage = "url(#{src})"
+)('img/organicos-sobre-madeira-deitado.jpg') # background image
+(setTimeout ->
+  countdown State.get('nextFriday'), (ts) ->
+    State.change 'timeLeft', ts.toString()
+  , countdown.DAYS | countdown.HOURS | countdown.MINUTES | countdown.SECONDS
+, 10) # clock
+# ~
 
-# do this on startup
-firebaseref.authAnonymously (err, auth) ->
-  if not err and auth
-    state.set 'authuid', auth.uid
-
-# channels transformer func
-channels = (funcs, context) ->
-  createHandle = (acc, name) ->
-    handle = hg.Delegator.allocateHandle(funcs[name].bind(null, context))
-    acc[name] = handle
-    acc
-  Object.keys(funcs).reduce createHandle, {}
-
-# run
-elem = document.getElementById('pedidos')
-hg.Delegator()
-handles = channels handles, state
-mainloop = (require './baobab-loop')(state.get(), vrenderMain, handles,
-  diff: hg.diff
-  create: hg.create
-  patch: hg.patch
-)
-elem.appendChild mainloop.target
-state.on 'update', (b) -> mainloop.update b.target.get()
+talio.run document.body, vrenderMain, handlers, State

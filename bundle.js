@@ -1,3746 +1,7740 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/home/fiatjaf/comp/alquimiaorganica/app.coffee":[function(require,module,exports){
-var Baobab, Firebase, button, channels, div, elem, firebaseref, form, handles, hg, input, label, mainloop, orderDefaults, state, textarea, vrenderListedOrder, vrenderMain, week, _ref;
+var Promise, Reais, State, Titulo, a, button, countdown, div, fieldset, form, h1, h2, h3, h4, handlers, i, iframe, img, input, legend, li, link, moment, nav, nextFriday, p, pre, ref, script, select, small, span, superagent, table, talio, tbody, td, textarea, tfoot, th, thead, tr, ul, vrenderMain, vrenderTable;
 
-Firebase = require('firebase');
+Titulo = require('titulo').toLaxTitleCase;
 
-Baobab = require('baobab');
+Reais = require('reais');
 
-hg = require('mercury');
+Promise = require('lie');
 
-week = require('current-week-number');
+superagent = (require('superagent-promise'))(require('superagent'), Promise);
 
-firebaseref = new Firebase('https://week.firebaseio.com/alquimia');
+talio = require('talio');
 
-_ref = require('virtual-elements'), div = _ref.div, form = _ref.form, label = _ref.label, textarea = _ref.textarea, input = _ref.input, button = _ref.button, label = _ref.label;
+moment = require('moment');
 
-orderDefaults = function(data) {
-  return {
-    key: data.key,
-    created: data.created || (new Date).toISOString(),
-    modified: data.created ? (new Date).toISOString() : null,
-    week: data.week || week(),
-    customer: data.customer || '',
-    phone: data.phone || '',
-    addr: data.addr || '',
-    content: data.content || ''
-  };
-};
+countdown = require('countdown');
 
-state = Baobab({
-  currentWeek: week(),
-  orders: {},
-  editing: null
-}, {
-  clone: true,
-  autoCommit: false,
-  shiftReferences: true
-});
+countdown.setLabels(' milissegundo| segundo| minuto| hora| dia| semana| mês| ano| década| século| milênio', ' milissegundos| segundos| minutos| horas| dias| semanas| meses| anos| décadas| séculos| milênios', ' e ', ' + ', 'agora');
 
-handles = {
-  edit: function(state, data) {
-    state.set('editing', data.key);
-    return state.commit();
+ref = require('virtual-elements'), div = ref.div, span = ref.span, pre = ref.pre, nav = ref.nav, script = ref.script, link = ref.link, iframe = ref.iframe, small = ref.small, i = ref.i, p = ref.p, a = ref.a, button = ref.button, h1 = ref.h1, h2 = ref.h2, h3 = ref.h3, h4 = ref.h4, img = ref.img, form = ref.form, legend = ref.legend, fieldset = ref.fieldset, input = ref.input, textarea = ref.textarea, select = ref.select, table = ref.table, thead = ref.thead, tbody = ref.tbody, tfoot = ref.tfoot, tr = ref.tr, th = ref.th, td = ref.td, ul = ref.ul, li = ref.li;
+
+vrenderTable = require('vrender-table');
+
+nextFriday = moment().day(6).startOf('day').add(5, 'hours');
+
+State = talio.StateFactory({
+  nextTuesday: moment().day(3),
+  nextFriday: nextFriday,
+  timeLeft: null,
+  order: {
+    subject: localStorage.getItem('lastNome'),
+    replyto: localStorage.getItem('lastReplyTo'),
+    description: localStorage.getItem('lastPedido'),
+    addr: localStorage.getItem('lastAddr')
   },
-  addNew: function(state) {
-    var order;
-    order = orderDefaults({
-      key: state.select('authuid').get()
-    });
-    state.select('orders').set(order.key, order);
-    state.set('editing', order.key);
-    return state.commit();
-  },
-  save: function(state, data) {
-    var order;
-    order = orderDefaults(data);
-    return firebaseref.child(data.key).set(order, function() {
-      state.set('editing', null);
-      return state.commit();
-    });
-  }
-};
-
-firebaseref.orderByChild('week').equalTo(state.select('currentWeek').get()).on('child_added', function(fsnap) {
-  state.select('orders').set(fsnap.key(), fsnap.val());
-  return state.commit();
+  items: [],
+  startFrom: 0,
+  show: 25,
+  modalOpened: null
 });
 
-firebaseref.on('child_changed', function(fsnap) {
-  state.select('orders').set(fsnap.key(), fsnap.val());
-  return state.commit();
-});
-
-firebaseref.on('child_removed', function(fsnap) {
-  state.select('orders').unset(fsnap.key());
-  return state.commit();
-});
-
-vrenderMain = function(snap, handles) {
-  var data, key, orderBeingEdited;
-  if (snap.editing) {
-    orderBeingEdited = snap.orders[snap.editing];
-  }
-  return div({}, !snap.editing && !(snap.authuid in snap.orders) ? button({
-    className: 'btn btn-info add-new',
-    'ev-click': handles.addNew
-  }, 'Criar um pedido') : void 0, div({
-    className: 'orders'
-  }, snap.editing ? div({
-    className: 'order editing'
-  }, form({
-    className: 'form-horizontal',
-    'ev-submit': hg.submitEvent(handles.save)
-  }, input({
-    type: 'hidden',
-    name: 'key',
-    value: orderBeingEdited.key
-  }), input({
-    type: 'hidden',
-    name: 'created',
-    value: orderBeingEdited.created
-  }), div({
-    className: 'form-group'
-  }, label({
-    className: 'col-sm-2 control-label',
-    htmlFor: 'customer'
-  }, 'Nome:'), div({
-    className: 'col-sm-10'
-  }, input({
-    type: 'text',
-    className: 'form-control',
-    id: 'customer',
-    name: 'customer',
-    value: orderBeingEdited.customer
-  }))), div({
-    className: 'form-group'
-  }, label({
-    className: 'col-sm-2 control-label',
-    htmlFor: 'phone'
-  }, 'Telefone:'), div({
-    className: 'col-sm-10'
-  }, input({
-    type: 'text',
-    className: 'form-control',
-    id: 'phone',
-    name: 'phone',
-    value: orderBeingEdited.phone
-  }))), div({
-    className: 'form-group'
-  }, label({
-    className: 'col-sm-2 control-label',
-    htmlFor: 'addr'
-  }, 'Endereço:'), div({
-    className: 'col-sm-10'
-  }, input({
-    type: 'text',
-    className: 'form-control',
-    id: 'addr',
-    name: 'addr',
-    value: orderBeingEdited.addr
-  }))), textarea({
-    className: 'form-control',
-    name: 'content',
-    value: orderBeingEdited.content,
-    rows: 5,
-    placeholder: '1 penca de banana\nuns 10 tomates\n1 abobrinha'
-  }), button({
-    className: 'btn btn-primary'
-  }, 'Salvar pedido'))) : void 0, (function() {
-    var _ref1, _results;
-    _ref1 = snap.orders;
-    _results = [];
-    for (key in _ref1) {
-      data = _ref1[key];
-      if (key !== snap.editing) {
-        _results.push(hg.partial(vrenderListedOrder, key, data, handles));
-      }
-    }
-    return _results;
-  })()));
-};
-
-vrenderListedOrder = function(key, data, parentHandles) {
-  return div({
-    className: 'order'
-  }, label({
-    htmlFor: 'content'
-  }), textarea({
-    id: 'content',
-    disabled: true,
-    name: 'content',
-    'ev-click': hg.clickEvent(parentHandles.edit, {
-      key: key
-    })
-  }, data.content));
-};
-
-firebaseref.authAnonymously(function(err, auth) {
-  if (!err && auth) {
-    return state.set('authuid', auth.uid);
-  }
-});
-
-channels = function(funcs, context) {
-  var createHandle;
-  createHandle = function(acc, name) {
-    var handle;
-    handle = hg.Delegator.allocateHandle(funcs[name].bind(null, context));
-    acc[name] = handle;
-    return acc;
-  };
-  return Object.keys(funcs).reduce(createHandle, {});
-};
-
-elem = document.getElementById('pedidos');
-
-hg.Delegator();
-
-handles = channels(handles, state);
-
-mainloop = (require('./baobab-loop'))(state.get(), vrenderMain, handles, {
-  diff: hg.diff,
-  create: hg.create,
-  patch: hg.patch
-});
-
-elem.appendChild(mainloop.target);
-
-state.on('update', function(b) {
-  return mainloop.update(b.target.get());
-});
-
-
-
-},{"./baobab-loop":"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee","baobab":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/index.js","current-week-number":"/home/fiatjaf/comp/alquimiaorganica/node_modules/current-week-number/index.js","firebase":"/home/fiatjaf/comp/alquimiaorganica/node_modules/firebase/lib/firebase-web.js","mercury":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/index.js","virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/baobab-loop.coffee":[function(require,module,exports){
-var InvalidUpdateInRender, TypedError, main, raf;
-
-raf = require('raf');
-
-TypedError = require('error/typed');
-
-InvalidUpdateInRender = TypedError({
-  type: 'main-loop.invalid.update.in-render',
-  message: 'main-loop: Unexpected update occurred in loop.\n' + 'We are currently rendering a view, ' + 'you can\'t change state right now.\n' + 'The diff is: {stringDiff}.\n' + 'SUGGESTED FIX: find the state mutation in your view ' + 'or rendering function and remove it.\n' + 'The view should not have any side effects.\n',
-  diff: null,
-  stringDiff: null
-});
-
-main = function(initialState, view, handles, opts) {
-  var create, currentState, diff, inRenderingTransaction, patch, redraw, redrawScheduled, target, tree, update;
-  opts = opts || {};
-  currentState = initialState;
-  create = opts.create;
-  diff = opts.diff;
-  patch = opts.patch;
-  redrawScheduled = false;
-  tree = opts.initialTree || view(currentState, handles);
-  target = opts.target || create(tree, opts);
-  inRenderingTransaction = false;
-  currentState = null;
-  update = function(state) {
-    if (inRenderingTransaction) {
-      throw InvalidUpdateInRender({
-        diff: state._diff,
-        stringDiff: JSON.stringify(state._diff)
+handlers = {
+  fetchItems: function(State) {
+    return superagent.get('http://items.vendasalva.com.br/alquimia/items').query({
+      limit: 100
+    }).end().then(function(res) {
+      return State.change({
+        items: function() {
+          return res.body.items;
+        }
       });
-    }
-    if (currentState === null && !redrawScheduled) {
-      redrawScheduled = true;
-      raf(redraw);
-    }
-    currentState = state;
-  };
-  redraw = function() {
-    var newTree, patches;
-    redrawScheduled = false;
-    if (currentState === null) {
-      return;
-    }
-    inRenderingTransaction = true;
-    newTree = view(currentState, handles);
-    if (opts.createOnly) {
-      inRenderingTransaction = false;
-      create(newTree, opts);
-    } else {
-      patches = diff(tree, newTree, opts);
-      inRenderingTransaction = false;
-      target = patch(target, patches, opts);
-    }
-    tree = newTree;
-    currentState = null;
-  };
-  return {
-    target: target,
-    update: update
-  };
-};
-
-module.exports = main;
-
-
-
-},{"error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/typed.js","raf":"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/defaults.js":[function(require,module,exports){
-/**
- * Baobab Default Options
- * =======================
- *
- */
-module.exports = {
-
-  // Should the tree handle its transactions on its own?
-  autoCommit: true,
-
-  // Should the transactions be handled asynchronously?
-  asynchronous: true,
-
-  // Should the tree clone data when giving it back to the user?
-  clone: false,
-
-  // Which cloning function should the tree use?
-  cloningFunction: null,
-
-  // Should cursors be singletons?
-  cursorSingletons: true,
-
-  // Maximum records in the tree's history
-  maxHistory: 0,
-
-  // Collection of react mixins to merge with the tree's ones
-  mixins: [],
-
-  // Should the tree shift its internal reference when applying mutations?
-  shiftReferences: false,
-
-  // Custom typology object to use along with the validation utilities
-  typology: null,
-
-  // Validation specifications
-  validate: null
-};
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/index.js":[function(require,module,exports){
-/**
- * Baobab Public Interface
- * ========================
- *
- * Exposes the main library classes.
- */
-var Baobab = require('./src/baobab.js'),
-    helpers = require('./src/helpers.js');
-
-// Non-writable version
-Object.defineProperty(Baobab, 'version', {
-  value: '0.4.0'
-});
-
-// Exposing helpers
-Baobab.getIn = helpers.getIn;
-
-// Exporting
-module.exports = Baobab;
-
-},{"./src/baobab.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/baobab.js","./src/helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js":[function(require,module,exports){
-(function() {
-  'use strict';
-
-  /**
-   * Here is the list of every allowed parameter when using Emitter#on:
-   * @type {Object}
-   */
-  var __allowedOptions = {
-    once: 'boolean',
-    scope: 'object'
-  };
-
-
-  /**
-   * The emitter's constructor. It initializes the handlers-per-events store and
-   * the global handlers store.
-   *
-   * Emitters are useful for non-DOM events communication. Read its methods
-   * documentation for more information about how it works.
-   *
-   * @return {Emitter}         The fresh new instance.
-   */
-  var Emitter = function() {
-    this._enabled = true;
-    this._children = [];
-    this._handlers = {};
-    this._handlersAll = [];
-  };
-
-
-  /**
-   * This method binds one or more functions to the emitter, handled to one or a
-   * suite of events. So, these functions will be executed anytime one related
-   * event is emitted.
-   *
-   * It is also possible to bind a function to any emitted event by not
-   * specifying any event to bind the function to.
-   *
-   * Recognized options:
-   * *******************
-   *  - {?boolean} once   If true, the handlers will be unbound after the first
-   *                      execution. Default value: false.
-   *  - {?object}  scope  If a scope is given, then the listeners will be called
-   *                      with this scope as "this".
-   *
-   * Variant 1:
-   * **********
-   * > myEmitter.on('myEvent', function(e) { console.log(e); });
-   * > // Or:
-   * > myEmitter.on('myEvent', function(e) { console.log(e); }, { once: true });
-   *
-   * @param  {string}   event   The event to listen to.
-   * @param  {function} handler The function to bind.
-   * @param  {?object}  options Eventually some options.
-   * @return {Emitter}          Returns this.
-   *
-   * Variant 2:
-   * **********
-   * > myEmitter.on(
-   * >   ['myEvent1', 'myEvent2'],
-   * >   function(e) { console.log(e); }
-   * >);
-   * > // Or:
-   * > myEmitter.on(
-   * >   ['myEvent1', 'myEvent2'],
-   * >   function(e) { console.log(e); }
-   * >   { once: true }}
-   * >);
-   *
-   * @param  {array}    events  The events to listen to.
-   * @param  {function} handler The function to bind.
-   * @param  {?object}  options Eventually some options.
-   * @return {Emitter}          Returns this.
-   *
-   * Variant 3:
-   * **********
-   * > myEmitter.on({
-   * >   myEvent1: function(e) { console.log(e); },
-   * >   myEvent2: function(e) { console.log(e); }
-   * > });
-   * > // Or:
-   * > myEmitter.on({
-   * >   myEvent1: function(e) { console.log(e); },
-   * >   myEvent2: function(e) { console.log(e); }
-   * > }, { once: true });
-   *
-   * @param  {object}  bindings An object containing pairs event / function.
-   * @param  {?object}  options Eventually some options.
-   * @return {Emitter}          Returns this.
-   *
-   * Variant 4:
-   * **********
-   * > myEmitter.on(function(e) { console.log(e); });
-   * > // Or:
-   * > myEmitter.on(function(e) { console.log(e); }, { once: true});
-   *
-   * @param  {function} handler The function to bind to every events.
-   * @param  {?object}  options Eventually some options.
-   * @return {Emitter}          Returns this.
-   */
-  Emitter.prototype.on = function(a, b, c) {
-    var i,
-        l,
-        k,
-        event,
-        eArray,
-        bindingObject;
-
-    // Variant 1 and 2:
-    if (typeof b === 'function') {
-      eArray = typeof a === 'string' ?
-        [a] :
-        a;
-
-      for (i = 0, l = eArray.length; i !== l; i += 1) {
-        event = eArray[i];
-
-        // Check that event is not '':
-        if (!event)
-          continue;
-
-        if (!this._handlers[event])
-          this._handlers[event] = [];
-
-        bindingObject = {
-          handler: b
-        };
-
-        for (k in c || {})
-          if (__allowedOptions[k])
-            bindingObject[k] = c[k];
-          else
-            throw new Error(
-              'The option "' + k + '" is not recognized by Emmett.'
-            );
-
-        this._handlers[event].push(bindingObject);
-      }
-
-    // Variant 3:
-    } else if (a && typeof a === 'object' && !Array.isArray(a))
-      for (event in a)
-        Emitter.prototype.on.call(this, event, a[event], b);
-
-    // Variant 4:
-    else if (typeof a === 'function') {
-      bindingObject = {
-        handler: a
-      };
-
-      for (k in c || {})
-        if (__allowedOptions[k])
-          bindingObject[k] = c[k];
-        else
-          throw new Error(
-            'The option "' + k + '" is not recognized by Emmett.'
-          );
-
-      this._handlersAll.push(bindingObject);
-    }
-
-    // No matching variant:
-    else
-      throw new Error('Wrong arguments.');
-
-    return this;
-  };
-
-
-  /**
-   * This method works exactly as the previous #on, but will add an options
-   * object if none is given, and set the option "once" to true.
-   *
-   * The polymorphism works exactly as with the #on method.
-   */
-  Emitter.prototype.once = function(a, b, c) {
-    // Variant 1 and 2:
-    if (typeof b === 'function') {
-      c = c || {};
-      c.once = true;
-      this.on(a, b, c);
-
-    // Variants 3 and 4:
-    } else if (
-      // Variant 3:
-      (a && typeof a === 'object' && !Array.isArray(a)) ||
-      // Variant 4:
-      (typeof a === 'function')
-    ) {
-      b = b || {};
-      b.once = true;
-      this.on(a, b);
-
-    // No matching variant:
-    } else
-      throw new Error('Wrong arguments.');
-
-    return this;
-  };
-
-
-  /**
-   * This method unbinds one or more functions from events of the emitter. So,
-   * these functions will no more be executed when the related events are
-   * emitted. If the functions were not bound to the events, nothing will
-   * happen, and no error will be thrown.
-   *
-   * Variant 1:
-   * **********
-   * > myEmitter.off('myEvent', myHandler);
-   *
-   * @param  {string}   event   The event to unbind the handler from.
-   * @param  {function} handler The function to unbind.
-   * @return {Emitter}          Returns this.
-   *
-   * Variant 2:
-   * **********
-   * > myEmitter.off(['myEvent1', 'myEvent2'], myHandler);
-   *
-   * @param  {array}    events  The events to unbind the handler from.
-   * @param  {function} handler The function to unbind.
-   * @return {Emitter}          Returns this.
-   *
-   * Variant 3:
-   * **********
-   * > myEmitter.off({
-   * >   myEvent1: myHandler1,
-   * >   myEvent2: myHandler2
-   * > });
-   *
-   * @param  {object} bindings An object containing pairs event / function.
-   * @return {Emitter}         Returns this.
-   *
-   * Variant 4:
-   * **********
-   * > myEmitter.off(myHandler);
-   *
-   * @param  {function} handler The function to unbind from every events.
-   * @return {Emitter}          Returns this.
-   */
-  Emitter.prototype.off = function(events, handler) {
-    var i,
-        n,
-        j,
-        m,
-        k,
-        a,
-        event,
-        eArray = typeof events === 'string' ?
-          [events] :
-          events;
-
-    if (arguments.length === 1 && typeof eArray === 'function') {
-      handler = arguments[0];
-
-      // Handlers bound to events:
-      for (k in this._handlers) {
-        a = [];
-        for (i = 0, n = this._handlers[k].length; i !== n; i += 1)
-          if (this._handlers[k][i].handler !== handler)
-            a.push(this._handlers[k][i]);
-        this._handlers[k] = a;
-      }
-
-      a = [];
-      for (i = 0, n = this._handlersAll.length; i !== n; i += 1)
-        if (this._handlersAll[i].handler !== handler)
-          a.push(this._handlersAll[i]);
-      this._handlersAll = a;
-    }
-
-    else if (arguments.length === 2) {
-      for (i = 0, n = eArray.length; i !== n; i += 1) {
-        event = eArray[i];
-        if (this._handlers[event]) {
-          a = [];
-          for (j = 0, m = this._handlers[event].length; j !== m; j += 1)
-            if (this._handlers[event][j].handler !== handler)
-              a.push(this._handlers[event][j]);
-
-          this._handlers[event] = a;
-        }
-
-        if (this._handlers[event] && this._handlers[event].length === 0)
-          delete this._handlers[event];
-      }
-    }
-
-    return this;
-  };
-
-
-  /**
-   * This method unbinds every handlers attached to every or any events. So,
-   * these functions will no more be executed when the related events are
-   * emitted. If the functions were not bound to the events, nothing will
-   * happen, and no error will be thrown.
-   *
-   * Usage:
-   * ******
-   * > myEmitter.unbindAll();
-   *
-   * @return {Emitter}      Returns this.
-   */
-  Emitter.prototype.unbindAll = function() {
-    var k;
-
-    this._handlersAll = [];
-    for (k in this._handlers)
-      delete this._handlers[k];
-
-    return this;
-  };
-
-
-  /**
-   * This method emits the specified event(s), and executes every handlers bound
-   * to the event(s).
-   *
-   * Use cases:
-   * **********
-   * > myEmitter.emit('myEvent');
-   * > myEmitter.emit('myEvent', myData);
-   * > myEmitter.emit(['myEvent1', 'myEvent2']);
-   * > myEmitter.emit(['myEvent1', 'myEvent2'], myData);
-   *
-   * @param  {string|array} events The event(s) to emit.
-   * @param  {object?}      data   The data.
-   * @return {Emitter}             Returns this.
-   */
-  Emitter.prototype.emit = function(events, data) {
-    var i,
-        n,
-        j,
-        m,
-        z,
-        a,
-        event,
-        child,
-        handlers,
-        eventName,
-        self = this,
-        eArray = typeof events === 'string' ?
-          [events] :
-          events;
-
-    // Check that the emitter is enabled:
-    if (!this._enabled)
-      return this;
-
-    data = data === undefined ? {} : data;
-
-    for (i = 0, n = eArray.length; i !== n; i += 1) {
-      eventName = eArray[i];
-      handlers = (this._handlers[eventName] || []).concat(this._handlersAll);
-
-      if (handlers.length) {
-        event = {
-          type: eventName,
-          data: data || {},
-          target: this
-        };
-        a = [];
-
-        for (j = 0, m = handlers.length; j !== m; j += 1) {
-
-          // We have to verify that the handler still exists in the array,
-          // as it might have been mutated already
-          if (
-            (
-              this._handlers[eventName] &&
-              this._handlers[eventName].indexOf(handlers[j]) >= 0
-            ) ||
-            this._handlersAll.indexOf(handlers[j]) >= 0
-          ) {
-            handlers[j].handler.call(
-              'scope' in handlers[j] ? handlers[j].scope : this,
-              event
-            );
-
-            // Since the listener callback can mutate the _handlers,
-            // we register the handlers we want to remove, not the ones
-            // we want to keep
-            if (handlers[j].once)
-              a.push(handlers[j]);
-          }
-        }
-
-        // Go through handlers to remove
-        for (z = 0; z < a.length; z++) {
-          this._handlers[eventName].splice(a.indexOf(a[z]), 1);
-        }
-      }
-    }
-
-    // Events propagation:
-    for (i = 0, n = this._children.length; i !== n; i += 1) {
-      child = this._children[i];
-      child.emit.apply(child, arguments);
-    }
-
-    return this;
-  };
-
-
-  /**
-   * This method creates a new instance of Emitter and binds it as a child. Here
-   * is what children do:
-   *  - When the parent emits an event, the children will emit the same later
-   *  - When a child is killed, it is automatically unreferenced from the parent
-   *  - When the parent is killed, all children will be killed as well
-   *
-   * @return {Emitter} Returns the fresh new child.
-   */
-  Emitter.prototype.child = function() {
-    var self = this,
-        child = new Emitter();
-
-    child.on('emmett:kill', function() {
-      if (self._children)
-        for (var i = 0, l = self._children.length; i < l; i++)
-          if (self._children[i] === child) {
-            self._children.splice(i, 1);
-            break;
-          }
     });
-    this._children.push(child);
-
-    return child;
-  };
-
-  /**
-   * This returns an array of handler functions corresponding to the given
-   * event or every handler functions if an event were not to be given.
-   *
-   * @param  {?string} event Name of the event.
-   * @return {Emitter} Returns this.
-   */
-  function mapHandlers(a) {
-    var i, l, h = [];
-
-    for (i = 0, l = a.length; i < l; i++)
-      h.push(a[i].handler);
-
-    return h;
-  }
-
-  Emitter.prototype.listeners = function(event) {
-    var handlers = [],
-        k,
-        i,
-        l;
-
-    // If no event is passed, we return every handlers
-    if (!event) {
-      handlers = mapHandlers(this._handlersAll);
-
-      for (k in this._handlers)
-        handlers = handlers.concat(mapHandlers(this._handlers[k]));
-
-      // Retrieving handlers per children
-      for (i = 0, l = this._children.length; i < l; i++)
-        handlers = handlers.concat(this._children[i].listeners());
-    }
-
-    // Else we only retrieve the needed handlers
-    else {
-      handlers = mapHandlers(this._handlers[event]);
-
-      // Retrieving handlers per children
-      for (i = 0, l = this._children.length; i < l; i++)
-        handlers = handlers.concat(this._children[i].listeners(event));
-    }
-
-    return handlers;
-  };
-
-
-  /**
-   * This method will first dispatch a "emmett:kill" event, and then unbinds all
-   * listeners and make it impossible to ever rebind any listener to any event.
-   */
-  Emitter.prototype.kill = function() {
-    this.emit('emmett:kill');
-
-    this.unbindAll();
-    this._handlers = null;
-    this._handlersAll = null;
-    this._enabled = false;
-
-    if (this._children)
-      for (var i = 0, l = this._children.length; i < l; i++)
-        this._children[i].kill();
-
-    this._children = null;
-  };
-
-
-  /**
-   * This method disabled the emitter, which means its emit method will do
-   * nothing.
-   *
-   * @return {Emitter} Returns this.
-   */
-  Emitter.prototype.disable = function() {
-    this._enabled = false;
-
-    return this;
-  };
-
-
-  /**
-   * This method enables the emitter.
-   *
-   * @return {Emitter} Returns this.
-   */
-  Emitter.prototype.enable = function() {
-    this._enabled = true;
-
-    return this;
-  };
-
-
-  /**
-   * Version:
-   */
-  Emitter.version = '2.1.2';
-
-
-  // Export:
-  if (typeof exports !== 'undefined') {
-    if (typeof module !== 'undefined' && module.exports)
-      exports = module.exports = Emitter;
-    exports.Emitter = Emitter;
-  } else if (typeof define === 'function' && define.amd)
-    define('emmett', [], function() {
-      return Emitter;
-    });
-  else
-    this.Emitter = Emitter;
-}).call(this);
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/typology/typology.js":[function(require,module,exports){
-/**
- * typology.js - A data validation library for Node.js and the browser,
- *
- * Version: 0.3.1
- * Sources: http://github.com/jacomyal/typology
- * Doc:     http://github.com/jacomyal/typology#readme
- *
- * License:
- * --------
- * Copyright © 2014 Alexis Jacomy (@jacomyal), Guillaume Plique (@Yomguithereal)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to
- * deal in the Software without restriction, including without limitation the
- * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- * sell copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * The Software is provided "as is", without warranty of any kind, express or
- * implied, including but not limited to the warranties of merchantability,
- * fitness for a particular purpose and noninfringement. In no event shall the
- * authors or copyright holders be liable for any claim, damages or other
- * liability, whether in an action of contract, tort or otherwise, arising
- * from, out of or in connection with the software or the use or other dealings
- * in the Software.
- */
-(function(global) {
-  'use strict';
-
-  /**
-   * Code conventions:
-   * *****************
-   *  - 80 characters max per line
-   *  - Write "__myVar" for any global private variable
-   *  - Write "_myVar" for any instance private variable
-   *  - Write "myVar" any local variable
-   */
-
-
-
-  /**
-   * PRIVATE GLOBALS:
-   * ****************
-   */
-
-  /**
-   * This object is a dictionnary that maps "[object Something]" strings to the
-   * typology form "something":
-   */
-  var __class2type = {};
-
-  /**
-   * This array is the list of every types considered native by typology:
-   */
-  var __nativeTypes = ['*'];
-
-  (function() {
-    var k,
-        className,
-        classes = [
-          'Arguments',
-          'Boolean',
-          'Number',
-          'String',
-          'Function',
-          'Array',
-          'Date',
-          'RegExp',
-          'Object'
-        ];
-
-    // Fill types
-    for (k in classes) {
-      className = classes[k];
-      __nativeTypes.push(className.toLowerCase());
-      __class2type['[object ' + className + ']'] = className.toLowerCase();
-    }
-  })();
-
-
-
-  /**
-   * CONSTRUCTOR:
-   * ************
-   */
-  function Typology(defs) {
-    /**
-     * INSTANCE PRIVATES:
-     * ******************
-     */
-
-    var _self = this;
-
-    /**
-     * This objects will contain every instance-specific custom types:
-     */
-    var _customTypes = {};
-
-    /**
-     * This function will recursively scan an object to check wether or not it
-     * matches a given type. It will return null if it matches, and an Error
-     * object else.
-     *
-     * Examples:
-     * *********
-     * 1. When the type matches:
-     *  > _scan('abc', 'string');
-     *  will return null.
-     *
-     * 2. When a top-level type does not match:
-     *  > _scan('abc', 'number');
-     *  will return an Error object with the following information:
-     *   - message: Expected a "number" but found a "string".
-     *
-     * 3. When a sub-object type does not its type:
-     *  > _scan({ a: 'abc' }, { a: 'number' });
-     *  will return an Error object with the following information:
-     *   - message: Expected a "number" but found a "string".
-     *   - path: [ 'a' ]
-     *
-     * 4. When a deep sub-object type does not its type:
-     *  > _scan({ a: [ 123, 'abc' ] }, { a: ['number'] });
-     *  will return an Error object with the following information:
-     *   - message: Expected a "number" but found a "string".
-     *   - path: [ 'a', 1 ]
-     *
-     * 5. When a required key is missing:
-     *  > _scan({}, { a: 'number' });
-     *  will return an Error object with the following information:
-     *   - message: Expected a "number" but found a "undefined".
-     *   - path: [ 'a' ]
-     *
-     * 6. When an unexpected key is present:
-     *  > _scan({ a: 123, b: 456 }, { a: 'number' });
-     *  will return an Error object with the following information:
-     *   - message: Unexpected key "b".
-     *
-     * @param  {*}      obj  The value to validate.
-     * @param  {type}   type The type.
-     * @return {?Error}      Returns null or an Error object.
-     */
-    function _scan(obj, type) {
-      var a,
-          i,
-          l,
-          k,
-          error,
-          subError,
-          hasStar,
-          hasTypeOf,
-          optional = false,
-          exclusive = false,
-          typeOf = _self.get(obj);
-
-      if (_self.get(type) === 'string') {
-        a = type.replace(/^[\?\!]/, '').split(/\|/);
-        l = a.length;
-        for (i = 0; i < l; i++)
-          if (__nativeTypes.indexOf(a[i]) < 0 && !(a[i] in _customTypes))
-            throw new Error('Invalid type.');
-
-        if (type.match(/^\?/))
-          optional = true;
-
-        if (type.replace(/^\?/, '').match(/^\!/))
-          exclusive = true;
-
-        if (exclusive && optional)
-          throw new Error('Invalid type.');
-
-        for (i in a)
-          if (_customTypes[a[i]])
-            if (
-              (typeof _customTypes[a[i]].type === 'function') ?
-                (_customTypes[a[i]].type.call(_self, obj) === true) :
-                !_scan(obj, _customTypes[a[i]].type)
-            ) {
-              if (exclusive) {
-                error = new Error();
-                error.message = 'Expected a "' + type + '" but found a ' +
-                                '"' + a[i] + '".';
-              error.expected = type;
-              error.type = a[i];
-              error.value = obj;
-                return error;
-              } else
-                return null;
-            }
-
-        if (obj === null || obj === undefined) {
-          if (!exclusive && !optional) {
-            error = new Error();
-            error.message = 'Expected a "' + type + '" but found a ' +
-                            '"' + typeOf + '".';
-            error.expected = type;
-            error.type = typeOf;
-            error.value = obj;
-            return error;
-          } else
-            return null;
-
-        } else {
-          hasStar = ~a.indexOf('*');
-          hasTypeOf = ~a.indexOf(typeOf);
-          if (exclusive && (hasStar || hasTypeOf)) {
-            error = new Error();
-            error.message = 'Expected a "' + type + '" but found a ' +
-                            '"' + (hasTypeOf ? typeOf : '*') + '".';
-            error.type = hasTypeOf ? typeOf : '*';
-            error.expected = type;
-            error.value = obj;
-            return error;
-
-          } else if (!exclusive && !(hasStar || hasTypeOf)) {
-            error = new Error();
-            error.message = 'Expected a "' + type + '" but found a ' +
-                            '"' + typeOf + '".';
-            error.expected = type;
-            error.type = typeOf;
-            error.value = obj;
-            return error;
-
-          } else
-            return null;
-        }
-
-      } else if (_self.get(type) === 'object') {
-        if (typeOf !== 'object') {
-          error = new Error();
-          error.message = 'Expected an object but found a "' + typeOf + '".';
-          error.expected = type;
-          error.type = typeOf;
-          error.value = obj;
-          return error;
-        }
-
-        for (k in type)
-          if ((subError = _scan(obj[k], type[k]))) {
-            error = subError;
-            error.path = error.path ?
-              [k].concat(error.path) :
-              [k];
-            return error;
-          }
-
-        for (k in obj)
-          if (type[k] === undefined) {
-            error = new Error();
-            error.message = 'Unexpected key "' + k + '".';
-            error.type = typeOf;
-            error.value = obj;
-            return error;
-          }
-
-        return null;
-
-      } else if (_self.get(type) === 'array') {
-        if (type.length !== 1)
-          throw new Error('Invalid type.');
-
-        if (typeOf !== 'array') {
-          error = new Error();
-          error.message = 'Expected an array but found a "' + typeOf + '".';
-          error.expected = type;
-          error.type = typeOf;
-          error.value = obj;
-          return error;
-        }
-
-        l = obj.length;
-        for (i = 0; i < l; i++)
-          if ((subError = _scan(obj[i], type[0]))) {
-            error = subError;
-            error.path = error.path ?
-              [i].concat(error.path) :
-              [i];
-            return error;
-          }
-
-        return null;
-      } else
-        throw new Error('Invalid type.');
-    }
-
-
-
-    /**
-     * INSTANCE METHODS:
-     * *****************
-     */
-
-    /**
-     * This method registers a custom type into the Typology instance. A type
-     * is registered under a unique name, and is described by an object (like
-     * classical C structures) or a function.
-     *
-     * Variant 1:
-     * **********
-     * > types.add('user', { id: 'string', name: '?string' });
-     *
-     * @param  {string}   id   The unique id of the type.
-     * @param  {object}   type The corresponding structure.
-     * @return {Typology}      Returns this.
-     *
-     * Variant 2:
-     * **********
-     * > types.add('integer', function(value) {
-     * >   return typeof value === 'number' && value === value | 0;
-     * > });
-     *
-     * @param  {string}   id   The unique id of the type.
-     * @param  {function} type The function validating the type.
-     * @return {Typology}      Returns this.
-     *
-     * Variant 3:
-     * **********
-     * > types.add({
-     * >   id: 'user',
-     * >   type: { id: 'string', name: '?string' }
-     * > });
-     *
-     * > types.add({
-     * >   id: 'integer',
-     * >   type: function(value) {
-     * >     return typeof value === 'number' && value === value | 0;
-     * >   }
-     * > });
-     *
-     * @param  {object}   specs An object describing fully the type.
-     * @return {Typology}       Returns this.
-     *
-     * Recognized parameters:
-     * **********************
-     * Here is the exhaustive list of every accepted parameters in the specs
-     * object:
-     *
-     *   {string}          id    The unique id of the type.
-     *   {function|object} type  The function or the structure object
-     *                           validating the type.
-     *   {?[string]}       proto Eventually an array of ids of types that are
-     *                           referenced in the structure but do not exist
-     *                           yet.
-     */
-    this.add = function(a1, a2) {
-      var o,
-          k,
-          a,
-          id,
-          tmp,
-          type;
-
-      // Polymorphism:
-      if (arguments.length === 1) {
-        if (this.get(a1) === 'object') {
-          o = a1;
-          id = o.id;
-          type = o.type;
-        } else
-          throw new Error('If types.add is called with one argument, ' +
-                          'this one has to be an object.');
-      } else if (arguments.length === 2) {
-        if (typeof a1 !== 'string' || !a1)
-          throw new Error('If types.add is called with more than one ' +
-                          'argument, the first one must be the string id.');
-        else
-          id = a1;
-
-        type = a2;
-      } else
-        throw new Error('types.add has to be called ' +
-                        'with one or two arguments.');
-
-      if (this.get(id) !== 'string' || id.length === 0)
-        throw new Error('A type requires an string id.');
-
-      if (_customTypes[id] !== undefined && _customTypes[id] !== 'proto')
-        throw new Error('The type "' + id + '" already exists.');
-
-      if (~__nativeTypes.indexOf(id))
-        throw new Error('"' + id + '" is a reserved type name.');
-
-      _customTypes[id] = 1;
-
-      // Check given prototypes:
-      a = (o || {}).proto || [];
-      a = Array.isArray(a) ? a : [a];
-      tmp = {};
-      for (k in a)
-        if (_customTypes[a[k]] === undefined) {
-          _customTypes[a[k]] = 1;
-          tmp[a[k]] = 1;
-        }
-
-      if ((this.get(type) !== 'function') && !this.isValid(type))
-        throw new Error('A type requires a valid definition. ' +
-                        'This one can be a preexistant type or else ' +
-                        'a function testing given objects.');
-
-      // Effectively add the type:
-      _customTypes[id] = (o === undefined) ?
-        {
-          id: id,
-          type: type
-        } :
-        {};
-
-      if (o !== undefined)
-        for (k in o)
-          _customTypes[id][k] = o[k];
-
-      // Delete prototypes:
-      for (k in tmp)
-        if (k !== id)
-          delete _customTypes[k];
-
-      return this;
-    };
-
-    /**
-     * This method returns true if a custom type is already registered in this
-     * instance under the given key.
-     *
-     * @param  {string}  key A type name.
-     * @return {boolean}     Returns true if the key is registered.
-     */
-    this.has = function(key) {
-      return !!_customTypes[key];
-    };
-
-    /**
-     * This method returns the native type of a given value.
-     *
-     * Examples:
-     * *********
-     * > types.get({ a: 1 }); // returns "object"
-     * > types.get('abcde');  // returns "string"
-     * > types.get(1234567);  // returns "number"
-     * > types.get([1, 2]);   // returns "array"
-     *
-     * @param  {*}      value Anything.
-     * @return {string}       Returns the native type of the value.
-     */
-    this.get = function(obj) {
-      return (obj === null || obj === undefined) ?
-        String(obj) :
-        __class2type[Object.prototype.toString.call(obj)] || 'object';
-    };
-
-    /**
-     * This method validates some value against a given type. If the flag throws
-     * has a truthy value, then the method will throw an error instead of
-     * returning false.
-     *
-     * To know more about the error thrown, you can read the documentation of
-     * the private method _scan.
-     *
-     * Examples:
-     * *********
-     * > types.check({ a: 1 }, 'object');                      // returns true
-     * > types.check({ a: 1 }, { a: 'string' });               // returns true
-     * > types.check({ a: 1 }, { a: 'string', b: '?number' }); // returns true
-     *
-     * > types.check({ a: 1 }, { a: 'string', b: 'number' }); // returns false
-     * > types.check({ a: 1 }, { a: 'number' });              // returns false
-     * > types.check({ a: 1 }, 'array');                      // returns false
-     *
-     * > types.check({ a: 1 }, 'array', true); // throws an Error
-     *
-     * @param  {*}        value  Anything.
-     * @param  {type}     type   A valid type.
-     * @param  {?boolean} throws If true, this method will throw an error
-     *                           instead of returning false.
-     * @return {boolean}         Returns true if the value matches the type, and
-     *                           not else.
-     */
-    this.check = function(obj, type, throws) {
-      var result = _scan(obj, type);
-      if (throws && result)
-        throw result;
-      else
-        return !result;
-    };
-
-    /**
-     * This method validates a type. If the type is not referenced or is not
-     * valid, it will return false.
-     *
-     * To know more about that function, don't hesitate to read the related
-     * unit tests.
-     *
-     * Examples:
-     * *********
-     * > types.isValid('string');        // returns true
-     * > types.isValid('?string');       // returns true
-     * > types.isValid('!string');       // returns true
-     * > types.isValid('string|number'); // returns true
-     * > types.isValid({ a: 'string' }); // returns true
-     * > types.isValid(['string']);      // returns true
-     *
-     * > types.isValid('!?string');                // returns false
-     * > types.isValid('myNotDefinedType');        // returns false
-     * > types.isValid(['myNotDefinedType']);      // returns false
-     * > types.isValid({ a: 'myNotDefinedType' }); // returns false
-     *
-     * > types.isValid('user');               // returns false
-     * > types.add('user', { id: 'string' }); // makes the type become valid
-     * > types.isValid('user');               // returns true
-     *
-     * @param  {*}       type The type to get checked.
-     * @return {boolean}      Returns true if the type is valid, and false else.
-     */
-    this.isValid = function(type) {
-      var a,
-          k,
-          i;
-
-      if (this.get(type) === 'string') {
-        a = type.replace(/^[\?\!]/, '').split(/\|/);
-        for (i in a)
-          if (__nativeTypes.indexOf(a[i]) < 0 && !(a[i] in _customTypes))
-            return false;
-        return true;
-
-      } else if (this.get(type) === 'object') {
-        for (k in type)
-          if (!this.isValid(type[k]))
-            return false;
-        return true;
-
-      } else if (this.get(type) === 'array')
-        return type.length === 1 ?
-          this.isValid(type[0]) :
-          false;
-      else
-        return false;
-    };
-
-
-
-    /**
-     * INSTANTIATION ROUTINE:
-     * **********************
-     */
-
-    // Add a type "type" to shortcut the #isValid method:
-    this.add('type', (function(v) {
-      return this.isValid(v);
-    }).bind(this));
-
-    // Add a type "primitive" to match every primitive types (including null):
-    this.add('primitive', function(v) {
-      return !v || !(v instanceof Object || typeof v === 'object');
-    });
-
-    // Adding custom types at instantiation:
-    defs = defs || {};
-    if (this.get(defs) !== 'object')
-      throw Error('Invalid argument.');
-
-    for (var k in defs)
-      this.add(k, defs[k]);
-  }
-
-
-
-  /**
-   * GLOBAL PUBLIC API:
-   * ******************
-   */
-
-  // Creating a "main" typology instance to export:
-  var types = Typology;
-  Typology.call(types);
-
-  // Version:
-  Object.defineProperty(types, 'version', {
-    value: '0.3.1'
-  });
-
-
-
-  /**
-   * EXPORT:
-   * *******
-   */
-  if (typeof exports !== 'undefined') {
-    if (typeof module !== 'undefined' && module.exports)
-      exports = module.exports = types;
-    exports.types = types;
-  } else if (typeof define === 'function' && define.amd)
-    define('typology', [], function() {
-      return types;
-    });
-  else
-    this.types = types;
-})(this);
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/baobab.js":[function(require,module,exports){
-/**
- * Baobab Data Structure
- * ======================
- *
- * A handy data tree with cursors.
- */
-var Cursor = require('./cursor.js'),
-    EventEmitter = require('emmett'),
-    Typology = require('typology'),
-    helpers = require('./helpers.js'),
-    update = require('./update.js'),
-    merge = require('./merge.js'),
-    mixins = require('./mixins.js'),
-    defaults = require('../defaults.js'),
-    type = require('./type.js');
-
-function complexHash(type) {
-  return type + '$' +
-    (new Date()).getTime() + (''  + Math.random()).replace('0.', '');
-}
-
-/**
- * Main Class
- */
-function Baobab(initialData, opts) {
-  if (arguments.length < 1)
-    initialData = {};
-
-  // New keyword optional
-  if (!(this instanceof Baobab))
-    return new Baobab(initialData, opts);
-
-  if (!type.Object(initialData) && !type.Array(initialData))
-    throw Error('Baobab: invalid data.');
-
-  // Extending
-  EventEmitter.call(this);
-
-  // Merging defaults
-  this.options = helpers.shallowMerge(defaults, opts);
-  this._cloner = this.options.cloningFunction || helpers.deepClone;
-
-  // Privates
-  this._transaction = {};
-  this._future = undefined;
-  this._history = [];
-  this._cursors = {};
-
-  // Internal typology
-  this.typology = this.options.typology ?
-    (this.options.typology instanceof Typology ?
-      this.options.typology :
-      new Typology(this.options.typology)) :
-    new Typology();
-
-  // Internal validation
-  this.validate = this.options.validate || null;
-
-  if (this.validate)
-    try {
-      this.typology.check(initialData, this.validate, true);
-    }
-    catch (e) {
-      e.message = '/' + e.path.join('/') + ': ' + e.message;
-      throw e;
-    }
-
-  // Properties
-  this.data = this._cloner(initialData);
-
-  // Mixin
-  this.mixin = mixins.baobab(this);
-}
-
-helpers.inherits(Baobab, EventEmitter);
-
-/**
- * Private prototype
- */
-Baobab.prototype._archive = function() {
-  if (this.options.maxHistory <= 0)
-    return;
-
-  var record = {
-    data: this._cloner(this.data)
-  };
-
-  // Replacing
-  if (this._history.length === this.options.maxHistory) {
-    this._history.pop();
-  }
-  this._history.unshift(record);
-
-  return record;
-};
-
-/**
- * Prototype
- */
-Baobab.prototype.commit = function(referenceRecord) {
-  var self = this,
-      log;
-
-  if (referenceRecord) {
-
-    // Override
-    this.data = referenceRecord.data;
-    log = referenceRecord.log;
-  }
-  else {
-
-    // Shifting root reference
-    if (this.options.shiftReferences)
-      this.data = helpers.shallowClone(this.data);
-
-    // Applying modification (mutation)
-    var record = this._archive();
-    log = update(this.data, this._transaction, this.options);
-
-    if (record)
-      record.log = log;
-  }
-
-  if (this.validate) {
-    var errors = [],
-        l = log.length,
-        d,
-        i;
-
-    for (i = 0; i < l; i++) {
-      d = helpers.getIn(this.validate, log[i]);
-
-      if (!d)
-        continue;
-
-      try {
-        this.typology.check(this.get(log[i]), d, true);
-      }
-      catch (e) {
-        e.path = log[i].concat((e.path || []));
-        errors.push(e);
-      }
-    }
-
-    if (errors.length)
-      this.emit('invalid', {errors: errors});
-  }
-
-  // Baobab-level update event
-  this.emit('update', {
-    log: log
-  });
-
-  // Resetting
-  this._transaction = {};
-
-  if (this._future)
-    this._future = clearTimeout(this._future);
-
-  return this;
-};
-
-Baobab.prototype.select = function(path) {
-  if (arguments.length > 1)
-    path = helpers.arrayOf(arguments);
-
-  if (!type.Path(path))
-    throw Error('Baobab.select: invalid path.');
-
-  // Casting to array
-  path = !type.Array(path) ? [path] : path;
-
-  // Complex path?
-  var complex = type.ComplexPath(path);
-
-  var solvedPath;
-
-  if (complex)
-    solvedPath = helpers.solvePath(this.data, path);
-
-  // Registering a new cursor or giving the already existing one for path
-  if (!this.options.cursorSingletons) {
-    return new Cursor(this, path);
-  }
-  else {
-    var hash = path.map(function(step) {
-      if (type.Function(step))
-        return complexHash('fn');
-      else if (type.Object(step))
-        return complexHash('ob');
-      else
-        return step;
-    }).join('λ');
-
-    if (!this._cursors[hash]) {
-      var cursor = new Cursor(this, path, solvedPath, hash);
-      this._cursors[hash] = cursor;
-      return cursor;
-    }
-    else {
-      return this._cursors[hash];
-    }
-  }
-};
-
-Baobab.prototype.reference = function(path) {
-  var data;
-
-  if (arguments.length > 1)
-    path = helpers.arrayOf(arguments);
-
-  if (!type.Path(path))
-    throw Error('Baobab.get: invalid path.');
-
-  return helpers.getIn(
-    this.data, type.String(path) || type.Number(path) ? [path] : path
-  );
-};
-
-Baobab.prototype.get = function() {
-  var ref = this.reference.apply(this, arguments);
-
-  return this.options.clone ? this._cloner(ref) : ref;
-};
-
-Baobab.prototype.clone = function(path) {
-  return this._cloner(this.reference.apply(this, arguments));
-};
-
-Baobab.prototype.set = function(key, val) {
-
-  if (arguments.length < 2)
-    throw Error('Baobab.set: expects a key and a value.');
-
-  var spec = {};
-  spec[key] = {$set: val};
-
-  return this.update(spec);
-};
-
-Baobab.prototype.unset = function(key) {
-  if (!key && key !== 0)
-    throw Error('Baobab.unset: expects a valid key to unset.');
-
-  var spec = {};
-  spec[key] = {$unset: true};
-
-  return this.update(spec);
-};
-
-Baobab.prototype.update = function(spec) {
-  var self = this;
-
-  if (!type.Object(spec))
-    throw Error('Baobab.update: wrong specification.');
-
-  this._transaction = merge(spec, this._transaction);
-
-  // Should we let the user commit?
-  if (!this.options.autoCommit)
-    return this;
-
-  // Should we update synchronously?
-  if (!this.options.asynchronous)
-    return this.commit();
-
-  // Updating asynchronously
-  if (!this._future)
-    this._future = setTimeout(self.commit.bind(self, null), 0);
-
-  return this;
-};
-
-Baobab.prototype.hasHistory = function() {
-  return !!this._history.length;
-};
-
-Baobab.prototype.getHistory = function() {
-  return this._history;
-};
-
-Baobab.prototype.undo = function() {
-  if (!this.hasHistory())
-    throw Error('Baobab.undo: no history recorded, cannot undo.');
-
-  var lastRecord = this._history.shift();
-  this.commit(lastRecord);
-};
-
-Baobab.prototype.release = function() {
-  this.kill();
-  delete this.data;
-  delete this._transaction;
-  delete this._history;
-
-  // Releasing cursors
-  for (var k in this._cursors)
-    this._cursors[k].release();
-  delete this._cursors;
-};
-
-/**
- * Output
- */
-Baobab.prototype.toJSON = function() {
-  return this.reference();
-};
-
-/**
- * Export
- */
-module.exports = Baobab;
-
-},{"../defaults.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/defaults.js","./cursor.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/cursor.js","./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./merge.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/merge.js","./mixins.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/mixins.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js","./update.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/update.js","emmett":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js","typology":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/typology/typology.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/combination.js":[function(require,module,exports){
-/**
- * Baobab Cursor Combination
- * ==========================
- *
- * A useful abstraction dealing with cursor's update logical combinations.
- */
-var EventEmitter = require('emmett'),
-    helpers = require('./helpers.js'),
-    type = require('./type.js');
-
-/**
- * Utilities
- */
-function bindCursor(c, cursor) {
-  cursor.on('update', c.cursorListener);
-}
-
-/**
- * Main Class
- */
-function Combination(operator /*, &cursors */) {
-  var self = this;
-
-  // Safeguard
-  if (arguments.length < 2)
-    throw Error('baobab.Combination: not enough arguments.');
-
-  var first = arguments[1],
-      rest = helpers.arrayOf(arguments).slice(2);
-
-  if (first instanceof Array) {
-    rest = first.slice(1);
-    first = first[0];
-  }
-
-  if (!type.Cursor(first))
-    throw Error('baobab.Combination: argument should be a cursor.');
-
-  if (operator !== 'or' && operator !== 'and')
-    throw Error('baobab.Combination: invalid operator.');
-
-  // Extending event emitter
-  EventEmitter.call(this);
-
-  // Properties
-  this.cursors = [first];
-  this.operators = [];
-  this.root = first.root;
-
-  // State
-  this.updates = new Array(this.cursors.length);
-
-  // Listeners
-  this.cursorListener = function() {
-    self.updates[self.cursors.indexOf(this)] = true;
-  };
-
-  this.treeListener = function() {
-    var shouldFire = self.updates[0],
-        i,
-        l;
-
-    for (i = 1, l = self.cursors.length; i < l; i++) {
-      shouldFire = self.operators[i - 1] === 'or' ?
-        shouldFire || self.updates[i] :
-        shouldFire && self.updates[i];
-    }
-
-    if (shouldFire)
-      self.emit('update');
-
-    // Waiting for next update
-    self.updates = new Array(self.cursors.length);
-  };
-
-  // Initial bindings
-  this.root.on('update', this.treeListener);
-  bindCursor(this, first);
-
-  // Attaching any other passed cursors
-  rest.forEach(function(cursor) {
-    this[operator](cursor);
-  }, this);
-}
-
-helpers.inherits(Combination, EventEmitter);
-
-/**
- * Prototype
- */
-function makeOperator(operator) {
-  Combination.prototype[operator] = function(cursor) {
-
-    // Safeguard
-    if (!type.Cursor(cursor))
-      throw Error('baobab.Combination.' + operator + ': argument should be a cursor.');
-
-    if (~this.cursors.indexOf(cursor))
-      throw Error('baobab.Combination.' + operator + ': cursor already in combination.');
-
-    this.cursors.push(cursor);
-    this.operators.push(operator);
-    this.updates.length++;
-    bindCursor(this, cursor);
-
-    return this;
-  };
-}
-
-makeOperator('or');
-makeOperator('and');
-
-Combination.prototype.release = function() {
-
-  // Dropping own listeners
-  this.kill();
-
-  // Dropping cursors listeners
-  this.cursors.forEach(function(cursor) {
-    cursor.off('update', this.cursorListener);
-  }, this);
-
-  // Dropping tree listener
-  this.root.off('update', this.treeListener);
-
-  // Cleaning
-  this.cursors = null;
-  this.operators = null;
-  this.root = null;
-  this.updates = null;
-};
-
-/**
- * Exporting
- */
-module.exports = Combination;
-
-},{"./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js","emmett":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/cursor.js":[function(require,module,exports){
-/**
- * Baobab Cursor Abstraction
- * ==========================
- *
- * Nested selection into a baobab tree.
- */
-var EventEmitter = require('emmett'),
-    Combination = require('./combination.js'),
-    mixins = require('./mixins.js'),
-    helpers = require('./helpers.js'),
-    type = require('./type.js');
-
-/**
- * Main Class
- */
-function Cursor(root, path, solvedPath, hash) {
-  var self = this;
-
-  // Extending event emitter
-  EventEmitter.call(this);
-
-  // Enforcing array
-  path = path || [];
-
-  // Properties
-  this.root = root;
-  this.path = path;
-  this.hash = hash;
-  this.relevant = this.reference() !== undefined;
-
-  // Complex path?
-  this.complexPath = !!solvedPath;
-  this.solvedPath = this.complexPath ? solvedPath : this.path;
-
-  // Root listeners
-  this.updateHandler = function(e) {
-    var log = e.data.log,
-        shouldFire = false,
-        c, p, l, m, i, j;
-
-    // Solving path if needed
-    if (self.complexPath)
-      self.solvedPath = helpers.solvePath(self.root.data, self.path);
-
-    // If no handlers are attached, we stop
-    if (!this._handlers.update.length && !this._handlersAll.length)
-      return;
-
-    // If selector listens at root, we fire
-    if (!self.path.length)
-      return self.emit('update');
-
-    // Checking update log to see whether the cursor should update.
-    root:
-    for (i = 0, l = log.length; i < l; i++) {
-      c = log[i];
-
-      for (j = 0, m = c.length; j < m; j++) {
-        p = c[j];
-
-        // If path is not relevant to us, we break
-        if (p !== '' + self.solvedPath[j])
-          break;
-
-        // If we reached last item and we are relevant, we fire
-        if (j + 1 === m || j + 1 === self.solvedPath.length) {
-          shouldFire = true;
-          break root;
-        }
-      }
-    }
-
-    // Handling relevancy
-    var data = self.reference() !== undefined;
-
-    if (self.relevant) {
-      if (data && shouldFire) {
-        self.emit('update');
-      }
-      else if (!data) {
-        self.emit('irrelevant');
-        self.relevant = false;
-      }
-    }
-    else {
-      if (data && shouldFire) {
-        self.emit('relevant');
-        self.emit('update');
-        self.relevant = true;
-      }
-    }
-  };
-
-  // Listening
-  this.root.on('update', this.updateHandler);
-
-  // Making mixin
-  this.mixin = mixins.cursor(this);
-}
-
-helpers.inherits(Cursor, EventEmitter);
-
-/**
- * Predicates
- */
-Cursor.prototype.isRoot = function() {
-  return !this.path.length;
-};
-
-Cursor.prototype.isLeaf = function() {
-  return type.Primitive(this.reference());
-};
-
-Cursor.prototype.isBranch = function() {
-  return !this.isLeaf() && !this.isRoot();
-};
-
-/**
- * Traversal
- */
-Cursor.prototype.select = function(path) {
-  if (arguments.length > 1)
-    path = helpers.arrayOf(arguments);
-
-  if (!type.Path(path))
-    throw Error('baobab.Cursor.select: invalid path.');
-  return this.root.select(this.path.concat(path));
-};
-
-Cursor.prototype.up = function() {
-  if (this.solvedPath && this.solvedPath.length)
-    return this.root.select(this.path.slice(0, -1));
-  else
-    return null;
-};
-
-Cursor.prototype.left = function() {
-  var last = +this.solvedPath[this.solvedPath.length - 1];
-
-  if (isNaN(last))
-    throw Error('baobab.Cursor.left: cannot go left on a non-list type.');
-
-  return last ?
-    this.root.select(this.solvedPath.slice(0, -1).concat(last - 1)) :
-    null;
-};
-
-Cursor.prototype.leftmost = function() {
-  var last = +this.solvedPath[this.solvedPath.length - 1];
-
-  if (isNaN(last))
-    throw Error('baobab.Cursor.leftmost: cannot go left on a non-list type.');
-
-  return this.root.select(this.solvedPath.slice(0, -1).concat(0));
-};
-
-Cursor.prototype.right = function() {
-  var last = +this.solvedPath[this.solvedPath.length - 1];
-
-  if (isNaN(last))
-    throw Error('baobab.Cursor.right: cannot go right on a non-list type.');
-
-  if (last + 1 === this.up().reference().length)
-    return null;
-
-  return this.root.select(this.solvedPath.slice(0, -1).concat(last + 1));
-};
-
-Cursor.prototype.rightmost = function() {
-  var last = +this.solvedPath[this.solvedPath.length - 1];
-
-  if (isNaN(last))
-    throw Error('baobab.Cursor.right: cannot go right on a non-list type.');
-
-  var list = this.up().reference();
-
-  return this.root.select(this.solvedPath.slice(0, -1).concat(list.length - 1));
-};
-
-Cursor.prototype.down = function() {
-  var last = +this.solvedPath[this.solvedPath.length - 1];
-
-  if (!(this.reference() instanceof Array))
-    return null;
-
-  return this.root.select(this.solvedPath.concat(0));
-};
-
-/**
- * Access
- */
-Cursor.prototype.get = function(path) {
-  if (arguments.length > 1)
-    path = helpers.arrayOf(arguments);
-
-  if (type.Step(path))
-    return this.root.get(this.solvedPath.concat(path));
-  else
-    return this.root.get(this.solvedPath);
-};
-
-Cursor.prototype.reference = function(path) {
-  if (arguments.length > 1)
-    path = helpers.arrayOf(arguments);
-
-  if (type.Step(path))
-    return this.root.reference(this.solvedPath.concat(path));
-  else
-    return this.root.reference(this.solvedPath);
-};
-
-Cursor.prototype.clone = function(path) {
-  if (arguments.length > 1)
-    path = helpers.arrayOf(arguments);
-
-  if (type.Step(path))
-    return this.root.clone(this.solvedPath.concat(path));
-  else
-    return this.root.clone(this.solvedPath);
-};
-
-/**
- * Update
- */
-Cursor.prototype.set = function(key, value) {
-  if (arguments.length < 2)
-    throw Error('baobab.Cursor.set: expecting at least key/value.');
-
-  var spec = {};
-  spec[key] = {$set: value};
-  return this.update(spec);
-};
-
-Cursor.prototype.edit = function(value) {
-  return this.update({$set: value});
-};
-
-Cursor.prototype.unset = function(key) {
-  if (!key && key !== 0)
-    throw Error('baobab.Cursor.unset: expects a valid key to unset.');
-
-  var spec = {};
-  spec[key] = {$unset: true};
-  return this.update(spec);
-};
-
-Cursor.prototype.remove = function() {
-  return this.update({$unset: true});
-};
-
-Cursor.prototype.apply = function(fn) {
-  if (typeof fn !== 'function')
-    throw Error('baobab.Cursor.apply: argument is not a function.');
-
-  return this.update({$apply: fn});
-};
-
-// TODO: maybe composing should be done here rather than in the merge
-Cursor.prototype.thread = function(fn) {
-  if (typeof fn !== 'function')
-    throw Error('baobab.Cursor.thread: argument is not a function.');
-
-  return this.update({$thread: fn});
-};
-
-// TODO: consider dropping the ahead testing
-Cursor.prototype.push = function(value) {
-  if (!(this.reference() instanceof Array))
-    throw Error('baobab.Cursor.push: trying to push to non-array value.');
-
-  if (arguments.length > 1)
-    return this.update({$push: helpers.arrayOf(arguments)});
-  else
-    return this.update({$push: value});
-};
-
-Cursor.prototype.unshift = function(value) {
-  if (!(this.reference() instanceof Array))
-    throw Error('baobab.Cursor.push: trying to push to non-array value.');
-
-  if (arguments.length > 1)
-    return this.update({$unshift: helpers.arrayOf(arguments)});
-  else
-    return this.update({$unshift: value});
-};
-
-Cursor.prototype.merge = function(o) {
-  if (!type.Object(o))
-    throw Error('baobab.Cursor.merge: trying to merge a non-object.');
-
-  if (!type.Object(this.reference()))
-    throw Error('baobab.Cursor.merge: trying to merge into a non-object.');
-
-  this.update({$merge: o});
-};
-
-Cursor.prototype.update = function(spec) {
-  this.root.update(helpers.pathObject(this.solvedPath, spec));
-  return this;
-};
-
-/**
- * Combination
- */
-Cursor.prototype.or = function(otherCursor) {
-  return new Combination('or', this, otherCursor);
-};
-
-Cursor.prototype.and = function(otherCursor) {
-  return new Combination('and', this, otherCursor);
-};
-
-/**
- * Releasing
- */
-Cursor.prototype.release = function() {
-  this.root.off('update', this.updateHandler);
-  if (this.hash)
-    delete this.root._cursors[this.hash];
-  this.root = null;
-  this.kill();
-};
-
-/**
- * Output
- */
-Cursor.prototype.toJSON = function() {
-  return this.reference();
-};
-
-type.Cursor = function (value) {
-  return value instanceof Cursor;
-};
-
-/**
- * Export
- */
-module.exports = Cursor;
-
-},{"./combination.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/combination.js","./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./mixins.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/mixins.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js","emmett":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/node_modules/emmett/emmett.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js":[function(require,module,exports){
-/**
- * Baobab Helpers
- * ===============
- *
- * Miscellaneous helper functions.
- */
-var type = require('./type.js');
-
-// Make a real array of an array-like object
-function arrayOf(o) {
-  return Array.prototype.slice.call(o);
-}
-
-// Shallow merge
-function shallowMerge(o1, o2) {
-  var o = {},
-      k;
-
-  for (k in o1) o[k] = o1[k];
-  for (k in o2) o[k] = o2[k];
-
-  return o;
-}
-
-// Clone a regexp
-function cloneRegexp(re) {
-  var pattern = re.source,
-      flags = '';
-
-  if (re.global) flags += 'g';
-  if (re.multiline) flags += 'm';
-  if (re.ignoreCase) flags += 'i';
-  if (re.sticky) flags += 'y';
-  if (re.unicode) flags += 'u';
-
-  return new RegExp(pattern, flags);
-}
-
-// Cloning function
-function clone(deep, item) {
-  if (!item ||
-      typeof item !== 'object' ||
-      item instanceof Error ||
-      item instanceof ArrayBuffer)
-    return item;
-
-  // Array
-  if (type.Array(item)) {
-    if (deep) {
-      var i, l, a = [];
-      for (i = 0, l = item.length; i < l; i++)
-        a.push(deepClone(item[i]));
-      return a;
-    }
-    else {
-      return item.slice(0);
-    }
-  }
-
-  // Date
-  if (type.Date(item))
-    return new Date(item.getTime());
-
-  // RegExp
-  if (item instanceof RegExp)
-    return cloneRegexp(item);
-
-  // Object
-  if (type.Object(item)) {
-    var k, o = {};
-
-    if (item.constructor && item.constructor !== Object)
-      o = Object.create(item.constructor.prototype);
-
-    for (k in item)
-      if (item.hasOwnProperty(k))
-        o[k] = deep ? deepClone(item[k]) : item[k];
-    return o;
-  }
-
-  return item;
-}
-
-// Shallow & deep cloning functions
-var shallowClone = clone.bind(null, false),
-    deepClone = clone.bind(null, true);
-
-// Simplistic composition
-function compose(fn1, fn2) {
-  return function(arg) {
-    return fn2(fn1(arg));
-  };
-}
-
-// Get first item matching predicate in list
-function first(a, fn) {
-  var i, l;
-  for (i = 0, l = a.length; i < l; i++) {
-    if (fn(a[i]))
-      return a[i];
-  }
-  return;
-}
-
-function index(a, fn) {
-  var i, l;
-  for (i = 0, l = a.length; i < l; i++) {
-    if (fn(a[i]))
-      return i;
-  }
-  return -1;
-}
-
-// Compare object to spec
-function compare(object, spec) {
-  var ok = true,
-      k;
-
-  for (k in spec) {
-    if (type.Object(spec[k])) {
-      ok = ok && compare(object[k]);
-    }
-    else if (type.Array(spec[k])) {
-      ok = ok && !!~spec[k].indexOf(object[k]);
-    }
-    else {
-      if (object[k] !== spec[k])
-        return false;
-    }
-  }
-
-  return ok;
-}
-
-function firstByComparison(object, spec) {
-  return first(object, function(e) {
-    return compare(e, spec);
-  });
-}
-
-function indexByComparison(object, spec) {
-  return index(object, function(e) {
-    return compare(e, spec);
-  });
-}
-
-// Retrieve nested objects
-function getIn(object, path) {
-  path = path || [];
-
-  var c = object,
-      i,
-      l;
-
-  for (i = 0, l = path.length; i < l; i++) {
-    if (!c)
-      return;
-
-    if (typeof path[i] === 'function') {
-      if (!type.Array(c))
-        return;
-
-      c = first(c, path[i]);
-    }
-    else if (typeof path[i] === 'object') {
-      if (!type.Array(c))
-        return;
-
-      c = firstByComparison(c, path[i]);
-    }
-    else {
-      c = c[path[i]];
-    }
-  }
-
-  return c;
-}
-
-// Solve a complex path
-function solvePath(object, path) {
-  var solvedPath = [],
-      c = object,
-      idx,
-      i,
-      l;
-
-  for (i = 0, l = path.length; i < l; i++) {
-    if (!c)
-      return null;
-
-    if (typeof path[i] === 'function') {
-      if (!type.Array(c))
-        return;
-
-      idx = index(c, path[i]);
-      solvedPath.push(idx);
-      c = c[idx];
-    }
-    else if (typeof path[i] === 'object') {
-      if (!type.Array(c))
-        return;
-
-      idx = indexByComparison(c, path[i]);
-      solvedPath.push(idx);
-      c = c[idx];
-    }
-    else {
-      solvedPath.push(path[i]);
-      c = c[path[i]];
-    }
-  }
-
-  return solvedPath;
-}
-
-// Return a fake object relative to the given path
-function pathObject(path, spec) {
-  var l = path.length,
-      o = {},
-      c = o,
-      i;
-
-  if (!l)
-    o = spec;
-
-  for (i = 0; i < l; i++) {
-    c[path[i]] = (i + 1 === l) ? spec : {};
-    c = c[path[i]];
-  }
-
-  return o;
-}
-
-function inherits(ctor, superCtor) {
-  ctor.super_ = superCtor;
-  var TempCtor = function () {};
-  TempCtor.prototype = superCtor.prototype;
-  ctor.prototype = new TempCtor();
-  ctor.prototype.constructor = ctor;
-}
-
-module.exports = {
-  arrayOf: arrayOf,
-  deepClone: deepClone,
-  shallowClone: shallowClone,
-  shallowMerge: shallowMerge,
-  compose: compose,
-  getIn: getIn,
-  inherits: inherits,
-  pathObject: pathObject,
-  solvePath: solvePath
-};
-
-},{"./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/merge.js":[function(require,module,exports){
-/**
- * Baobab Merge
- * =============
- *
- * A function used to merge updates in the stack.
- */
-var helpers = require('./helpers.js'),
-    type = require('./type.js');
-
-// Helpers
-function hasKey(o, key) {
-  return key in (o || {});
-}
-
-function conflict(a, b, key) {
-  return hasKey(a, key) && hasKey(b, key);
-}
-
-// Main function
-function merge() {
-  var res = {},
-      current,
-      next,
-      l = arguments.length,
-      i,
-      k;
-
-  for (i = l - 1; i >= 0; i--) {
-
-    // Upper $set/$apply... and conflicts
-    // When solving conflicts, here is the priority to apply:
-    // -- 0) $unset
-    // -- 1) $set
-    // -- 2) $merge
-    // -- 3) $apply
-    // -- 4) $chain
-    if (arguments[i].$unset) {
-      delete res.$set;
-      delete res.$apply;
-      delete res.$merge;
-      res.$unset = arguments[i].$unset;
-    }
-    else if (arguments[i].$set) {
-      delete res.$apply;
-      delete res.$merge;
-      delete res.$unset;
-      res.$set = arguments[i].$set;
-      continue;
-    }
-    else if (arguments[i].$merge) {
-      delete res.$set;
-      delete res.$apply;
-      delete res.$unset;
-      res.$merge = arguments[i].$merge;
-      continue;
-    }
-    else if (arguments[i].$apply){
-      delete res.$set;
-      delete res.$merge;
-      delete res.$unset;
-      res.$apply = arguments[i].$apply;
-      continue;
-    }
-    else if (arguments[i].$chain) {
-      delete res.$set;
-      delete res.$merge;
-      delete res.$unset;
-
-      if (res.$apply)
-        res.$apply = helpers.compose(res.$apply, arguments[i].$chain);
-      else
-        res.$apply = arguments[i].$chain;
-      continue;
-    }
-
-    for (k in arguments[i]) {
-      current = res[k];
-      next = arguments[i][k];
-
-      if (current && type.Object(next)) {
-
-        // $push conflict
-        if (conflict(current, next, '$push')) {
-          if (type.Array(current.$push))
-            current.$push = current.$push.concat(next.$push);
-          else
-            current.$push = [current.$push].concat(next.$push);
-        }
-
-        // $unshift conflict
-        else if (conflict(current, next, '$unshift')) {
-          if (type.Array(next.$unshift))
-            current.$unshift = next.$unshift.concat(current.$unshift);
-          else
-            current.$unshift = [next.$unshift].concat(current.$unshift);
-        }
-
-        // No conflict
-        else {
-          res[k] = merge(next, current);
-        }
-      }
-      else {
-        res[k] = next;
-      }
-    }
-  }
-
-  return res;
-}
-
-module.exports = merge;
-
-},{"./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/mixins.js":[function(require,module,exports){
-/**
- * Baobab React Mixins
- * ====================
- *
- * Compilation of react mixins designed to deal with cursors integration.
- */
-var Combination = require('./combination.js'),
-    type = require('./type.js');
-
-module.exports = {
-  baobab: function(baobab) {
-    return {
-
-      // Run Baobab mixin first to allow mixins to access cursors
-      mixins: [{
-        getInitialState: function() {
-
-          // Binding baobab to instance
-          this.tree = baobab;
-
-          // Is there any cursors to create?
-          if (!this.cursor && !this.cursors)
-            return {};
-
-          // Is there conflicting definitions?
-          if (this.cursor && this.cursors)
-            throw Error('baobab.mixin: you cannot have both ' +
-                        '`component.cursor` and `component.cursors`. Please ' +
-                        'make up your mind.');
-
-          // Type
-          this.__type = null;
-
-          // Making update handler
-          this.__updateHandler = (function() {
-            this.setState(this.__getCursorData());
-          }).bind(this);
-
-          if (this.cursor) {
-            if (!type.MixinCursor(this.cursor))
-              throw Error('baobab.mixin.cursor: invalid data (cursor, string or array).');
-
-            if (!type.Cursor(this.cursor))
-              this.cursor = baobab.select(this.cursor);
-
-            this.__getCursorData = (function() {
-              return {cursor: this.cursor.get()};
-            }).bind(this);
-            this.__type = 'single';
-          }
-          else if (this.cursors) {
-            if (['object', 'array'].indexOf(type(this.cursors)) === -1)
-              throw Error('baobab.mixin.cursor: invalid data (object or array).');
-
-            if (type.Array(this.cursors)) {
-              this.cursors = this.cursors.map(function(path) {
-                return type.Cursor(path) ? path : baobab.select(path);
-              });
-
-              this.__getCursorData = (function() {
-                return {cursors: this.cursors.map(function(cursor) {
-                  return cursor.get();
-                })};
-              }).bind(this);
-              this.__type = 'array';
-            }
-            else {
-              for (var k in this.cursors) {
-                if (!type.Cursor(this.cursors[k]))
-                  this.cursors[k] = baobab.select(this.cursors[k]);
-              }
-
-              this.__getCursorData = (function() {
-                var d = {};
-                for (k in this.cursors)
-                  d[k] = this.cursors[k].get();
-                return {cursors: d};
-              }).bind(this);
-              this.__type = 'object';
-            }
-          }
-
-          return this.__getCursorData();
-        },
-        componentDidMount: function() {
-          if (this.__type === 'single') {
-            this.__combination = new Combination('or', [this.cursor]);
-            this.__combination.on('update', this.__updateHandler);
-          }
-          else if (this.__type === 'array') {
-            this.__combination = new Combination('or', this.cursors);
-            this.__combination.on('update', this.__updateHandler);
-          }
-          else if (this.__type === 'object') {
-            this.__combination = new Combination(
-              'or',
-              Object.keys(this.cursors).map(function(k) {
-                return this.cursors[k];
-              }, this)
-            );
-            this.__combination.on('update', this.__updateHandler);
-          }
-        },
-        componentWillUnmount: function() {
-          if (this.__combination)
-            this.__combination.release();
-        }
-      }].concat(baobab.options.mixins)
-    };
   },
-  cursor: function(cursor) {
-    return {
-
-      // Run cursor mixin first to allow mixins to access cursors
-      mixins: [{
-        getInitialState: function() {
-
-          // Binding cursor to instance
-          this.cursor = cursor;
-
-          // Making update handler
-          this.__updateHandler = (function() {
-            this.setState({cursor: this.cursor.get()});
-          }).bind(this);
-
-          return {cursor: this.cursor.get()};
-        },
-        componentDidMount: function() {
-
-          // Listening to updates
-          this.cursor.on('update', this.__updateHandler);
-        },
-        componentWillUnmount: function() {
-
-          // Unbinding handler
-          this.cursor.off('update', this.__updateHandler);
-        }
-      }].concat(cursor.root.options.mixins)
-    };
+  sendOrder: function(State, order) {
+    localStorage.setItem('lastNome', order.subject);
+    localStorage.setItem('lastReplyTo', order.replyto);
+    localStorage.setItem('lastPedido', order.description);
+    localStorage.setItem('lastAddr', order.addr);
+    return superagent.post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e').set({
+      'Content-Type': 'application/json'
+    }).send(order).end().then(function(res) {
+      console.log(res.body);
+      return here.openModal('order-posted');
+    })["catch"](console.log.bind(console));
+  },
+  findOrders: function(State, orders) {},
+  openModal: function(State, modalName) {
+    return State.change('modalOpened', modalName);
+  },
+  closeModal: function(State) {
+    return State.change('modalOpened', null);
   }
 };
 
-},{"./combination.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/combination.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js":[function(require,module,exports){
-/**
- * Baobab Type Checking
- * =====================
- *
- * Misc helpers functions used throughout the library to perform some type
- * tests at runtime.
- *
- * @christianalfoni
- */
-
-// Not reusing methods as it will just be an extra
-// call on the stack
-var type = function (value) {
-  if (Array.isArray(value)) {
-    return 'array';
-  } else if (typeof value === 'object' && value !== null) {
-    return 'object';
-  } else if (typeof value === 'string') {
-    return 'string';
-  } else if (typeof value === 'number') {
-    return 'number';
-  } else if (typeof value === 'boolean') {
-    return 'boolean';
-  } else if (typeof value === 'function') {
-    return 'function';
-  } else if (value === null) {
-    return 'null';
-  } else if (value === undefined) {
-    return 'undefined';
-  } else if (value instanceof Date) {
-    return 'date';
-  } else {
-    return 'invalid';
-  }
-};
-
-type.Array = function (value) {
-  return Array.isArray(value);
-};
-
-type.Object = function (value) {
-  return !Array.isArray(value) && typeof value === 'object' && value !== null;
-};
-
-type.String = function (value) {
-  return typeof value === 'string';
-};
-
-type.Number = function (value) {
-  return typeof value === 'number';
-};
-
-type.Boolean = function (value) {
-  return typeof value === 'boolean';
-};
-
-type.Function = function (value) {
-  return typeof value === 'function';
-};
-
-type.Primitive = function (value) {
-  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
-};
-
-type.Date = function (value) {
-  return value instanceof Date;
-};
-
-type.Step = function (value) {
-  var valueType = type(value);
-  var notValid = ['null', 'undefined', 'invalid', 'date'];
-  return notValid.indexOf(valueType) === -1;
-};
-
-// Should undefined be allowed?
-type.Path = function (value) {
-  var types = ['object', 'string', 'number', 'function', 'undefined'];
-  if (type.Array(value)) {
-    for (var x = 0; x < value.length; x++) {
-      if (types.indexOf(type(value[x])) === -1) {
-        return false;
+vrenderMain = function(state, channels) {
+  var item;
+  return div({
+    className: 'container'
+  }, div({
+    className: 'row'
+  }, div({
+    className: 'col-md-2'
+  }, img({
+    className: 'logo',
+    src: 'img/logo-folha-alpha.png'
+  })), div({
+    className: 'col-md-10'
+  }, h1({}, 'Alquimia Orgânica na sua casa'), h2({}, "> pedidos para terça, dia " + (state.nextTuesday.format('DD/MM'))))), div({
+    className: 'row pedido-row'
+  }, div({
+    className: 'col-md-6'
+  }, h1({}, 'Alguns dos nossos produtos'), h3({}, 'a título de sugestão'), vrenderTable({
+    style: 'primary',
+    data: (function() {
+      var j, len, ref1, results;
+      ref1 = state.items.concat(state.items).slice(state.startFrom, state.startFrom + state.show);
+      results = [];
+      for (j = 0, len = ref1.length; j < len; j++) {
+        item = ref1[j];
+        results.push({
+          'Produto': Titulo(item.name),
+          'Preço': Reais.fromInteger(item.price) + (item.unit === '-' ? '' : " / " + item.unit)
+        });
       }
+      return results;
+    })(),
+    columns: ['Produto', 'Preço']
+  }), h3({}, 'Os preços apresentados acima são estimados com base em vendas passadas e podem estar muito errados, portanto são meramente ilustrativos.')), div({
+    className: 'col-md-6'
+  }, h1({}, 'Faça seu pedido online, receba na sua casa! ', span({
+    className: 'label label-danger'
+  }, moment().day() < 6 && moment().day() > 2 ? "você tem " + state.timeLeft + " para fazer um bom pedido (até sexta)" : void 0)), button({
+    className: 'btn btn-info',
+    'ev-click': talio.sendClick(channels.openModal, 'como-funciona')
+  }, 'Como funciona?'), form({
+    action: "http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e",
+    method: 'POST',
+    'ev-submit': talio.sendSubmit(channels.sendOrder)
+  }, div({
+    className: "form-group"
+  }, input({
+    type: "text",
+    className: "form-control",
+    name: 'subject',
+    placeholder: "Nome"
+  })), div({
+    className: "form-group"
+  }, input({
+    type: "text",
+    className: "form-control",
+    name: 'replyto',
+    placeholder: "Celular ou email"
+  })), div({
+    className: "form-group"
+  }, textarea({
+    type: "text",
+    className: "form-control",
+    name: 'addr',
+    placeholder: "Endereço e observações para entrega"
+  })), div({
+    className: "form-group"
+  }, textarea({
+    type: "text",
+    name: 'description',
+    className: "form-control",
+    placeholder: "Pedido"
+  })), button({
+    type: "submit",
+    className: "btn btn-success"
+  }, "Fazer pedido")), h1({
+    id: "area"
+  }, 'Área de entrega e taxas'), link({
+    rel: "stylesheet",
+    href: "https://gist-assets.github.com/assets/embed-b8c853f42bc1486a246eca98739ff795.css"
+  }), div({
+    id: "gist16724469",
+    className: "gist"
+  }, div({
+    className: "gist-file gist-render"
+  }, iframe({
+    height: "420",
+    width: "620",
+    frameBorder: "0",
+    src: "https://render.githubusercontent.com/view/geojson?url=https://gist.githubusercontent.com/fiatjaf/f3fb3621dbeb38717431/raw/alquimia.geojson"
+  }))))), div({
+    className: 'row'
+  }, div({
+    className: 'col-md-12'
+  })), div({
+    className: 'modal fade ' + (state.modalOpened === 'como-funciona' ? 'in' : ''),
+    style: {
+      display: state.modalOpened === 'como-funciona' ? 'block' : 'none'
     }
+  }, div({
+    className: 'modal-dialog'
+  }, div({
+    className: 'modal-content'
+  }, div({
+    className: 'modal-header'
+  }, h2({}, 'Como funciona o serviço de entregas da Alquimia Orgânica'), button({
+    className: 'close',
+    'ev-click': talio.sendClick(channels.closeModal)
+  }, '×')), div({
+    className: 'modal-body'
+  }, p({}, 'Se você mora na região de Lagoa Santa, quer nossos produtos orgânicos ou outros, mas não tem como vir até nossa loja física, nós entregamos semanalmente na sua casa os produtos que você desejar.'), p({}, 'O procedimento é o seguinte:'), ul({}, li({}, 'Você escreve o seu pedido aí na caixa de texto, de forma livre. Pedidos do tipo "tal fruta se estiver madura" e "mais ou menos tanto" são válidos.'), li({}, 'Na caixa "endereço" você escreve seu endereço, também de forma livre, e nos dá indicações de qual é o melhor horário para entregar ou com quem vamos deixar o pacote.'), li({}, 'Assim que tivermos os produtos em mãos, enviaremos um email ou SMS confirmando o seu pedido.'), li({}, 'Na terça-feira à tarde ou à noite passamos na sua casa e entregamos.'), li({}, 'O pagamento, por enquanto, é apenas em dinheiro, no ato da entrega. Num futuro bem próximo aceitaremos cartões no ato da entrega também.')), p({}, 'Nenhuma entrega está garantida até o momento da confirmação, já que trabalhamos com produtos sazonais e perecíveis e que podem, numa semana ou noutra, não estar disponíveis.'), p({}, 'Da mesma forma, pode ser que um produto ou outro esteja em quantidade não-nula, mas insuficiente para todos os pedidos. Se isto ocorrer, daremos preferência a quem fez o pedido antes, mas tudo será conversado.'), p({}, 'Pedidos feitos até a manhã de sexta-feita têm mais chance de serem entregues completos ou até mesmo com produtos que não costumamos vender na loja, pois com este prazo nos é possível trazer direto dos nossos fornecedores os produtos pedidos -- se for possível, é claro.'), p({}, 'A taxa de entrega varia de acordo com a localidade, você pode conferir qual é a sua taxa no mapa abaixo.')), div({
+    className: 'modal-footer'
+  }, button({
+    className: 'btn btn-default',
+    'ev-click': talio.sendClick(channels.closeModal)
+  }, 'Fechar'))))), div({
+    className: 'modal fade ' + (state.modalOpened === 'order-posted' ? 'in' : ''),
+    style: {
+      display: state.modalOpened === 'order-posted' ? 'block' : 'none'
+    }
+  }, div({
+    className: 'modal-dialog'
+  }, div({
+    className: 'modal-content'
+  }, div({
+    className: 'modal-header'
+  }, button({
+    className: 'close',
+    'ev-click': talio.sendClick(channels.closeModal)
+  }, '×')), div({
+    className: 'modal-body'
+  }, p({}, 'Sua ordem foi enviada.'), p({}, 'Entraremos em contato ')), div({
+    className: 'modal-footer'
+  }, button({
+    className: 'btn btn-default',
+    'ev-click': talio.sendClick(channels.closeModal)
+  }, 'Fechar'))))));
+};
+
+handlers.findOrders(State, localStorage.getItem('my-orders'));
+
+(function() {
+  var updateItems;
+  updateItems = function() {
+    return setTimeout(function() {
+      State.change({
+        startFrom: ((State.get('startFrom')) + (State.get('show'))) % (State.get('items').length)
+      });
+      return updateItems();
+    }, 8000);
+  };
+  updateItems();
+  return handlers.fetchItems(State);
+})();
+
+(function(src) {
+  var bg;
+  bg = new Image;
+  bg.src = src;
+  return bg.onload = function() {
+    return document.body.style.backgroundImage = "url(" + src + ")";
+  };
+})('img/organicos-sobre-madeira-deitado.jpg');
+
+setTimeout(function() {
+  return countdown(State.get('nextFriday'), function(ts) {
+    return State.change('timeLeft', ts.toString());
+  }, countdown.DAYS | countdown.HOURS | countdown.MINUTES | countdown.SECONDS);
+}, 10);
+
+talio.run(document.body, vrenderMain, handlers, State);
+
+
+},{"countdown":"/home/fiatjaf/comp/alquimiaorganica/node_modules/countdown/countdown.js","lie":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/index.js","moment":"/home/fiatjaf/comp/alquimiaorganica/node_modules/moment/moment.js","reais":"/home/fiatjaf/comp/alquimiaorganica/node_modules/reais/reais.js","superagent":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/lib/client.js","superagent-promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent-promise/index.js","talio":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/talio.coffee","titulo":"/home/fiatjaf/comp/alquimiaorganica/node_modules/titulo/to-title-case.js","virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js","vrender-table":"/home/fiatjaf/comp/alquimiaorganica/node_modules/vrender-table/vrender-table.coffee"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/assert/assert.js":[function(require,module,exports){
+// http://wiki.commonjs.org/wiki/Unit_Testing/1.0
+//
+// THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
+//
+// Originally from narwhal.js (http://narwhaljs.org)
+// Copyright (c) 2009 Thomas Robinson <280north.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the 'Software'), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+// ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+// when used in node, this will actually load the util module we depend on
+// versus loading the builtin util module as happens otherwise
+// this is a bug in node module loading as far as I am concerned
+var util = require('util/');
+
+var pSlice = Array.prototype.slice;
+var hasOwn = Object.prototype.hasOwnProperty;
+
+// 1. The assert module provides functions that throw
+// AssertionError's when particular conditions are not met. The
+// assert module must conform to the following interface.
+
+var assert = module.exports = ok;
+
+// 2. The AssertionError is defined in assert.
+// new assert.AssertionError({ message: message,
+//                             actual: actual,
+//                             expected: expected })
+
+assert.AssertionError = function AssertionError(options) {
+  this.name = 'AssertionError';
+  this.actual = options.actual;
+  this.expected = options.expected;
+  this.operator = options.operator;
+  if (options.message) {
+    this.message = options.message;
+    this.generatedMessage = false;
   } else {
-    return types.indexOf(type(value)) >= 0;
+    this.message = getMessage(this);
+    this.generatedMessage = true;
+  }
+  var stackStartFunction = options.stackStartFunction || fail;
+
+  if (Error.captureStackTrace) {
+    Error.captureStackTrace(this, stackStartFunction);
+  }
+  else {
+    // non v8 browsers so we can have a stacktrace
+    var err = new Error();
+    if (err.stack) {
+      var out = err.stack;
+
+      // try to strip useless frames
+      var fn_name = stackStartFunction.name;
+      var idx = out.indexOf('\n' + fn_name);
+      if (idx >= 0) {
+        // once we have located the function frame
+        // we need to strip out everything before it (and its line)
+        var next_line = out.indexOf('\n', idx + 1);
+        out = out.substring(next_line + 1);
+      }
+
+      this.stack = out;
+    }
+  }
+};
+
+// assert.AssertionError instanceof Error
+util.inherits(assert.AssertionError, Error);
+
+function replacer(key, value) {
+  if (util.isUndefined(value)) {
+    return '' + value;
+  }
+  if (util.isNumber(value) && !isFinite(value)) {
+    return value.toString();
+  }
+  if (util.isFunction(value) || util.isRegExp(value)) {
+    return value.toString();
+  }
+  return value;
+}
+
+function truncate(s, n) {
+  if (util.isString(s)) {
+    return s.length < n ? s : s.slice(0, n);
+  } else {
+    return s;
+  }
+}
+
+function getMessage(self) {
+  return truncate(JSON.stringify(self.actual, replacer), 128) + ' ' +
+         self.operator + ' ' +
+         truncate(JSON.stringify(self.expected, replacer), 128);
+}
+
+// At present only the three keys mentioned above are used and
+// understood by the spec. Implementations or sub modules can pass
+// other keys to the AssertionError's constructor - they will be
+// ignored.
+
+// 3. All of the following functions must throw an AssertionError
+// when a corresponding condition is not met, with a message that
+// may be undefined if not provided.  All assertion methods provide
+// both the actual and expected values to the assertion error for
+// display purposes.
+
+function fail(actual, expected, message, operator, stackStartFunction) {
+  throw new assert.AssertionError({
+    message: message,
+    actual: actual,
+    expected: expected,
+    operator: operator,
+    stackStartFunction: stackStartFunction
+  });
+}
+
+// EXTENSION! allows for well behaved errors defined elsewhere.
+assert.fail = fail;
+
+// 4. Pure assertion tests whether a value is truthy, as determined
+// by !!guard.
+// assert.ok(guard, message_opt);
+// This statement is equivalent to assert.equal(true, !!guard,
+// message_opt);. To test strictly for the value true, use
+// assert.strictEqual(true, guard, message_opt);.
+
+function ok(value, message) {
+  if (!value) fail(value, true, message, '==', assert.ok);
+}
+assert.ok = ok;
+
+// 5. The equality assertion tests shallow, coercive equality with
+// ==.
+// assert.equal(actual, expected, message_opt);
+
+assert.equal = function equal(actual, expected, message) {
+  if (actual != expected) fail(actual, expected, message, '==', assert.equal);
+};
+
+// 6. The non-equality assertion tests for whether two objects are not equal
+// with != assert.notEqual(actual, expected, message_opt);
+
+assert.notEqual = function notEqual(actual, expected, message) {
+  if (actual == expected) {
+    fail(actual, expected, message, '!=', assert.notEqual);
+  }
+};
+
+// 7. The equivalence assertion tests a deep equality relation.
+// assert.deepEqual(actual, expected, message_opt);
+
+assert.deepEqual = function deepEqual(actual, expected, message) {
+  if (!_deepEqual(actual, expected)) {
+    fail(actual, expected, message, 'deepEqual', assert.deepEqual);
+  }
+};
+
+function _deepEqual(actual, expected) {
+  // 7.1. All identical values are equivalent, as determined by ===.
+  if (actual === expected) {
+    return true;
+
+  } else if (util.isBuffer(actual) && util.isBuffer(expected)) {
+    if (actual.length != expected.length) return false;
+
+    for (var i = 0; i < actual.length; i++) {
+      if (actual[i] !== expected[i]) return false;
+    }
+
+    return true;
+
+  // 7.2. If the expected value is a Date object, the actual value is
+  // equivalent if it is also a Date object that refers to the same time.
+  } else if (util.isDate(actual) && util.isDate(expected)) {
+    return actual.getTime() === expected.getTime();
+
+  // 7.3 If the expected value is a RegExp object, the actual value is
+  // equivalent if it is also a RegExp object with the same source and
+  // properties (`global`, `multiline`, `lastIndex`, `ignoreCase`).
+  } else if (util.isRegExp(actual) && util.isRegExp(expected)) {
+    return actual.source === expected.source &&
+           actual.global === expected.global &&
+           actual.multiline === expected.multiline &&
+           actual.lastIndex === expected.lastIndex &&
+           actual.ignoreCase === expected.ignoreCase;
+
+  // 7.4. Other pairs that do not both pass typeof value == 'object',
+  // equivalence is determined by ==.
+  } else if (!util.isObject(actual) && !util.isObject(expected)) {
+    return actual == expected;
+
+  // 7.5 For all other Object pairs, including Array objects, equivalence is
+  // determined by having the same number of owned properties (as verified
+  // with Object.prototype.hasOwnProperty.call), the same set of keys
+  // (although not necessarily the same order), equivalent values for every
+  // corresponding key, and an identical 'prototype' property. Note: this
+  // accounts for both named and indexed properties on Arrays.
+  } else {
+    return objEquiv(actual, expected);
+  }
+}
+
+function isArguments(object) {
+  return Object.prototype.toString.call(object) == '[object Arguments]';
+}
+
+function objEquiv(a, b) {
+  if (util.isNullOrUndefined(a) || util.isNullOrUndefined(b))
+    return false;
+  // an identical 'prototype' property.
+  if (a.prototype !== b.prototype) return false;
+  // if one is a primitive, the other must be same
+  if (util.isPrimitive(a) || util.isPrimitive(b)) {
+    return a === b;
+  }
+  var aIsArgs = isArguments(a),
+      bIsArgs = isArguments(b);
+  if ((aIsArgs && !bIsArgs) || (!aIsArgs && bIsArgs))
+    return false;
+  if (aIsArgs) {
+    a = pSlice.call(a);
+    b = pSlice.call(b);
+    return _deepEqual(a, b);
+  }
+  var ka = objectKeys(a),
+      kb = objectKeys(b),
+      key, i;
+  // having the same number of owned properties (keys incorporates
+  // hasOwnProperty)
+  if (ka.length != kb.length)
+    return false;
+  //the same set of keys (although not necessarily the same order),
+  ka.sort();
+  kb.sort();
+  //~~~cheap key test
+  for (i = ka.length - 1; i >= 0; i--) {
+    if (ka[i] != kb[i])
+      return false;
+  }
+  //equivalent values for every corresponding key, and
+  //~~~possibly expensive deep test
+  for (i = ka.length - 1; i >= 0; i--) {
+    key = ka[i];
+    if (!_deepEqual(a[key], b[key])) return false;
   }
   return true;
+}
 
+// 8. The non-equivalence assertion tests for any deep inequality.
+// assert.notDeepEqual(actual, expected, message_opt);
+
+assert.notDeepEqual = function notDeepEqual(actual, expected, message) {
+  if (_deepEqual(actual, expected)) {
+    fail(actual, expected, message, 'notDeepEqual', assert.notDeepEqual);
+  }
 };
 
-// string|number|array|cursor
-type.MixinCursor = function (value) {
-  var allowedValues = ['string', 'number', 'array'];
-  return allowedValues.indexOf(type(value)) >= 0 || type.Cursor(value);
+// 9. The strict equality assertion tests strict equality, as determined by ===.
+// assert.strictEqual(actual, expected, message_opt);
+
+assert.strictEqual = function strictEqual(actual, expected, message) {
+  if (actual !== expected) {
+    fail(actual, expected, message, '===', assert.strictEqual);
+  }
 };
 
-// Already know this is an array
-type.ComplexPath = function (value) {
-  var complexTypes = ['object', 'function'];
-  for (var x = 0; x < value.length; x++) {
-    if (complexTypes.indexOf(type(value[x])) >= 0) {
-      return true;
+// 10. The strict non-equality assertion tests for strict inequality, as
+// determined by !==.  assert.notStrictEqual(actual, expected, message_opt);
+
+assert.notStrictEqual = function notStrictEqual(actual, expected, message) {
+  if (actual === expected) {
+    fail(actual, expected, message, '!==', assert.notStrictEqual);
+  }
+};
+
+function expectedException(actual, expected) {
+  if (!actual || !expected) {
+    return false;
+  }
+
+  if (Object.prototype.toString.call(expected) == '[object RegExp]') {
+    return expected.test(actual);
+  } else if (actual instanceof expected) {
+    return true;
+  } else if (expected.call({}, actual) === true) {
+    return true;
+  }
+
+  return false;
+}
+
+function _throws(shouldThrow, block, expected, message) {
+  var actual;
+
+  if (util.isString(expected)) {
+    message = expected;
+    expected = null;
+  }
+
+  try {
+    block();
+  } catch (e) {
+    actual = e;
+  }
+
+  message = (expected && expected.name ? ' (' + expected.name + ').' : '.') +
+            (message ? ' ' + message : '.');
+
+  if (shouldThrow && !actual) {
+    fail(actual, expected, 'Missing expected exception' + message);
+  }
+
+  if (!shouldThrow && expectedException(actual, expected)) {
+    fail(actual, expected, 'Got unwanted exception' + message);
+  }
+
+  if ((shouldThrow && actual && expected &&
+      !expectedException(actual, expected)) || (!shouldThrow && actual)) {
+    throw actual;
+  }
+}
+
+// 11. Expected to throw an error:
+// assert.throws(block, Error_opt, message_opt);
+
+assert.throws = function(block, /*optional*/error, /*optional*/message) {
+  _throws.apply(this, [true].concat(pSlice.call(arguments)));
+};
+
+// EXTENSION! This is annoying to write outside this module.
+assert.doesNotThrow = function(block, /*optional*/message) {
+  _throws.apply(this, [false].concat(pSlice.call(arguments)));
+};
+
+assert.ifError = function(err) { if (err) {throw err;}};
+
+var objectKeys = Object.keys || function (obj) {
+  var keys = [];
+  for (var key in obj) {
+    if (hasOwn.call(obj, key)) keys.push(key);
+  }
+  return keys;
+};
+
+},{"util/":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/util/util.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/browser-resolve/empty.js":[function(require,module,exports){
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/process/browser.js":[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
     }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = setTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            currentQueue[queueIndex].run();
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    clearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        setTimeout(drainQueue, 0);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+// TODO(shtylman)
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/util/support/isBufferBrowser.js":[function(require,module,exports){
+module.exports = function isBuffer(arg) {
+  return arg && typeof arg === 'object'
+    && typeof arg.copy === 'function'
+    && typeof arg.fill === 'function'
+    && typeof arg.readUInt8 === 'function';
+}
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/util/util.js":[function(require,module,exports){
+(function (process,global){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (!isString(f)) {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(inspect(arguments[i]));
+    }
+    return objects.join(' ');
+  }
+
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j':
+        try {
+          return JSON.stringify(args[i++]);
+        } catch (_) {
+          return '[Circular]';
+        }
+      default:
+        return x;
+    }
+  });
+  for (var x = args[i]; i < len; x = args[++i]) {
+    if (isNull(x) || !isObject(x)) {
+      str += ' ' + x;
+    } else {
+      str += ' ' + inspect(x);
+    }
+  }
+  return str;
+};
+
+
+// Mark that a method should not be used.
+// Returns a modified function which warns once by default.
+// If --no-deprecation is set, then it is a no-op.
+exports.deprecate = function(fn, msg) {
+  // Allow for deprecating things in the process of starting up.
+  if (isUndefined(global.process)) {
+    return function() {
+      return exports.deprecate(fn, msg).apply(this, arguments);
+    };
+  }
+
+  if (process.noDeprecation === true) {
+    return fn;
+  }
+
+  var warned = false;
+  function deprecated() {
+    if (!warned) {
+      if (process.throwDeprecation) {
+        throw new Error(msg);
+      } else if (process.traceDeprecation) {
+        console.trace(msg);
+      } else {
+        console.error(msg);
+      }
+      warned = true;
+    }
+    return fn.apply(this, arguments);
+  }
+
+  return deprecated;
+};
+
+
+var debugs = {};
+var debugEnviron;
+exports.debuglog = function(set) {
+  if (isUndefined(debugEnviron))
+    debugEnviron = process.env.NODE_DEBUG || '';
+  set = set.toUpperCase();
+  if (!debugs[set]) {
+    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
+      var pid = process.pid;
+      debugs[set] = function() {
+        var msg = exports.format.apply(exports, arguments);
+        console.error('%s %d: %s', set, pid, msg);
+      };
+    } else {
+      debugs[set] = function() {};
+    }
+  }
+  return debugs[set];
+};
+
+
+/**
+ * Echos the value of a value. Trys to print the value out
+ * in the best way possible given the different types.
+ *
+ * @param {Object} obj The object to print out.
+ * @param {Object} opts Optional options object that alters the output.
+ */
+/* legacy: obj, showHidden, depth, colors*/
+function inspect(obj, opts) {
+  // default options
+  var ctx = {
+    seen: [],
+    stylize: stylizeNoColor
+  };
+  // legacy...
+  if (arguments.length >= 3) ctx.depth = arguments[2];
+  if (arguments.length >= 4) ctx.colors = arguments[3];
+  if (isBoolean(opts)) {
+    // legacy...
+    ctx.showHidden = opts;
+  } else if (opts) {
+    // got an "options" object
+    exports._extend(ctx, opts);
+  }
+  // set default options
+  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
+  if (isUndefined(ctx.depth)) ctx.depth = 2;
+  if (isUndefined(ctx.colors)) ctx.colors = false;
+  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
+  if (ctx.colors) ctx.stylize = stylizeWithColor;
+  return formatValue(ctx, obj, ctx.depth);
+}
+exports.inspect = inspect;
+
+
+// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+inspect.colors = {
+  'bold' : [1, 22],
+  'italic' : [3, 23],
+  'underline' : [4, 24],
+  'inverse' : [7, 27],
+  'white' : [37, 39],
+  'grey' : [90, 39],
+  'black' : [30, 39],
+  'blue' : [34, 39],
+  'cyan' : [36, 39],
+  'green' : [32, 39],
+  'magenta' : [35, 39],
+  'red' : [31, 39],
+  'yellow' : [33, 39]
+};
+
+// Don't use 'blue' not visible on cmd.exe
+inspect.styles = {
+  'special': 'cyan',
+  'number': 'yellow',
+  'boolean': 'yellow',
+  'undefined': 'grey',
+  'null': 'bold',
+  'string': 'green',
+  'date': 'magenta',
+  // "name": intentionally not styling
+  'regexp': 'red'
+};
+
+
+function stylizeWithColor(str, styleType) {
+  var style = inspect.styles[styleType];
+
+  if (style) {
+    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
+           '\u001b[' + inspect.colors[style][1] + 'm';
+  } else {
+    return str;
+  }
+}
+
+
+function stylizeNoColor(str, styleType) {
+  return str;
+}
+
+
+function arrayToHash(array) {
+  var hash = {};
+
+  array.forEach(function(val, idx) {
+    hash[val] = true;
+  });
+
+  return hash;
+}
+
+
+function formatValue(ctx, value, recurseTimes) {
+  // Provide a hook for user-specified inspect functions.
+  // Check that value is an object with an inspect function on it
+  if (ctx.customInspect &&
+      value &&
+      isFunction(value.inspect) &&
+      // Filter out the util module, it's inspect function is special
+      value.inspect !== exports.inspect &&
+      // Also filter out any prototype objects using the circular check.
+      !(value.constructor && value.constructor.prototype === value)) {
+    var ret = value.inspect(recurseTimes, ctx);
+    if (!isString(ret)) {
+      ret = formatValue(ctx, ret, recurseTimes);
+    }
+    return ret;
+  }
+
+  // Primitive types cannot have properties
+  var primitive = formatPrimitive(ctx, value);
+  if (primitive) {
+    return primitive;
+  }
+
+  // Look up the keys of the object.
+  var keys = Object.keys(value);
+  var visibleKeys = arrayToHash(keys);
+
+  if (ctx.showHidden) {
+    keys = Object.getOwnPropertyNames(value);
+  }
+
+  // IE doesn't make error fields non-enumerable
+  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
+  if (isError(value)
+      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
+    return formatError(value);
+  }
+
+  // Some type of object without properties can be shortcutted.
+  if (keys.length === 0) {
+    if (isFunction(value)) {
+      var name = value.name ? ': ' + value.name : '';
+      return ctx.stylize('[Function' + name + ']', 'special');
+    }
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    }
+    if (isDate(value)) {
+      return ctx.stylize(Date.prototype.toString.call(value), 'date');
+    }
+    if (isError(value)) {
+      return formatError(value);
+    }
+  }
+
+  var base = '', array = false, braces = ['{', '}'];
+
+  // Make Array say that they are Array
+  if (isArray(value)) {
+    array = true;
+    braces = ['[', ']'];
+  }
+
+  // Make functions say that they are functions
+  if (isFunction(value)) {
+    var n = value.name ? ': ' + value.name : '';
+    base = ' [Function' + n + ']';
+  }
+
+  // Make RegExps say that they are RegExps
+  if (isRegExp(value)) {
+    base = ' ' + RegExp.prototype.toString.call(value);
+  }
+
+  // Make dates with properties first say the date
+  if (isDate(value)) {
+    base = ' ' + Date.prototype.toUTCString.call(value);
+  }
+
+  // Make error with message first say the error
+  if (isError(value)) {
+    base = ' ' + formatError(value);
+  }
+
+  if (keys.length === 0 && (!array || value.length == 0)) {
+    return braces[0] + base + braces[1];
+  }
+
+  if (recurseTimes < 0) {
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    } else {
+      return ctx.stylize('[Object]', 'special');
+    }
+  }
+
+  ctx.seen.push(value);
+
+  var output;
+  if (array) {
+    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
+  } else {
+    output = keys.map(function(key) {
+      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
+    });
+  }
+
+  ctx.seen.pop();
+
+  return reduceToSingleString(output, base, braces);
+}
+
+
+function formatPrimitive(ctx, value) {
+  if (isUndefined(value))
+    return ctx.stylize('undefined', 'undefined');
+  if (isString(value)) {
+    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                             .replace(/'/g, "\\'")
+                                             .replace(/\\"/g, '"') + '\'';
+    return ctx.stylize(simple, 'string');
+  }
+  if (isNumber(value))
+    return ctx.stylize('' + value, 'number');
+  if (isBoolean(value))
+    return ctx.stylize('' + value, 'boolean');
+  // For some reason typeof null is "object", so special case here.
+  if (isNull(value))
+    return ctx.stylize('null', 'null');
+}
+
+
+function formatError(value) {
+  return '[' + Error.prototype.toString.call(value) + ']';
+}
+
+
+function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
+  var output = [];
+  for (var i = 0, l = value.length; i < l; ++i) {
+    if (hasOwnProperty(value, String(i))) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          String(i), true));
+    } else {
+      output.push('');
+    }
+  }
+  keys.forEach(function(key) {
+    if (!key.match(/^\d+$/)) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          key, true));
+    }
+  });
+  return output;
+}
+
+
+function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
+  var name, str, desc;
+  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
+  if (desc.get) {
+    if (desc.set) {
+      str = ctx.stylize('[Getter/Setter]', 'special');
+    } else {
+      str = ctx.stylize('[Getter]', 'special');
+    }
+  } else {
+    if (desc.set) {
+      str = ctx.stylize('[Setter]', 'special');
+    }
+  }
+  if (!hasOwnProperty(visibleKeys, key)) {
+    name = '[' + key + ']';
+  }
+  if (!str) {
+    if (ctx.seen.indexOf(desc.value) < 0) {
+      if (isNull(recurseTimes)) {
+        str = formatValue(ctx, desc.value, null);
+      } else {
+        str = formatValue(ctx, desc.value, recurseTimes - 1);
+      }
+      if (str.indexOf('\n') > -1) {
+        if (array) {
+          str = str.split('\n').map(function(line) {
+            return '  ' + line;
+          }).join('\n').substr(2);
+        } else {
+          str = '\n' + str.split('\n').map(function(line) {
+            return '   ' + line;
+          }).join('\n');
+        }
+      }
+    } else {
+      str = ctx.stylize('[Circular]', 'special');
+    }
+  }
+  if (isUndefined(name)) {
+    if (array && key.match(/^\d+$/)) {
+      return str;
+    }
+    name = JSON.stringify('' + key);
+    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+      name = name.substr(1, name.length - 2);
+      name = ctx.stylize(name, 'name');
+    } else {
+      name = name.replace(/'/g, "\\'")
+                 .replace(/\\"/g, '"')
+                 .replace(/(^"|"$)/g, "'");
+      name = ctx.stylize(name, 'string');
+    }
+  }
+
+  return name + ': ' + str;
+}
+
+
+function reduceToSingleString(output, base, braces) {
+  var numLinesEst = 0;
+  var length = output.reduce(function(prev, cur) {
+    numLinesEst++;
+    if (cur.indexOf('\n') >= 0) numLinesEst++;
+    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
+  }, 0);
+
+  if (length > 60) {
+    return braces[0] +
+           (base === '' ? '' : base + '\n ') +
+           ' ' +
+           output.join(',\n  ') +
+           ' ' +
+           braces[1];
+  }
+
+  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+}
+
+
+// NOTE: These type checking functions intentionally don't use `instanceof`
+// because it is fragile and can be easily faked with `Object.create()`.
+function isArray(ar) {
+  return Array.isArray(ar);
+}
+exports.isArray = isArray;
+
+function isBoolean(arg) {
+  return typeof arg === 'boolean';
+}
+exports.isBoolean = isBoolean;
+
+function isNull(arg) {
+  return arg === null;
+}
+exports.isNull = isNull;
+
+function isNullOrUndefined(arg) {
+  return arg == null;
+}
+exports.isNullOrUndefined = isNullOrUndefined;
+
+function isNumber(arg) {
+  return typeof arg === 'number';
+}
+exports.isNumber = isNumber;
+
+function isString(arg) {
+  return typeof arg === 'string';
+}
+exports.isString = isString;
+
+function isSymbol(arg) {
+  return typeof arg === 'symbol';
+}
+exports.isSymbol = isSymbol;
+
+function isUndefined(arg) {
+  return arg === void 0;
+}
+exports.isUndefined = isUndefined;
+
+function isRegExp(re) {
+  return isObject(re) && objectToString(re) === '[object RegExp]';
+}
+exports.isRegExp = isRegExp;
+
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null;
+}
+exports.isObject = isObject;
+
+function isDate(d) {
+  return isObject(d) && objectToString(d) === '[object Date]';
+}
+exports.isDate = isDate;
+
+function isError(e) {
+  return isObject(e) &&
+      (objectToString(e) === '[object Error]' || e instanceof Error);
+}
+exports.isError = isError;
+
+function isFunction(arg) {
+  return typeof arg === 'function';
+}
+exports.isFunction = isFunction;
+
+function isPrimitive(arg) {
+  return arg === null ||
+         typeof arg === 'boolean' ||
+         typeof arg === 'number' ||
+         typeof arg === 'string' ||
+         typeof arg === 'symbol' ||  // ES6 symbol
+         typeof arg === 'undefined';
+}
+exports.isPrimitive = isPrimitive;
+
+exports.isBuffer = require('./support/isBuffer');
+
+function objectToString(o) {
+  return Object.prototype.toString.call(o);
+}
+
+
+function pad(n) {
+  return n < 10 ? '0' + n.toString(10) : n.toString(10);
+}
+
+
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+              'Oct', 'Nov', 'Dec'];
+
+// 26 Feb 16:19:34
+function timestamp() {
+  var d = new Date();
+  var time = [pad(d.getHours()),
+              pad(d.getMinutes()),
+              pad(d.getSeconds())].join(':');
+  return [d.getDate(), months[d.getMonth()], time].join(' ');
+}
+
+
+// log is just a thin wrapper to console.log that prepends a timestamp
+exports.log = function() {
+  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
+};
+
+
+/**
+ * Inherit the prototype methods from one constructor into another.
+ *
+ * The Function.prototype.inherits from lang.js rewritten as a standalone
+ * function (not on Function.prototype). NOTE: If this file is to be loaded
+ * during bootstrapping this function needs to be rewritten using some native
+ * functions as prototype setup using normal JavaScript does not work as
+ * expected during bootstrapping (see mirror.js in r114903).
+ *
+ * @param {function} ctor Constructor function which needs to inherit the
+ *     prototype.
+ * @param {function} superCtor Constructor function to inherit prototype from.
+ */
+exports.inherits = require('inherits');
+
+exports._extend = function(origin, add) {
+  // Don't do anything if add isn't an object
+  if (!add || !isObject(add)) return origin;
+
+  var keys = Object.keys(add);
+  var i = keys.length;
+  while (i--) {
+    origin[keys[i]] = add[keys[i]];
+  }
+  return origin;
+};
+
+function hasOwnProperty(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+}
+
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/util/support/isBufferBrowser.js","_process":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/process/browser.js","inherits":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/inherits/inherits_browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/countdown/countdown.js":[function(require,module,exports){
+/*global window */
+/**
+ * @license countdown.js v2.5.2 http://countdownjs.org
+ * Copyright (c)2006-2014 Stephen M. McKamey.
+ * Licensed under The MIT License.
+ */
+/*jshint bitwise:false */
+
+/**
+ * @public
+ * @type {Object|null}
+ */
+var module;
+
+/**
+ * API entry
+ * @public
+ * @param {function(Object)|Date|number} start the starting date
+ * @param {function(Object)|Date|number} end the ending date
+ * @param {number} units the units to populate
+ * @return {Object|number}
+ */
+var countdown = (
+
+/**
+ * @param {Object} module CommonJS Module
+ */
+function(module) {
+	/*jshint smarttabs:true */
+
+	'use strict';
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MILLISECONDS	= 0x001;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var SECONDS			= 0x002;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MINUTES			= 0x004;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var HOURS			= 0x008;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var DAYS			= 0x010;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var WEEKS			= 0x020;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MONTHS			= 0x040;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var YEARS			= 0x080;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var DECADES			= 0x100;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var CENTURIES		= 0x200;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MILLENNIA		= 0x400;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var DEFAULTS		= YEARS|MONTHS|DAYS|HOURS|MINUTES|SECONDS;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MILLISECONDS_PER_SECOND = 1000;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var SECONDS_PER_MINUTE = 60;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MINUTES_PER_HOUR = 60;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var HOURS_PER_DAY = 24;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MILLISECONDS_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var DAYS_PER_WEEK = 7;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var MONTHS_PER_YEAR = 12;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var YEARS_PER_DECADE = 10;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var DECADES_PER_CENTURY = 10;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var CENTURIES_PER_MILLENNIUM = 10;
+
+	/**
+	 * @private
+	 * @param {number} x number
+	 * @return {number}
+	 */
+	var ceil = Math.ceil;
+
+	/**
+	 * @private
+	 * @param {number} x number
+	 * @return {number}
+	 */
+	var floor = Math.floor;
+
+	/**
+	 * @private
+	 * @param {Date} ref reference date
+	 * @param {number} shift number of months to shift
+	 * @return {number} number of days shifted
+	 */
+	function borrowMonths(ref, shift) {
+		var prevTime = ref.getTime();
+
+		// increment month by shift
+		ref.setMonth( ref.getMonth() + shift );
+
+		// this is the trickiest since months vary in length
+		return Math.round( (ref.getTime() - prevTime) / MILLISECONDS_PER_DAY );
+	}
+
+	/**
+	 * @private
+	 * @param {Date} ref reference date
+	 * @return {number} number of days
+	 */
+	function daysPerMonth(ref) {
+		var a = ref.getTime();
+
+		// increment month by 1
+		var b = new Date(a);
+		b.setMonth( ref.getMonth() + 1 );
+
+		// this is the trickiest since months vary in length
+		return Math.round( (b.getTime() - a) / MILLISECONDS_PER_DAY );
+	}
+
+	/**
+	 * @private
+	 * @param {Date} ref reference date
+	 * @return {number} number of days
+	 */
+	function daysPerYear(ref) {
+		var a = ref.getTime();
+
+		// increment year by 1
+		var b = new Date(a);
+		b.setFullYear( ref.getFullYear() + 1 );
+
+		// this is the trickiest since years (periodically) vary in length
+		return Math.round( (b.getTime() - a) / MILLISECONDS_PER_DAY );
+	}
+
+	/**
+	 * Applies the Timespan to the given date.
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 * @param {Date=} date
+	 * @return {Date}
+	 */
+	function addToDate(ts, date) {
+		date = (date instanceof Date) || ((date !== null) && isFinite(date)) ? new Date(+date) : new Date();
+		if (!ts) {
+			return date;
+		}
+
+		// if there is a value field, use it directly
+		var value = +ts.value || 0;
+		if (value) {
+			date.setTime(date.getTime() + value);
+			return date;
+		}
+
+		value = +ts.milliseconds || 0;
+		if (value) {
+			date.setMilliseconds(date.getMilliseconds() + value);
+		}
+
+		value = +ts.seconds || 0;
+		if (value) {
+			date.setSeconds(date.getSeconds() + value);
+		}
+
+		value = +ts.minutes || 0;
+		if (value) {
+			date.setMinutes(date.getMinutes() + value);
+		}
+
+		value = +ts.hours || 0;
+		if (value) {
+			date.setHours(date.getHours() + value);
+		}
+
+		value = +ts.weeks || 0;
+		if (value) {
+			value *= DAYS_PER_WEEK;
+		}
+
+		value += +ts.days || 0;
+		if (value) {
+			date.setDate(date.getDate() + value);
+		}
+
+		value = +ts.months || 0;
+		if (value) {
+			date.setMonth(date.getMonth() + value);
+		}
+
+		value = +ts.millennia || 0;
+		if (value) {
+			value *= CENTURIES_PER_MILLENNIUM;
+		}
+
+		value += +ts.centuries || 0;
+		if (value) {
+			value *= DECADES_PER_CENTURY;
+		}
+
+		value += +ts.decades || 0;
+		if (value) {
+			value *= YEARS_PER_DECADE;
+		}
+
+		value += +ts.years || 0;
+		if (value) {
+			date.setFullYear(date.getFullYear() + value);
+		}
+
+		return date;
+	}
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_MILLISECONDS	= 0;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_SECONDS		= 1;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_MINUTES		= 2;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_HOURS			= 3;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_DAYS			= 4;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_WEEKS			= 5;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_MONTHS		= 6;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_YEARS			= 7;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_DECADES		= 8;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_CENTURIES		= 9;
+
+	/**
+	 * @private
+	 * @const
+	 * @type {number}
+	 */
+	var LABEL_MILLENNIA		= 10;
+
+	/**
+	 * @private
+	 * @type {Array}
+	 */
+	var LABELS_SINGLUAR;
+
+	/**
+	 * @private
+	 * @type {Array}
+	 */
+	var LABELS_PLURAL;
+
+	/**
+	 * @private
+	 * @type {string}
+	 */
+	var LABEL_LAST;
+
+	/**
+	 * @private
+	 * @type {string}
+	 */
+	var LABEL_DELIM;
+
+	/**
+	 * @private
+	 * @type {string}
+	 */
+	var LABEL_NOW;
+
+	/**
+	 * Formats a number as a string
+	 * 
+	 * @private
+	 * @param {number} value
+	 * @return {string}
+	 */
+	var formatNumber;
+
+	/**
+	 * @private
+	 * @param {number} value
+	 * @param {number} unit unit index into label list
+	 * @return {string}
+	 */
+	function plurality(value, unit) {
+		return formatNumber(value)+((value === 1) ? LABELS_SINGLUAR[unit] : LABELS_PLURAL[unit]);
+	}
+
+	/**
+	 * Formats the entries with singular or plural labels
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 * @return {Array}
+	 */
+	var formatList;
+
+	/**
+	 * Timespan representation of a duration of time
+	 * 
+	 * @private
+	 * @this {Timespan}
+	 * @constructor
+	 */
+	function Timespan() {}
+
+	/**
+	 * Formats the Timespan as a sentence
+	 * 
+	 * @param {string=} emptyLabel the string to use when no values returned
+	 * @return {string}
+	 */
+	Timespan.prototype.toString = function(emptyLabel) {
+		var label = formatList(this);
+
+		var count = label.length;
+		if (!count) {
+			return emptyLabel ? ''+emptyLabel : LABEL_NOW;
+		}
+		if (count === 1) {
+			return label[0];
+		}
+
+		var last = LABEL_LAST+label.pop();
+		return label.join(LABEL_DELIM)+last;
+	};
+
+	/**
+	 * Formats the Timespan as a sentence in HTML
+	 * 
+	 * @param {string=} tag HTML tag name to wrap each value
+	 * @param {string=} emptyLabel the string to use when no values returned
+	 * @return {string}
+	 */
+	Timespan.prototype.toHTML = function(tag, emptyLabel) {
+		tag = tag || 'span';
+		var label = formatList(this);
+
+		var count = label.length;
+		if (!count) {
+			emptyLabel = emptyLabel || LABEL_NOW;
+			return emptyLabel ? '<'+tag+'>'+emptyLabel+'</'+tag+'>' : emptyLabel;
+		}
+		for (var i=0; i<count; i++) {
+			// wrap each unit in tag
+			label[i] = '<'+tag+'>'+label[i]+'</'+tag+'>';
+		}
+		if (count === 1) {
+			return label[0];
+		}
+
+		var last = LABEL_LAST+label.pop();
+		return label.join(LABEL_DELIM)+last;
+	};
+
+	/**
+	 * Applies the Timespan to the given date
+	 * 
+	 * @param {Date=} date the date to which the timespan is added.
+	 * @return {Date}
+	 */
+	Timespan.prototype.addTo = function(date) {
+		return addToDate(this, date);
+	};
+
+	/**
+	 * Formats the entries as English labels
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 * @return {Array}
+	 */
+	formatList = function(ts) {
+		var list = [];
+
+		var value = ts.millennia;
+		if (value) {
+			list.push(plurality(value, LABEL_MILLENNIA));
+		}
+
+		value = ts.centuries;
+		if (value) {
+			list.push(plurality(value, LABEL_CENTURIES));
+		}
+
+		value = ts.decades;
+		if (value) {
+			list.push(plurality(value, LABEL_DECADES));
+		}
+
+		value = ts.years;
+		if (value) {
+			list.push(plurality(value, LABEL_YEARS));
+		}
+
+		value = ts.months;
+		if (value) {
+			list.push(plurality(value, LABEL_MONTHS));
+		}
+
+		value = ts.weeks;
+		if (value) {
+			list.push(plurality(value, LABEL_WEEKS));
+		}
+
+		value = ts.days;
+		if (value) {
+			list.push(plurality(value, LABEL_DAYS));
+		}
+
+		value = ts.hours;
+		if (value) {
+			list.push(plurality(value, LABEL_HOURS));
+		}
+
+		value = ts.minutes;
+		if (value) {
+			list.push(plurality(value, LABEL_MINUTES));
+		}
+
+		value = ts.seconds;
+		if (value) {
+			list.push(plurality(value, LABEL_SECONDS));
+		}
+
+		value = ts.milliseconds;
+		if (value) {
+			list.push(plurality(value, LABEL_MILLISECONDS));
+		}
+
+		return list;
+	};
+
+	/**
+	 * Borrow any underflow units, carry any overflow units
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 * @param {string} toUnit
+	 */
+	function rippleRounded(ts, toUnit) {
+		switch (toUnit) {
+			case 'seconds':
+				if (ts.seconds !== SECONDS_PER_MINUTE || isNaN(ts.minutes)) {
+					return;
+				}
+				// ripple seconds up to minutes
+				ts.minutes++;
+				ts.seconds = 0;
+
+				/* falls through */
+			case 'minutes':
+				if (ts.minutes !== MINUTES_PER_HOUR || isNaN(ts.hours)) {
+					return;
+				}
+				// ripple minutes up to hours
+				ts.hours++;
+				ts.minutes = 0;
+
+				/* falls through */
+			case 'hours':
+				if (ts.hours !== HOURS_PER_DAY || isNaN(ts.days)) {
+					return;
+				}
+				// ripple hours up to days
+				ts.days++;
+				ts.hours = 0;
+
+				/* falls through */
+			case 'days':
+				if (ts.days !== DAYS_PER_WEEK || isNaN(ts.weeks)) {
+					return;
+				}
+				// ripple days up to weeks
+				ts.weeks++;
+				ts.days = 0;
+
+				/* falls through */
+			case 'weeks':
+				if (ts.weeks !== daysPerMonth(ts.refMonth)/DAYS_PER_WEEK || isNaN(ts.months)) {
+					return;
+				}
+				// ripple weeks up to months
+				ts.months++;
+				ts.weeks = 0;
+
+				/* falls through */
+			case 'months':
+				if (ts.months !== MONTHS_PER_YEAR || isNaN(ts.years)) {
+					return;
+				}
+				// ripple months up to years
+				ts.years++;
+				ts.months = 0;
+
+				/* falls through */
+			case 'years':
+				if (ts.years !== YEARS_PER_DECADE || isNaN(ts.decades)) {
+					return;
+				}
+				// ripple years up to decades
+				ts.decades++;
+				ts.years = 0;
+
+				/* falls through */
+			case 'decades':
+				if (ts.decades !== DECADES_PER_CENTURY || isNaN(ts.centuries)) {
+					return;
+				}
+				// ripple decades up to centuries
+				ts.centuries++;
+				ts.decades = 0;
+
+				/* falls through */
+			case 'centuries':
+				if (ts.centuries !== CENTURIES_PER_MILLENNIUM || isNaN(ts.millennia)) {
+					return;
+				}
+				// ripple centuries up to millennia
+				ts.millennia++;
+				ts.centuries = 0;
+				/* falls through */
+			}
+	}
+
+	/**
+	 * Ripple up partial units one place
+	 * 
+	 * @private
+	 * @param {Timespan} ts timespan
+	 * @param {number} frac accumulated fractional value
+	 * @param {string} fromUnit source unit name
+	 * @param {string} toUnit target unit name
+	 * @param {number} conversion multiplier between units
+	 * @param {number} digits max number of decimal digits to output
+	 * @return {number} new fractional value
+	 */
+	function fraction(ts, frac, fromUnit, toUnit, conversion, digits) {
+		if (ts[fromUnit] >= 0) {
+			frac += ts[fromUnit];
+			delete ts[fromUnit];
+		}
+
+		frac /= conversion;
+		if (frac + 1 <= 1) {
+			// drop if below machine epsilon
+			return 0;
+		}
+
+		if (ts[toUnit] >= 0) {
+			// ensure does not have more than specified number of digits
+			ts[toUnit] = +(ts[toUnit] + frac).toFixed(digits);
+			rippleRounded(ts, toUnit);
+			return 0;
+		}
+
+		return frac;
+	}
+
+	/**
+	 * Ripple up partial units to next existing
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 * @param {number} digits max number of decimal digits to output
+	 */
+	function fractional(ts, digits) {
+		var frac = fraction(ts, 0, 'milliseconds', 'seconds', MILLISECONDS_PER_SECOND, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'seconds', 'minutes', SECONDS_PER_MINUTE, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'minutes', 'hours', MINUTES_PER_HOUR, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'hours', 'days', HOURS_PER_DAY, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'days', 'weeks', DAYS_PER_WEEK, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'weeks', 'months', daysPerMonth(ts.refMonth)/DAYS_PER_WEEK, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'months', 'years', daysPerYear(ts.refMonth)/daysPerMonth(ts.refMonth), digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'years', 'decades', YEARS_PER_DECADE, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'decades', 'centuries', DECADES_PER_CENTURY, digits);
+		if (!frac) { return; }
+
+		frac = fraction(ts, frac, 'centuries', 'millennia', CENTURIES_PER_MILLENNIUM, digits);
+
+		// should never reach this with remaining fractional value
+		if (frac) { throw new Error('Fractional unit overflow'); }
+	}
+
+	/**
+	 * Borrow any underflow units, carry any overflow units
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 */
+	function ripple(ts) {
+		var x;
+
+		if (ts.milliseconds < 0) {
+			// ripple seconds down to milliseconds
+			x = ceil(-ts.milliseconds / MILLISECONDS_PER_SECOND);
+			ts.seconds -= x;
+			ts.milliseconds += x * MILLISECONDS_PER_SECOND;
+
+		} else if (ts.milliseconds >= MILLISECONDS_PER_SECOND) {
+			// ripple milliseconds up to seconds
+			ts.seconds += floor(ts.milliseconds / MILLISECONDS_PER_SECOND);
+			ts.milliseconds %= MILLISECONDS_PER_SECOND;
+		}
+
+		if (ts.seconds < 0) {
+			// ripple minutes down to seconds
+			x = ceil(-ts.seconds / SECONDS_PER_MINUTE);
+			ts.minutes -= x;
+			ts.seconds += x * SECONDS_PER_MINUTE;
+
+		} else if (ts.seconds >= SECONDS_PER_MINUTE) {
+			// ripple seconds up to minutes
+			ts.minutes += floor(ts.seconds / SECONDS_PER_MINUTE);
+			ts.seconds %= SECONDS_PER_MINUTE;
+		}
+
+		if (ts.minutes < 0) {
+			// ripple hours down to minutes
+			x = ceil(-ts.minutes / MINUTES_PER_HOUR);
+			ts.hours -= x;
+			ts.minutes += x * MINUTES_PER_HOUR;
+
+		} else if (ts.minutes >= MINUTES_PER_HOUR) {
+			// ripple minutes up to hours
+			ts.hours += floor(ts.minutes / MINUTES_PER_HOUR);
+			ts.minutes %= MINUTES_PER_HOUR;
+		}
+
+		if (ts.hours < 0) {
+			// ripple days down to hours
+			x = ceil(-ts.hours / HOURS_PER_DAY);
+			ts.days -= x;
+			ts.hours += x * HOURS_PER_DAY;
+
+		} else if (ts.hours >= HOURS_PER_DAY) {
+			// ripple hours up to days
+			ts.days += floor(ts.hours / HOURS_PER_DAY);
+			ts.hours %= HOURS_PER_DAY;
+		}
+
+		while (ts.days < 0) {
+			// NOTE: never actually seen this loop more than once
+
+			// ripple months down to days
+			ts.months--;
+			ts.days += borrowMonths(ts.refMonth, 1);
+		}
+
+		// weeks is always zero here
+
+		if (ts.days >= DAYS_PER_WEEK) {
+			// ripple days up to weeks
+			ts.weeks += floor(ts.days / DAYS_PER_WEEK);
+			ts.days %= DAYS_PER_WEEK;
+		}
+
+		if (ts.months < 0) {
+			// ripple years down to months
+			x = ceil(-ts.months / MONTHS_PER_YEAR);
+			ts.years -= x;
+			ts.months += x * MONTHS_PER_YEAR;
+
+		} else if (ts.months >= MONTHS_PER_YEAR) {
+			// ripple months up to years
+			ts.years += floor(ts.months / MONTHS_PER_YEAR);
+			ts.months %= MONTHS_PER_YEAR;
+		}
+
+		// years is always non-negative here
+		// decades, centuries and millennia are always zero here
+
+		if (ts.years >= YEARS_PER_DECADE) {
+			// ripple years up to decades
+			ts.decades += floor(ts.years / YEARS_PER_DECADE);
+			ts.years %= YEARS_PER_DECADE;
+
+			if (ts.decades >= DECADES_PER_CENTURY) {
+				// ripple decades up to centuries
+				ts.centuries += floor(ts.decades / DECADES_PER_CENTURY);
+				ts.decades %= DECADES_PER_CENTURY;
+
+				if (ts.centuries >= CENTURIES_PER_MILLENNIUM) {
+					// ripple centuries up to millennia
+					ts.millennia += floor(ts.centuries / CENTURIES_PER_MILLENNIUM);
+					ts.centuries %= CENTURIES_PER_MILLENNIUM;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Remove any units not requested
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 * @param {number} units the units to populate
+	 * @param {number} max number of labels to output
+	 * @param {number} digits max number of decimal digits to output
+	 */
+	function pruneUnits(ts, units, max, digits) {
+		var count = 0;
+
+		// Calc from largest unit to smallest to prevent underflow
+		if (!(units & MILLENNIA) || (count >= max)) {
+			// ripple millennia down to centuries
+			ts.centuries += ts.millennia * CENTURIES_PER_MILLENNIUM;
+			delete ts.millennia;
+
+		} else if (ts.millennia) {
+			count++;
+		}
+
+		if (!(units & CENTURIES) || (count >= max)) {
+			// ripple centuries down to decades
+			ts.decades += ts.centuries * DECADES_PER_CENTURY;
+			delete ts.centuries;
+
+		} else if (ts.centuries) {
+			count++;
+		}
+
+		if (!(units & DECADES) || (count >= max)) {
+			// ripple decades down to years
+			ts.years += ts.decades * YEARS_PER_DECADE;
+			delete ts.decades;
+
+		} else if (ts.decades) {
+			count++;
+		}
+
+		if (!(units & YEARS) || (count >= max)) {
+			// ripple years down to months
+			ts.months += ts.years * MONTHS_PER_YEAR;
+			delete ts.years;
+
+		} else if (ts.years) {
+			count++;
+		}
+
+		if (!(units & MONTHS) || (count >= max)) {
+			// ripple months down to days
+			if (ts.months) {
+				ts.days += borrowMonths(ts.refMonth, ts.months);
+			}
+			delete ts.months;
+
+			if (ts.days >= DAYS_PER_WEEK) {
+				// ripple day overflow back up to weeks
+				ts.weeks += floor(ts.days / DAYS_PER_WEEK);
+				ts.days %= DAYS_PER_WEEK;
+			}
+
+		} else if (ts.months) {
+			count++;
+		}
+
+		if (!(units & WEEKS) || (count >= max)) {
+			// ripple weeks down to days
+			ts.days += ts.weeks * DAYS_PER_WEEK;
+			delete ts.weeks;
+
+		} else if (ts.weeks) {
+			count++;
+		}
+
+		if (!(units & DAYS) || (count >= max)) {
+			//ripple days down to hours
+			ts.hours += ts.days * HOURS_PER_DAY;
+			delete ts.days;
+
+		} else if (ts.days) {
+			count++;
+		}
+
+		if (!(units & HOURS) || (count >= max)) {
+			// ripple hours down to minutes
+			ts.minutes += ts.hours * MINUTES_PER_HOUR;
+			delete ts.hours;
+
+		} else if (ts.hours) {
+			count++;
+		}
+
+		if (!(units & MINUTES) || (count >= max)) {
+			// ripple minutes down to seconds
+			ts.seconds += ts.minutes * SECONDS_PER_MINUTE;
+			delete ts.minutes;
+
+		} else if (ts.minutes) {
+			count++;
+		}
+
+		if (!(units & SECONDS) || (count >= max)) {
+			// ripple seconds down to milliseconds
+			ts.milliseconds += ts.seconds * MILLISECONDS_PER_SECOND;
+			delete ts.seconds;
+
+		} else if (ts.seconds) {
+			count++;
+		}
+
+		// nothing to ripple milliseconds down to
+		// so ripple back up to smallest existing unit as a fractional value
+		if (!(units & MILLISECONDS) || (count >= max)) {
+			fractional(ts, digits);
+		}
+	}
+
+	/**
+	 * Populates the Timespan object
+	 * 
+	 * @private
+	 * @param {Timespan} ts
+	 * @param {?Date} start the starting date
+	 * @param {?Date} end the ending date
+	 * @param {number} units the units to populate
+	 * @param {number} max number of labels to output
+	 * @param {number} digits max number of decimal digits to output
+	 */
+	function populate(ts, start, end, units, max, digits) {
+		var now = new Date();
+
+		ts.start = start = start || now;
+		ts.end = end = end || now;
+		ts.units = units;
+
+		ts.value = end.getTime() - start.getTime();
+		if (ts.value < 0) {
+			// swap if reversed
+			var tmp = end;
+			end = start;
+			start = tmp;
+		}
+
+		// reference month for determining days in month
+		ts.refMonth = new Date(start.getFullYear(), start.getMonth(), 15, 12, 0, 0);
+		try {
+			// reset to initial deltas
+			ts.millennia = 0;
+			ts.centuries = 0;
+			ts.decades = 0;
+			ts.years = end.getFullYear() - start.getFullYear();
+			ts.months = end.getMonth() - start.getMonth();
+			ts.weeks = 0;
+			ts.days = end.getDate() - start.getDate();
+			ts.hours = end.getHours() - start.getHours();
+			ts.minutes = end.getMinutes() - start.getMinutes();
+			ts.seconds = end.getSeconds() - start.getSeconds();
+			ts.milliseconds = end.getMilliseconds() - start.getMilliseconds();
+
+			ripple(ts);
+			pruneUnits(ts, units, max, digits);
+
+		} finally {
+			delete ts.refMonth;
+		}
+
+		return ts;
+	}
+
+	/**
+	 * Determine an appropriate refresh rate based upon units
+	 * 
+	 * @private
+	 * @param {number} units the units to populate
+	 * @return {number} milliseconds to delay
+	 */
+	function getDelay(units) {
+		if (units & MILLISECONDS) {
+			// refresh very quickly
+			return MILLISECONDS_PER_SECOND / 30; //30Hz
+		}
+
+		if (units & SECONDS) {
+			// refresh every second
+			return MILLISECONDS_PER_SECOND; //1Hz
+		}
+
+		if (units & MINUTES) {
+			// refresh every minute
+			return MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+		}
+
+		if (units & HOURS) {
+			// refresh hourly
+			return MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+		}
+		
+		if (units & DAYS) {
+			// refresh daily
+			return MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY;
+		}
+
+		// refresh the rest weekly
+		return MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY * DAYS_PER_WEEK;
+	}
+
+	/**
+	 * API entry point
+	 * 
+	 * @public
+	 * @param {Date|number|Timespan|null|function(Timespan,number)} start the starting date
+	 * @param {Date|number|Timespan|null|function(Timespan,number)} end the ending date
+	 * @param {number=} units the units to populate
+	 * @param {number=} max number of labels to output
+	 * @param {number=} digits max number of decimal digits to output
+	 * @return {Timespan|number}
+	 */
+	function countdown(start, end, units, max, digits) {
+		var callback;
+
+		// ensure some units or use defaults
+		units = +units || DEFAULTS;
+		// max must be positive
+		max = (max > 0) ? max : NaN;
+		// clamp digits to an integer between [0, 20]
+		digits = (digits > 0) ? (digits < 20) ? Math.round(digits) : 20 : 0;
+
+		// ensure start date
+		var startTS = null;
+		if ('function' === typeof start) {
+			callback = start;
+			start = null;
+
+		} else if (!(start instanceof Date)) {
+			if ((start !== null) && isFinite(start)) {
+				start = new Date(+start);
+			} else {
+				if ('object' === typeof startTS) {
+					startTS = /** @type{Timespan} */(start);
+				}
+				start = null;
+			}
+		}
+
+		// ensure end date
+		var endTS = null;
+		if ('function' === typeof end) {
+			callback = end;
+			end = null;
+
+		} else if (!(end instanceof Date)) {
+			if ((end !== null) && isFinite(end)) {
+				end = new Date(+end);
+			} else {
+				if ('object' === typeof end) {
+					endTS = /** @type{Timespan} */(end);
+				}
+				end = null;
+			}
+		}
+
+		// must wait to interpret timespans until after resolving dates
+		if (startTS) {
+			start = addToDate(startTS, end);
+		}
+		if (endTS) {
+			end = addToDate(endTS, start);
+		}
+
+		if (!start && !end) {
+			// used for unit testing
+			return new Timespan();
+		}
+
+		if (!callback) {
+			return populate(new Timespan(), /** @type{Date} */(start), /** @type{Date} */(end), /** @type{number} */(units), /** @type{number} */(max), /** @type{number} */(digits));
+		}
+
+		// base delay off units
+		var delay = getDelay(units),
+			timerId,
+			fn = function() {
+				callback(
+					populate(new Timespan(), /** @type{Date} */(start), /** @type{Date} */(end), /** @type{number} */(units), /** @type{number} */(max), /** @type{number} */(digits)),
+					timerId
+				);
+			};
+
+		fn();
+		return (timerId = setInterval(fn, delay));
+	}
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.MILLISECONDS = MILLISECONDS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.SECONDS = SECONDS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.MINUTES = MINUTES;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.HOURS = HOURS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.DAYS = DAYS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.WEEKS = WEEKS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.MONTHS = MONTHS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.YEARS = YEARS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.DECADES = DECADES;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.CENTURIES = CENTURIES;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.MILLENNIA = MILLENNIA;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.DEFAULTS = DEFAULTS;
+
+	/**
+	 * @public
+	 * @const
+	 * @type {number}
+	 */
+	countdown.ALL = MILLENNIA|CENTURIES|DECADES|YEARS|MONTHS|WEEKS|DAYS|HOURS|MINUTES|SECONDS|MILLISECONDS;
+
+	/**
+	 * Override the unit labels
+	 * @public
+	 * @param {string|Array=} singular a pipe ('|') delimited list of singular unit name overrides
+	 * @param {string|Array=} plural a pipe ('|') delimited list of plural unit name overrides
+	 * @param {string=} last a delimiter before the last unit (default: ' and ')
+	 * @param {string=} delim a delimiter to use between all other units (default: ', ')
+	 * @param {string=} empty a label to use when all units are zero (default: '')
+	 * @param {function(number):string=} formatter a function which formats numbers as a string
+	 */
+	countdown.setLabels = function(singular, plural, last, delim, empty, formatter) {
+		singular = singular || [];
+		if (singular.split) {
+			singular = singular.split('|');
+		}
+		plural = plural || [];
+		if (plural.split) {
+			plural = plural.split('|');
+		}
+
+		for (var i=LABEL_MILLISECONDS; i<=LABEL_MILLENNIA; i++) {
+			// override any specified units
+			LABELS_SINGLUAR[i] = singular[i] || LABELS_SINGLUAR[i];
+			LABELS_PLURAL[i] = plural[i] || LABELS_PLURAL[i];
+		}
+
+		LABEL_LAST = ('string' === typeof last) ? last : LABEL_LAST;
+		LABEL_DELIM = ('string' === typeof delim) ? delim : LABEL_DELIM;
+		LABEL_NOW = ('string' === typeof empty) ? empty : LABEL_NOW;
+		formatNumber = ('function' === typeof formatter) ? formatter : formatNumber;
+	};
+
+	/**
+	 * Revert to the default unit labels
+	 * @public
+	 */
+	var resetLabels = countdown.resetLabels = function() {
+		LABELS_SINGLUAR = ' millisecond| second| minute| hour| day| week| month| year| decade| century| millennium'.split('|');
+		LABELS_PLURAL = ' milliseconds| seconds| minutes| hours| days| weeks| months| years| decades| centuries| millennia'.split('|');
+		LABEL_LAST = ' and ';
+		LABEL_DELIM = ', ';
+		LABEL_NOW = '';
+		formatNumber = function(value) { return value; };
+	};
+
+	resetLabels();
+
+	if (module && module.exports) {
+		module.exports = countdown;
+
+	} else if (typeof window.define === 'function' && typeof window.define.amd !== 'undefined') {
+		window.define('countdown', [], function() {
+			return countdown;
+		});
+	}
+
+	return countdown;
+
+})(module);
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/INTERNAL.js":[function(require,module,exports){
+'use strict';
+
+module.exports = INTERNAL;
+
+function INTERNAL() {}
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/all.js":[function(require,module,exports){
+'use strict';
+var Promise = require('./promise');
+var reject = require('./reject');
+var resolve = require('./resolve');
+var INTERNAL = require('./INTERNAL');
+var handlers = require('./handlers');
+module.exports = all;
+function all(iterable) {
+  if (Object.prototype.toString.call(iterable) !== '[object Array]') {
+    return reject(new TypeError('must be an array'));
+  }
+
+  var len = iterable.length;
+  var called = false;
+  if (!len) {
+    return resolve([]);
+  }
+
+  var values = new Array(len);
+  var resolved = 0;
+  var i = -1;
+  var promise = new Promise(INTERNAL);
+  
+  while (++i < len) {
+    allResolver(iterable[i], i);
+  }
+  return promise;
+  function allResolver(value, i) {
+    resolve(value).then(resolveFromAll, function (error) {
+      if (!called) {
+        called = true;
+        handlers.reject(promise, error);
+      }
+    });
+    function resolveFromAll(outValue) {
+      values[i] = outValue;
+      if (++resolved === len & !called) {
+        called = true;
+        handlers.resolve(promise, values);
+      }
+    }
+  }
+}
+},{"./INTERNAL":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/INTERNAL.js","./handlers":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js","./promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/promise.js","./reject":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/reject.js","./resolve":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/resolve.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js":[function(require,module,exports){
+'use strict';
+var tryCatch = require('./tryCatch');
+var resolveThenable = require('./resolveThenable');
+var states = require('./states');
+
+exports.resolve = function (self, value) {
+  var result = tryCatch(getThen, value);
+  if (result.status === 'error') {
+    return exports.reject(self, result.value);
+  }
+  var thenable = result.value;
+
+  if (thenable) {
+    resolveThenable.safely(self, thenable);
+  } else {
+    self.state = states.FULFILLED;
+    self.outcome = value;
+    var i = -1;
+    var len = self.queue.length;
+    while (++i < len) {
+      self.queue[i].callFulfilled(value);
+    }
+  }
+  return self;
+};
+exports.reject = function (self, error) {
+  self.state = states.REJECTED;
+  self.outcome = error;
+  var i = -1;
+  var len = self.queue.length;
+  while (++i < len) {
+    self.queue[i].callRejected(error);
+  }
+  return self;
+};
+
+function getThen(obj) {
+  // Make sure we only access the accessor once as required by the spec
+  var then = obj && obj.then;
+  if (obj && typeof obj === 'object' && typeof then === 'function') {
+    return function appyThen() {
+      then.apply(obj, arguments);
+    };
+  }
+}
+
+},{"./resolveThenable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/resolveThenable.js","./states":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/states.js","./tryCatch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/tryCatch.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/index.js":[function(require,module,exports){
+module.exports = exports = require('./promise');
+
+exports.resolve = require('./resolve');
+exports.reject = require('./reject');
+exports.all = require('./all');
+exports.race = require('./race');
+
+},{"./all":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/all.js","./promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/promise.js","./race":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/race.js","./reject":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/reject.js","./resolve":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/resolve.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/promise.js":[function(require,module,exports){
+'use strict';
+
+var unwrap = require('./unwrap');
+var INTERNAL = require('./INTERNAL');
+var resolveThenable = require('./resolveThenable');
+var states = require('./states');
+var QueueItem = require('./queueItem');
+
+module.exports = Promise;
+function Promise(resolver) {
+  if (!(this instanceof Promise)) {
+    return new Promise(resolver);
+  }
+  if (typeof resolver !== 'function') {
+    throw new TypeError('resolver must be a function');
+  }
+  this.state = states.PENDING;
+  this.queue = [];
+  this.outcome = void 0;
+  if (resolver !== INTERNAL) {
+    resolveThenable.safely(this, resolver);
+  }
+}
+
+Promise.prototype['catch'] = function (onRejected) {
+  return this.then(null, onRejected);
+};
+Promise.prototype.then = function (onFulfilled, onRejected) {
+  if (typeof onFulfilled !== 'function' && this.state === states.FULFILLED ||
+    typeof onRejected !== 'function' && this.state === states.REJECTED) {
+    return this;
+  }
+  var promise = new Promise(INTERNAL);
+  if (this.state !== states.PENDING) {
+    var resolver = this.state === states.FULFILLED ? onFulfilled : onRejected;
+    unwrap(promise, resolver, this.outcome);
+  } else {
+    this.queue.push(new QueueItem(promise, onFulfilled, onRejected));
+  }
+
+  return promise;
+};
+
+},{"./INTERNAL":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/INTERNAL.js","./queueItem":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/queueItem.js","./resolveThenable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/resolveThenable.js","./states":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/states.js","./unwrap":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/unwrap.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/queueItem.js":[function(require,module,exports){
+'use strict';
+var handlers = require('./handlers');
+var unwrap = require('./unwrap');
+
+module.exports = QueueItem;
+function QueueItem(promise, onFulfilled, onRejected) {
+  this.promise = promise;
+  if (typeof onFulfilled === 'function') {
+    this.onFulfilled = onFulfilled;
+    this.callFulfilled = this.otherCallFulfilled;
+  }
+  if (typeof onRejected === 'function') {
+    this.onRejected = onRejected;
+    this.callRejected = this.otherCallRejected;
+  }
+}
+QueueItem.prototype.callFulfilled = function (value) {
+  handlers.resolve(this.promise, value);
+};
+QueueItem.prototype.otherCallFulfilled = function (value) {
+  unwrap(this.promise, this.onFulfilled, value);
+};
+QueueItem.prototype.callRejected = function (value) {
+  handlers.reject(this.promise, value);
+};
+QueueItem.prototype.otherCallRejected = function (value) {
+  unwrap(this.promise, this.onRejected, value);
+};
+
+},{"./handlers":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js","./unwrap":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/unwrap.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/race.js":[function(require,module,exports){
+'use strict';
+var Promise = require('./promise');
+var reject = require('./reject');
+var resolve = require('./resolve');
+var INTERNAL = require('./INTERNAL');
+var handlers = require('./handlers');
+module.exports = race;
+function race(iterable) {
+  if (Object.prototype.toString.call(iterable) !== '[object Array]') {
+    return reject(new TypeError('must be an array'));
+  }
+
+  var len = iterable.length;
+  var called = false;
+  if (!len) {
+    return resolve([]);
+  }
+
+  var i = -1;
+  var promise = new Promise(INTERNAL);
+
+  while (++i < len) {
+    resolver(iterable[i]);
+  }
+  return promise;
+  function resolver(value) {
+    resolve(value).then(function (response) {
+      if (!called) {
+        called = true;
+        handlers.resolve(promise, response);
+      }
+    }, function (error) {
+      if (!called) {
+        called = true;
+        handlers.reject(promise, error);
+      }
+    });
+  }
+}
+
+},{"./INTERNAL":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/INTERNAL.js","./handlers":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js","./promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/promise.js","./reject":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/reject.js","./resolve":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/resolve.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/reject.js":[function(require,module,exports){
+'use strict';
+
+var Promise = require('./promise');
+var INTERNAL = require('./INTERNAL');
+var handlers = require('./handlers');
+module.exports = reject;
+
+function reject(reason) {
+	var promise = new Promise(INTERNAL);
+	return handlers.reject(promise, reason);
+}
+},{"./INTERNAL":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/INTERNAL.js","./handlers":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js","./promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/promise.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/resolve.js":[function(require,module,exports){
+'use strict';
+
+var Promise = require('./promise');
+var INTERNAL = require('./INTERNAL');
+var handlers = require('./handlers');
+module.exports = resolve;
+
+var FALSE = handlers.resolve(new Promise(INTERNAL), false);
+var NULL = handlers.resolve(new Promise(INTERNAL), null);
+var UNDEFINED = handlers.resolve(new Promise(INTERNAL), void 0);
+var ZERO = handlers.resolve(new Promise(INTERNAL), 0);
+var EMPTYSTRING = handlers.resolve(new Promise(INTERNAL), '');
+
+function resolve(value) {
+  if (value) {
+    if (value instanceof Promise) {
+      return value;
+    }
+    return handlers.resolve(new Promise(INTERNAL), value);
+  }
+  var valueType = typeof value;
+  switch (valueType) {
+    case 'boolean':
+      return FALSE;
+    case 'undefined':
+      return UNDEFINED;
+    case 'object':
+      return NULL;
+    case 'number':
+      return ZERO;
+    case 'string':
+      return EMPTYSTRING;
+  }
+}
+},{"./INTERNAL":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/INTERNAL.js","./handlers":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js","./promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/promise.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/resolveThenable.js":[function(require,module,exports){
+'use strict';
+var handlers = require('./handlers');
+var tryCatch = require('./tryCatch');
+function safelyResolveThenable(self, thenable) {
+  // Either fulfill, reject or reject with error
+  var called = false;
+  function onError(value) {
+    if (called) {
+      return;
+    }
+    called = true;
+    handlers.reject(self, value);
+  }
+
+  function onSuccess(value) {
+    if (called) {
+      return;
+    }
+    called = true;
+    handlers.resolve(self, value);
+  }
+
+  function tryToUnwrap() {
+    thenable(onSuccess, onError);
+  }
+  
+  var result = tryCatch(tryToUnwrap);
+  if (result.status === 'error') {
+    onError(result.value);
+  }
+}
+exports.safely = safelyResolveThenable;
+},{"./handlers":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js","./tryCatch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/tryCatch.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/states.js":[function(require,module,exports){
+// Lazy man's symbols for states
+
+exports.REJECTED = ['REJECTED'];
+exports.FULFILLED = ['FULFILLED'];
+exports.PENDING = ['PENDING'];
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/tryCatch.js":[function(require,module,exports){
+'use strict';
+
+module.exports = tryCatch;
+
+function tryCatch(func, value) {
+  var out = {};
+  try {
+    out.value = func(value);
+    out.status = 'success';
+  } catch (e) {
+    out.status = 'error';
+    out.value = e;
+  }
+  return out;
+}
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/unwrap.js":[function(require,module,exports){
+'use strict';
+
+var immediate = require('immediate');
+var handlers = require('./handlers');
+module.exports = unwrap;
+
+function unwrap(promise, func, value) {
+  immediate(function () {
+    var returnValue;
+    try {
+      returnValue = func(value);
+    } catch (e) {
+      return handlers.reject(promise, e);
+    }
+    if (returnValue === promise) {
+      handlers.reject(promise, new TypeError('Cannot resolve promise with itself'));
+    } else {
+      handlers.resolve(promise, returnValue);
+    }
+  });
+}
+},{"./handlers":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/handlers.js","immediate":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/index.js":[function(require,module,exports){
+'use strict';
+var types = [
+  require('./nextTick'),
+  require('./mutation.js'),
+  require('./messageChannel'),
+  require('./stateChange'),
+  require('./timeout')
+];
+var draining;
+var queue = [];
+//named nextTick for less confusing stack traces
+function nextTick() {
+  draining = true;
+  var i, oldQueue;
+  var len = queue.length;
+  while (len) {
+    oldQueue = queue;
+    queue = [];
+    i = -1;
+    while (++i < len) {
+      oldQueue[i]();
+    }
+    len = queue.length;
+  }
+  draining = false;
+}
+var scheduleDrain;
+var i = -1;
+var len = types.length;
+while (++ i < len) {
+  if (types[i] && types[i].test && types[i].test()) {
+    scheduleDrain = types[i].install(nextTick);
+    break;
+  }
+}
+module.exports = immediate;
+function immediate(task) {
+  if (queue.push(task) === 1 && !draining) {
+    scheduleDrain();
+  }
+}
+},{"./messageChannel":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/messageChannel.js","./mutation.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/mutation.js","./nextTick":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/browser-resolve/empty.js","./stateChange":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/stateChange.js","./timeout":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/timeout.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/messageChannel.js":[function(require,module,exports){
+(function (global){
+'use strict';
+
+exports.test = function () {
+  if (global.setImmediate) {
+    // we can only get here in IE10
+    // which doesn't handel postMessage well
+    return false;
+  }
+  return typeof global.MessageChannel !== 'undefined';
+};
+
+exports.install = function (func) {
+  var channel = new global.MessageChannel();
+  channel.port1.onmessage = func;
+  return function () {
+    channel.port2.postMessage(0);
+  };
+};
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/mutation.js":[function(require,module,exports){
+(function (global){
+'use strict';
+//based off rsvp https://github.com/tildeio/rsvp.js
+//license https://github.com/tildeio/rsvp.js/blob/master/LICENSE
+//https://github.com/tildeio/rsvp.js/blob/master/lib/rsvp/asap.js
+
+var Mutation = global.MutationObserver || global.WebKitMutationObserver;
+
+exports.test = function () {
+  return Mutation;
+};
+
+exports.install = function (handle) {
+  var called = 0;
+  var observer = new Mutation(handle);
+  var element = global.document.createTextNode('');
+  observer.observe(element, {
+    characterData: true
+  });
+  return function () {
+    element.data = (called = ++called % 2);
+  };
+};
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/stateChange.js":[function(require,module,exports){
+(function (global){
+'use strict';
+
+exports.test = function () {
+  return 'document' in global && 'onreadystatechange' in global.document.createElement('script');
+};
+
+exports.install = function (handle) {
+  return function () {
+
+    // Create a <script> element; its readystatechange event will be fired asynchronously once it is inserted
+    // into the document. Do so, thus queuing up the task. Remember to clean up once it's been called.
+    var scriptEl = global.document.createElement('script');
+    scriptEl.onreadystatechange = function () {
+      handle();
+
+      scriptEl.onreadystatechange = null;
+      scriptEl.parentNode.removeChild(scriptEl);
+      scriptEl = null;
+    };
+    global.document.documentElement.appendChild(scriptEl);
+
+    return handle;
+  };
+};
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/node_modules/immediate/lib/timeout.js":[function(require,module,exports){
+'use strict';
+exports.test = function () {
+  return true;
+};
+
+exports.install = function (t) {
+  return function () {
+    setTimeout(t, 0);
+  };
+};
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/moment/moment.js":[function(require,module,exports){
+//! moment.js
+//! version : 2.10.3
+//! authors : Tim Wood, Iskren Chernev, Moment.js contributors
+//! license : MIT
+//! momentjs.com
+
+(function (global, factory) {
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+    typeof define === 'function' && define.amd ? define(factory) :
+    global.moment = factory()
+}(this, function () { 'use strict';
+
+    var hookCallback;
+
+    function utils_hooks__hooks () {
+        return hookCallback.apply(null, arguments);
+    }
+
+    // This is done to register the method called with moment()
+    // without creating circular dependencies.
+    function setHookCallback (callback) {
+        hookCallback = callback;
+    }
+
+    function isArray(input) {
+        return Object.prototype.toString.call(input) === '[object Array]';
+    }
+
+    function isDate(input) {
+        return input instanceof Date || Object.prototype.toString.call(input) === '[object Date]';
+    }
+
+    function map(arr, fn) {
+        var res = [], i;
+        for (i = 0; i < arr.length; ++i) {
+            res.push(fn(arr[i], i));
+        }
+        return res;
+    }
+
+    function hasOwnProp(a, b) {
+        return Object.prototype.hasOwnProperty.call(a, b);
+    }
+
+    function extend(a, b) {
+        for (var i in b) {
+            if (hasOwnProp(b, i)) {
+                a[i] = b[i];
+            }
+        }
+
+        if (hasOwnProp(b, 'toString')) {
+            a.toString = b.toString;
+        }
+
+        if (hasOwnProp(b, 'valueOf')) {
+            a.valueOf = b.valueOf;
+        }
+
+        return a;
+    }
+
+    function create_utc__createUTC (input, format, locale, strict) {
+        return createLocalOrUTC(input, format, locale, strict, true).utc();
+    }
+
+    function defaultParsingFlags() {
+        // We need to deep clone this object.
+        return {
+            empty           : false,
+            unusedTokens    : [],
+            unusedInput     : [],
+            overflow        : -2,
+            charsLeftOver   : 0,
+            nullInput       : false,
+            invalidMonth    : null,
+            invalidFormat   : false,
+            userInvalidated : false,
+            iso             : false
+        };
+    }
+
+    function getParsingFlags(m) {
+        if (m._pf == null) {
+            m._pf = defaultParsingFlags();
+        }
+        return m._pf;
+    }
+
+    function valid__isValid(m) {
+        if (m._isValid == null) {
+            var flags = getParsingFlags(m);
+            m._isValid = !isNaN(m._d.getTime()) &&
+                flags.overflow < 0 &&
+                !flags.empty &&
+                !flags.invalidMonth &&
+                !flags.nullInput &&
+                !flags.invalidFormat &&
+                !flags.userInvalidated;
+
+            if (m._strict) {
+                m._isValid = m._isValid &&
+                    flags.charsLeftOver === 0 &&
+                    flags.unusedTokens.length === 0 &&
+                    flags.bigHour === undefined;
+            }
+        }
+        return m._isValid;
+    }
+
+    function valid__createInvalid (flags) {
+        var m = create_utc__createUTC(NaN);
+        if (flags != null) {
+            extend(getParsingFlags(m), flags);
+        }
+        else {
+            getParsingFlags(m).userInvalidated = true;
+        }
+
+        return m;
+    }
+
+    var momentProperties = utils_hooks__hooks.momentProperties = [];
+
+    function copyConfig(to, from) {
+        var i, prop, val;
+
+        if (typeof from._isAMomentObject !== 'undefined') {
+            to._isAMomentObject = from._isAMomentObject;
+        }
+        if (typeof from._i !== 'undefined') {
+            to._i = from._i;
+        }
+        if (typeof from._f !== 'undefined') {
+            to._f = from._f;
+        }
+        if (typeof from._l !== 'undefined') {
+            to._l = from._l;
+        }
+        if (typeof from._strict !== 'undefined') {
+            to._strict = from._strict;
+        }
+        if (typeof from._tzm !== 'undefined') {
+            to._tzm = from._tzm;
+        }
+        if (typeof from._isUTC !== 'undefined') {
+            to._isUTC = from._isUTC;
+        }
+        if (typeof from._offset !== 'undefined') {
+            to._offset = from._offset;
+        }
+        if (typeof from._pf !== 'undefined') {
+            to._pf = getParsingFlags(from);
+        }
+        if (typeof from._locale !== 'undefined') {
+            to._locale = from._locale;
+        }
+
+        if (momentProperties.length > 0) {
+            for (i in momentProperties) {
+                prop = momentProperties[i];
+                val = from[prop];
+                if (typeof val !== 'undefined') {
+                    to[prop] = val;
+                }
+            }
+        }
+
+        return to;
+    }
+
+    var updateInProgress = false;
+
+    // Moment prototype object
+    function Moment(config) {
+        copyConfig(this, config);
+        this._d = new Date(+config._d);
+        // Prevent infinite loop in case updateOffset creates new moment
+        // objects.
+        if (updateInProgress === false) {
+            updateInProgress = true;
+            utils_hooks__hooks.updateOffset(this);
+            updateInProgress = false;
+        }
+    }
+
+    function isMoment (obj) {
+        return obj instanceof Moment || (obj != null && obj._isAMomentObject != null);
+    }
+
+    function toInt(argumentForCoercion) {
+        var coercedNumber = +argumentForCoercion,
+            value = 0;
+
+        if (coercedNumber !== 0 && isFinite(coercedNumber)) {
+            if (coercedNumber >= 0) {
+                value = Math.floor(coercedNumber);
+            } else {
+                value = Math.ceil(coercedNumber);
+            }
+        }
+
+        return value;
+    }
+
+    function compareArrays(array1, array2, dontConvert) {
+        var len = Math.min(array1.length, array2.length),
+            lengthDiff = Math.abs(array1.length - array2.length),
+            diffs = 0,
+            i;
+        for (i = 0; i < len; i++) {
+            if ((dontConvert && array1[i] !== array2[i]) ||
+                (!dontConvert && toInt(array1[i]) !== toInt(array2[i]))) {
+                diffs++;
+            }
+        }
+        return diffs + lengthDiff;
+    }
+
+    function Locale() {
+    }
+
+    var locales = {};
+    var globalLocale;
+
+    function normalizeLocale(key) {
+        return key ? key.toLowerCase().replace('_', '-') : key;
+    }
+
+    // pick the locale from the array
+    // try ['en-au', 'en-gb'] as 'en-au', 'en-gb', 'en', as in move through the list trying each
+    // substring from most specific to least, but move to the next array item if it's a more specific variant than the current root
+    function chooseLocale(names) {
+        var i = 0, j, next, locale, split;
+
+        while (i < names.length) {
+            split = normalizeLocale(names[i]).split('-');
+            j = split.length;
+            next = normalizeLocale(names[i + 1]);
+            next = next ? next.split('-') : null;
+            while (j > 0) {
+                locale = loadLocale(split.slice(0, j).join('-'));
+                if (locale) {
+                    return locale;
+                }
+                if (next && next.length >= j && compareArrays(split, next, true) >= j - 1) {
+                    //the next array item is better than a shallower substring of this one
+                    break;
+                }
+                j--;
+            }
+            i++;
+        }
+        return null;
+    }
+
+    function loadLocale(name) {
+        var oldLocale = null;
+        // TODO: Find a better way to register and load all the locales in Node
+        if (!locales[name] && typeof module !== 'undefined' &&
+                module && module.exports) {
+            try {
+                oldLocale = globalLocale._abbr;
+                require('./locale/' + name);
+                // because defineLocale currently also sets the global locale, we
+                // want to undo that for lazy loaded locales
+                locale_locales__getSetGlobalLocale(oldLocale);
+            } catch (e) { }
+        }
+        return locales[name];
+    }
+
+    // This function will load locale and then set the global locale.  If
+    // no arguments are passed in, it will simply return the current global
+    // locale key.
+    function locale_locales__getSetGlobalLocale (key, values) {
+        var data;
+        if (key) {
+            if (typeof values === 'undefined') {
+                data = locale_locales__getLocale(key);
+            }
+            else {
+                data = defineLocale(key, values);
+            }
+
+            if (data) {
+                // moment.duration._locale = moment._locale = data;
+                globalLocale = data;
+            }
+        }
+
+        return globalLocale._abbr;
+    }
+
+    function defineLocale (name, values) {
+        if (values !== null) {
+            values.abbr = name;
+            if (!locales[name]) {
+                locales[name] = new Locale();
+            }
+            locales[name].set(values);
+
+            // backwards compat for now: also set the locale
+            locale_locales__getSetGlobalLocale(name);
+
+            return locales[name];
+        } else {
+            // useful for testing
+            delete locales[name];
+            return null;
+        }
+    }
+
+    // returns locale data
+    function locale_locales__getLocale (key) {
+        var locale;
+
+        if (key && key._locale && key._locale._abbr) {
+            key = key._locale._abbr;
+        }
+
+        if (!key) {
+            return globalLocale;
+        }
+
+        if (!isArray(key)) {
+            //short-circuit everything else
+            locale = loadLocale(key);
+            if (locale) {
+                return locale;
+            }
+            key = [key];
+        }
+
+        return chooseLocale(key);
+    }
+
+    var aliases = {};
+
+    function addUnitAlias (unit, shorthand) {
+        var lowerCase = unit.toLowerCase();
+        aliases[lowerCase] = aliases[lowerCase + 's'] = aliases[shorthand] = unit;
+    }
+
+    function normalizeUnits(units) {
+        return typeof units === 'string' ? aliases[units] || aliases[units.toLowerCase()] : undefined;
+    }
+
+    function normalizeObjectUnits(inputObject) {
+        var normalizedInput = {},
+            normalizedProp,
+            prop;
+
+        for (prop in inputObject) {
+            if (hasOwnProp(inputObject, prop)) {
+                normalizedProp = normalizeUnits(prop);
+                if (normalizedProp) {
+                    normalizedInput[normalizedProp] = inputObject[prop];
+                }
+            }
+        }
+
+        return normalizedInput;
+    }
+
+    function makeGetSet (unit, keepTime) {
+        return function (value) {
+            if (value != null) {
+                get_set__set(this, unit, value);
+                utils_hooks__hooks.updateOffset(this, keepTime);
+                return this;
+            } else {
+                return get_set__get(this, unit);
+            }
+        };
+    }
+
+    function get_set__get (mom, unit) {
+        return mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]();
+    }
+
+    function get_set__set (mom, unit, value) {
+        return mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
+    }
+
+    // MOMENTS
+
+    function getSet (units, value) {
+        var unit;
+        if (typeof units === 'object') {
+            for (unit in units) {
+                this.set(unit, units[unit]);
+            }
+        } else {
+            units = normalizeUnits(units);
+            if (typeof this[units] === 'function') {
+                return this[units](value);
+            }
+        }
+        return this;
+    }
+
+    function zeroFill(number, targetLength, forceSign) {
+        var output = '' + Math.abs(number),
+            sign = number >= 0;
+
+        while (output.length < targetLength) {
+            output = '0' + output;
+        }
+        return (sign ? (forceSign ? '+' : '') : '-') + output;
+    }
+
+    var formattingTokens = /(\[[^\[]*\])|(\\)?(Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Q|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|mm?|ss?|S{1,4}|x|X|zz?|ZZ?|.)/g;
+
+    var localFormattingTokens = /(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g;
+
+    var formatFunctions = {};
+
+    var formatTokenFunctions = {};
+
+    // token:    'M'
+    // padded:   ['MM', 2]
+    // ordinal:  'Mo'
+    // callback: function () { this.month() + 1 }
+    function addFormatToken (token, padded, ordinal, callback) {
+        var func = callback;
+        if (typeof callback === 'string') {
+            func = function () {
+                return this[callback]();
+            };
+        }
+        if (token) {
+            formatTokenFunctions[token] = func;
+        }
+        if (padded) {
+            formatTokenFunctions[padded[0]] = function () {
+                return zeroFill(func.apply(this, arguments), padded[1], padded[2]);
+            };
+        }
+        if (ordinal) {
+            formatTokenFunctions[ordinal] = function () {
+                return this.localeData().ordinal(func.apply(this, arguments), token);
+            };
+        }
+    }
+
+    function removeFormattingTokens(input) {
+        if (input.match(/\[[\s\S]/)) {
+            return input.replace(/^\[|\]$/g, '');
+        }
+        return input.replace(/\\/g, '');
+    }
+
+    function makeFormatFunction(format) {
+        var array = format.match(formattingTokens), i, length;
+
+        for (i = 0, length = array.length; i < length; i++) {
+            if (formatTokenFunctions[array[i]]) {
+                array[i] = formatTokenFunctions[array[i]];
+            } else {
+                array[i] = removeFormattingTokens(array[i]);
+            }
+        }
+
+        return function (mom) {
+            var output = '';
+            for (i = 0; i < length; i++) {
+                output += array[i] instanceof Function ? array[i].call(mom, format) : array[i];
+            }
+            return output;
+        };
+    }
+
+    // format date using native date object
+    function formatMoment(m, format) {
+        if (!m.isValid()) {
+            return m.localeData().invalidDate();
+        }
+
+        format = expandFormat(format, m.localeData());
+
+        if (!formatFunctions[format]) {
+            formatFunctions[format] = makeFormatFunction(format);
+        }
+
+        return formatFunctions[format](m);
+    }
+
+    function expandFormat(format, locale) {
+        var i = 5;
+
+        function replaceLongDateFormatTokens(input) {
+            return locale.longDateFormat(input) || input;
+        }
+
+        localFormattingTokens.lastIndex = 0;
+        while (i >= 0 && localFormattingTokens.test(format)) {
+            format = format.replace(localFormattingTokens, replaceLongDateFormatTokens);
+            localFormattingTokens.lastIndex = 0;
+            i -= 1;
+        }
+
+        return format;
+    }
+
+    var match1         = /\d/;            //       0 - 9
+    var match2         = /\d\d/;          //      00 - 99
+    var match3         = /\d{3}/;         //     000 - 999
+    var match4         = /\d{4}/;         //    0000 - 9999
+    var match6         = /[+-]?\d{6}/;    // -999999 - 999999
+    var match1to2      = /\d\d?/;         //       0 - 99
+    var match1to3      = /\d{1,3}/;       //       0 - 999
+    var match1to4      = /\d{1,4}/;       //       0 - 9999
+    var match1to6      = /[+-]?\d{1,6}/;  // -999999 - 999999
+
+    var matchUnsigned  = /\d+/;           //       0 - inf
+    var matchSigned    = /[+-]?\d+/;      //    -inf - inf
+
+    var matchOffset    = /Z|[+-]\d\d:?\d\d/gi; // +00:00 -00:00 +0000 -0000 or Z
+
+    var matchTimestamp = /[+-]?\d+(\.\d{1,3})?/; // 123456789 123456789.123
+
+    // any word (or two) characters or numbers including two/three word month in arabic.
+    var matchWord = /[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i;
+
+    var regexes = {};
+
+    function addRegexToken (token, regex, strictRegex) {
+        regexes[token] = typeof regex === 'function' ? regex : function (isStrict) {
+            return (isStrict && strictRegex) ? strictRegex : regex;
+        };
+    }
+
+    function getParseRegexForToken (token, config) {
+        if (!hasOwnProp(regexes, token)) {
+            return new RegExp(unescapeFormat(token));
+        }
+
+        return regexes[token](config._strict, config._locale);
+    }
+
+    // Code from http://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+    function unescapeFormat(s) {
+        return s.replace('\\', '').replace(/\\(\[)|\\(\])|\[([^\]\[]*)\]|\\(.)/g, function (matched, p1, p2, p3, p4) {
+            return p1 || p2 || p3 || p4;
+        }).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    }
+
+    var tokens = {};
+
+    function addParseToken (token, callback) {
+        var i, func = callback;
+        if (typeof token === 'string') {
+            token = [token];
+        }
+        if (typeof callback === 'number') {
+            func = function (input, array) {
+                array[callback] = toInt(input);
+            };
+        }
+        for (i = 0; i < token.length; i++) {
+            tokens[token[i]] = func;
+        }
+    }
+
+    function addWeekParseToken (token, callback) {
+        addParseToken(token, function (input, array, config, token) {
+            config._w = config._w || {};
+            callback(input, config._w, config, token);
+        });
+    }
+
+    function addTimeToArrayFromToken(token, input, config) {
+        if (input != null && hasOwnProp(tokens, token)) {
+            tokens[token](input, config._a, config, token);
+        }
+    }
+
+    var YEAR = 0;
+    var MONTH = 1;
+    var DATE = 2;
+    var HOUR = 3;
+    var MINUTE = 4;
+    var SECOND = 5;
+    var MILLISECOND = 6;
+
+    function daysInMonth(year, month) {
+        return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    }
+
+    // FORMATTING
+
+    addFormatToken('M', ['MM', 2], 'Mo', function () {
+        return this.month() + 1;
+    });
+
+    addFormatToken('MMM', 0, 0, function (format) {
+        return this.localeData().monthsShort(this, format);
+    });
+
+    addFormatToken('MMMM', 0, 0, function (format) {
+        return this.localeData().months(this, format);
+    });
+
+    // ALIASES
+
+    addUnitAlias('month', 'M');
+
+    // PARSING
+
+    addRegexToken('M',    match1to2);
+    addRegexToken('MM',   match1to2, match2);
+    addRegexToken('MMM',  matchWord);
+    addRegexToken('MMMM', matchWord);
+
+    addParseToken(['M', 'MM'], function (input, array) {
+        array[MONTH] = toInt(input) - 1;
+    });
+
+    addParseToken(['MMM', 'MMMM'], function (input, array, config, token) {
+        var month = config._locale.monthsParse(input, token, config._strict);
+        // if we didn't find a month name, mark the date as invalid.
+        if (month != null) {
+            array[MONTH] = month;
+        } else {
+            getParsingFlags(config).invalidMonth = input;
+        }
+    });
+
+    // LOCALES
+
+    var defaultLocaleMonths = 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_');
+    function localeMonths (m) {
+        return this._months[m.month()];
+    }
+
+    var defaultLocaleMonthsShort = 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_');
+    function localeMonthsShort (m) {
+        return this._monthsShort[m.month()];
+    }
+
+    function localeMonthsParse (monthName, format, strict) {
+        var i, mom, regex;
+
+        if (!this._monthsParse) {
+            this._monthsParse = [];
+            this._longMonthsParse = [];
+            this._shortMonthsParse = [];
+        }
+
+        for (i = 0; i < 12; i++) {
+            // make the regex if we don't have it already
+            mom = create_utc__createUTC([2000, i]);
+            if (strict && !this._longMonthsParse[i]) {
+                this._longMonthsParse[i] = new RegExp('^' + this.months(mom, '').replace('.', '') + '$', 'i');
+                this._shortMonthsParse[i] = new RegExp('^' + this.monthsShort(mom, '').replace('.', '') + '$', 'i');
+            }
+            if (!strict && !this._monthsParse[i]) {
+                regex = '^' + this.months(mom, '') + '|^' + this.monthsShort(mom, '');
+                this._monthsParse[i] = new RegExp(regex.replace('.', ''), 'i');
+            }
+            // test the regex
+            if (strict && format === 'MMMM' && this._longMonthsParse[i].test(monthName)) {
+                return i;
+            } else if (strict && format === 'MMM' && this._shortMonthsParse[i].test(monthName)) {
+                return i;
+            } else if (!strict && this._monthsParse[i].test(monthName)) {
+                return i;
+            }
+        }
+    }
+
+    // MOMENTS
+
+    function setMonth (mom, value) {
+        var dayOfMonth;
+
+        // TODO: Move this out of here!
+        if (typeof value === 'string') {
+            value = mom.localeData().monthsParse(value);
+            // TODO: Another silent failure?
+            if (typeof value !== 'number') {
+                return mom;
+            }
+        }
+
+        dayOfMonth = Math.min(mom.date(), daysInMonth(mom.year(), value));
+        mom._d['set' + (mom._isUTC ? 'UTC' : '') + 'Month'](value, dayOfMonth);
+        return mom;
+    }
+
+    function getSetMonth (value) {
+        if (value != null) {
+            setMonth(this, value);
+            utils_hooks__hooks.updateOffset(this, true);
+            return this;
+        } else {
+            return get_set__get(this, 'Month');
+        }
+    }
+
+    function getDaysInMonth () {
+        return daysInMonth(this.year(), this.month());
+    }
+
+    function checkOverflow (m) {
+        var overflow;
+        var a = m._a;
+
+        if (a && getParsingFlags(m).overflow === -2) {
+            overflow =
+                a[MONTH]       < 0 || a[MONTH]       > 11  ? MONTH :
+                a[DATE]        < 1 || a[DATE]        > daysInMonth(a[YEAR], a[MONTH]) ? DATE :
+                a[HOUR]        < 0 || a[HOUR]        > 24 || (a[HOUR] === 24 && (a[MINUTE] !== 0 || a[SECOND] !== 0 || a[MILLISECOND] !== 0)) ? HOUR :
+                a[MINUTE]      < 0 || a[MINUTE]      > 59  ? MINUTE :
+                a[SECOND]      < 0 || a[SECOND]      > 59  ? SECOND :
+                a[MILLISECOND] < 0 || a[MILLISECOND] > 999 ? MILLISECOND :
+                -1;
+
+            if (getParsingFlags(m)._overflowDayOfYear && (overflow < YEAR || overflow > DATE)) {
+                overflow = DATE;
+            }
+
+            getParsingFlags(m).overflow = overflow;
+        }
+
+        return m;
+    }
+
+    function warn(msg) {
+        if (utils_hooks__hooks.suppressDeprecationWarnings === false && typeof console !== 'undefined' && console.warn) {
+            console.warn('Deprecation warning: ' + msg);
+        }
+    }
+
+    function deprecate(msg, fn) {
+        var firstTime = true,
+            msgWithStack = msg + '\n' + (new Error()).stack;
+
+        return extend(function () {
+            if (firstTime) {
+                warn(msgWithStack);
+                firstTime = false;
+            }
+            return fn.apply(this, arguments);
+        }, fn);
+    }
+
+    var deprecations = {};
+
+    function deprecateSimple(name, msg) {
+        if (!deprecations[name]) {
+            warn(msg);
+            deprecations[name] = true;
+        }
+    }
+
+    utils_hooks__hooks.suppressDeprecationWarnings = false;
+
+    var from_string__isoRegex = /^\s*(?:[+-]\d{6}|\d{4})-(?:(\d\d-\d\d)|(W\d\d$)|(W\d\d-\d)|(\d\d\d))((T| )(\d\d(:\d\d(:\d\d(\.\d+)?)?)?)?([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/;
+
+    var isoDates = [
+        ['YYYYYY-MM-DD', /[+-]\d{6}-\d{2}-\d{2}/],
+        ['YYYY-MM-DD', /\d{4}-\d{2}-\d{2}/],
+        ['GGGG-[W]WW-E', /\d{4}-W\d{2}-\d/],
+        ['GGGG-[W]WW', /\d{4}-W\d{2}/],
+        ['YYYY-DDD', /\d{4}-\d{3}/]
+    ];
+
+    // iso time formats and regexes
+    var isoTimes = [
+        ['HH:mm:ss.SSSS', /(T| )\d\d:\d\d:\d\d\.\d+/],
+        ['HH:mm:ss', /(T| )\d\d:\d\d:\d\d/],
+        ['HH:mm', /(T| )\d\d:\d\d/],
+        ['HH', /(T| )\d\d/]
+    ];
+
+    var aspNetJsonRegex = /^\/?Date\((\-?\d+)/i;
+
+    // date from iso format
+    function configFromISO(config) {
+        var i, l,
+            string = config._i,
+            match = from_string__isoRegex.exec(string);
+
+        if (match) {
+            getParsingFlags(config).iso = true;
+            for (i = 0, l = isoDates.length; i < l; i++) {
+                if (isoDates[i][1].exec(string)) {
+                    // match[5] should be 'T' or undefined
+                    config._f = isoDates[i][0] + (match[6] || ' ');
+                    break;
+                }
+            }
+            for (i = 0, l = isoTimes.length; i < l; i++) {
+                if (isoTimes[i][1].exec(string)) {
+                    config._f += isoTimes[i][0];
+                    break;
+                }
+            }
+            if (string.match(matchOffset)) {
+                config._f += 'Z';
+            }
+            configFromStringAndFormat(config);
+        } else {
+            config._isValid = false;
+        }
+    }
+
+    // date from iso format or fallback
+    function configFromString(config) {
+        var matched = aspNetJsonRegex.exec(config._i);
+
+        if (matched !== null) {
+            config._d = new Date(+matched[1]);
+            return;
+        }
+
+        configFromISO(config);
+        if (config._isValid === false) {
+            delete config._isValid;
+            utils_hooks__hooks.createFromInputFallback(config);
+        }
+    }
+
+    utils_hooks__hooks.createFromInputFallback = deprecate(
+        'moment construction falls back to js Date. This is ' +
+        'discouraged and will be removed in upcoming major ' +
+        'release. Please refer to ' +
+        'https://github.com/moment/moment/issues/1407 for more info.',
+        function (config) {
+            config._d = new Date(config._i + (config._useUTC ? ' UTC' : ''));
+        }
+    );
+
+    function createDate (y, m, d, h, M, s, ms) {
+        //can't just apply() to create a date:
+        //http://stackoverflow.com/questions/181348/instantiating-a-javascript-object-by-calling-prototype-constructor-apply
+        var date = new Date(y, m, d, h, M, s, ms);
+
+        //the date constructor doesn't accept years < 1970
+        if (y < 1970) {
+            date.setFullYear(y);
+        }
+        return date;
+    }
+
+    function createUTCDate (y) {
+        var date = new Date(Date.UTC.apply(null, arguments));
+        if (y < 1970) {
+            date.setUTCFullYear(y);
+        }
+        return date;
+    }
+
+    addFormatToken(0, ['YY', 2], 0, function () {
+        return this.year() % 100;
+    });
+
+    addFormatToken(0, ['YYYY',   4],       0, 'year');
+    addFormatToken(0, ['YYYYY',  5],       0, 'year');
+    addFormatToken(0, ['YYYYYY', 6, true], 0, 'year');
+
+    // ALIASES
+
+    addUnitAlias('year', 'y');
+
+    // PARSING
+
+    addRegexToken('Y',      matchSigned);
+    addRegexToken('YY',     match1to2, match2);
+    addRegexToken('YYYY',   match1to4, match4);
+    addRegexToken('YYYYY',  match1to6, match6);
+    addRegexToken('YYYYYY', match1to6, match6);
+
+    addParseToken(['YYYY', 'YYYYY', 'YYYYYY'], YEAR);
+    addParseToken('YY', function (input, array) {
+        array[YEAR] = utils_hooks__hooks.parseTwoDigitYear(input);
+    });
+
+    // HELPERS
+
+    function daysInYear(year) {
+        return isLeapYear(year) ? 366 : 365;
+    }
+
+    function isLeapYear(year) {
+        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    }
+
+    // HOOKS
+
+    utils_hooks__hooks.parseTwoDigitYear = function (input) {
+        return toInt(input) + (toInt(input) > 68 ? 1900 : 2000);
+    };
+
+    // MOMENTS
+
+    var getSetYear = makeGetSet('FullYear', false);
+
+    function getIsLeapYear () {
+        return isLeapYear(this.year());
+    }
+
+    addFormatToken('w', ['ww', 2], 'wo', 'week');
+    addFormatToken('W', ['WW', 2], 'Wo', 'isoWeek');
+
+    // ALIASES
+
+    addUnitAlias('week', 'w');
+    addUnitAlias('isoWeek', 'W');
+
+    // PARSING
+
+    addRegexToken('w',  match1to2);
+    addRegexToken('ww', match1to2, match2);
+    addRegexToken('W',  match1to2);
+    addRegexToken('WW', match1to2, match2);
+
+    addWeekParseToken(['w', 'ww', 'W', 'WW'], function (input, week, config, token) {
+        week[token.substr(0, 1)] = toInt(input);
+    });
+
+    // HELPERS
+
+    // firstDayOfWeek       0 = sun, 6 = sat
+    //                      the day of the week that starts the week
+    //                      (usually sunday or monday)
+    // firstDayOfWeekOfYear 0 = sun, 6 = sat
+    //                      the first week is the week that contains the first
+    //                      of this day of the week
+    //                      (eg. ISO weeks use thursday (4))
+    function weekOfYear(mom, firstDayOfWeek, firstDayOfWeekOfYear) {
+        var end = firstDayOfWeekOfYear - firstDayOfWeek,
+            daysToDayOfWeek = firstDayOfWeekOfYear - mom.day(),
+            adjustedMoment;
+
+
+        if (daysToDayOfWeek > end) {
+            daysToDayOfWeek -= 7;
+        }
+
+        if (daysToDayOfWeek < end - 7) {
+            daysToDayOfWeek += 7;
+        }
+
+        adjustedMoment = local__createLocal(mom).add(daysToDayOfWeek, 'd');
+        return {
+            week: Math.ceil(adjustedMoment.dayOfYear() / 7),
+            year: adjustedMoment.year()
+        };
+    }
+
+    // LOCALES
+
+    function localeWeek (mom) {
+        return weekOfYear(mom, this._week.dow, this._week.doy).week;
+    }
+
+    var defaultLocaleWeek = {
+        dow : 0, // Sunday is the first day of the week.
+        doy : 6  // The week that contains Jan 1st is the first week of the year.
+    };
+
+    function localeFirstDayOfWeek () {
+        return this._week.dow;
+    }
+
+    function localeFirstDayOfYear () {
+        return this._week.doy;
+    }
+
+    // MOMENTS
+
+    function getSetWeek (input) {
+        var week = this.localeData().week(this);
+        return input == null ? week : this.add((input - week) * 7, 'd');
+    }
+
+    function getSetISOWeek (input) {
+        var week = weekOfYear(this, 1, 4).week;
+        return input == null ? week : this.add((input - week) * 7, 'd');
+    }
+
+    addFormatToken('DDD', ['DDDD', 3], 'DDDo', 'dayOfYear');
+
+    // ALIASES
+
+    addUnitAlias('dayOfYear', 'DDD');
+
+    // PARSING
+
+    addRegexToken('DDD',  match1to3);
+    addRegexToken('DDDD', match3);
+    addParseToken(['DDD', 'DDDD'], function (input, array, config) {
+        config._dayOfYear = toInt(input);
+    });
+
+    // HELPERS
+
+    //http://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year.2C_week_number_and_weekday
+    function dayOfYearFromWeeks(year, week, weekday, firstDayOfWeekOfYear, firstDayOfWeek) {
+        var d = createUTCDate(year, 0, 1).getUTCDay();
+        var daysToAdd;
+        var dayOfYear;
+
+        d = d === 0 ? 7 : d;
+        weekday = weekday != null ? weekday : firstDayOfWeek;
+        daysToAdd = firstDayOfWeek - d + (d > firstDayOfWeekOfYear ? 7 : 0) - (d < firstDayOfWeek ? 7 : 0);
+        dayOfYear = 7 * (week - 1) + (weekday - firstDayOfWeek) + daysToAdd + 1;
+
+        return {
+            year      : dayOfYear > 0 ? year      : year - 1,
+            dayOfYear : dayOfYear > 0 ? dayOfYear : daysInYear(year - 1) + dayOfYear
+        };
+    }
+
+    // MOMENTS
+
+    function getSetDayOfYear (input) {
+        var dayOfYear = Math.round((this.clone().startOf('day') - this.clone().startOf('year')) / 864e5) + 1;
+        return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
+    }
+
+    // Pick the first defined of two or three arguments.
+    function defaults(a, b, c) {
+        if (a != null) {
+            return a;
+        }
+        if (b != null) {
+            return b;
+        }
+        return c;
+    }
+
+    function currentDateArray(config) {
+        var now = new Date();
+        if (config._useUTC) {
+            return [now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()];
+        }
+        return [now.getFullYear(), now.getMonth(), now.getDate()];
+    }
+
+    // convert an array to a date.
+    // the array should mirror the parameters below
+    // note: all values past the year are optional and will default to the lowest possible value.
+    // [year, month, day , hour, minute, second, millisecond]
+    function configFromArray (config) {
+        var i, date, input = [], currentDate, yearToUse;
+
+        if (config._d) {
+            return;
+        }
+
+        currentDate = currentDateArray(config);
+
+        //compute day of the year from weeks and weekdays
+        if (config._w && config._a[DATE] == null && config._a[MONTH] == null) {
+            dayOfYearFromWeekInfo(config);
+        }
+
+        //if the day of the year is set, figure out what it is
+        if (config._dayOfYear) {
+            yearToUse = defaults(config._a[YEAR], currentDate[YEAR]);
+
+            if (config._dayOfYear > daysInYear(yearToUse)) {
+                getParsingFlags(config)._overflowDayOfYear = true;
+            }
+
+            date = createUTCDate(yearToUse, 0, config._dayOfYear);
+            config._a[MONTH] = date.getUTCMonth();
+            config._a[DATE] = date.getUTCDate();
+        }
+
+        // Default to current date.
+        // * if no year, month, day of month are given, default to today
+        // * if day of month is given, default month and year
+        // * if month is given, default only year
+        // * if year is given, don't default anything
+        for (i = 0; i < 3 && config._a[i] == null; ++i) {
+            config._a[i] = input[i] = currentDate[i];
+        }
+
+        // Zero out whatever was not defaulted, including time
+        for (; i < 7; i++) {
+            config._a[i] = input[i] = (config._a[i] == null) ? (i === 2 ? 1 : 0) : config._a[i];
+        }
+
+        // Check for 24:00:00.000
+        if (config._a[HOUR] === 24 &&
+                config._a[MINUTE] === 0 &&
+                config._a[SECOND] === 0 &&
+                config._a[MILLISECOND] === 0) {
+            config._nextDay = true;
+            config._a[HOUR] = 0;
+        }
+
+        config._d = (config._useUTC ? createUTCDate : createDate).apply(null, input);
+        // Apply timezone offset from input. The actual utcOffset can be changed
+        // with parseZone.
+        if (config._tzm != null) {
+            config._d.setUTCMinutes(config._d.getUTCMinutes() - config._tzm);
+        }
+
+        if (config._nextDay) {
+            config._a[HOUR] = 24;
+        }
+    }
+
+    function dayOfYearFromWeekInfo(config) {
+        var w, weekYear, week, weekday, dow, doy, temp;
+
+        w = config._w;
+        if (w.GG != null || w.W != null || w.E != null) {
+            dow = 1;
+            doy = 4;
+
+            // TODO: We need to take the current isoWeekYear, but that depends on
+            // how we interpret now (local, utc, fixed offset). So create
+            // a now version of current config (take local/utc/offset flags, and
+            // create now).
+            weekYear = defaults(w.GG, config._a[YEAR], weekOfYear(local__createLocal(), 1, 4).year);
+            week = defaults(w.W, 1);
+            weekday = defaults(w.E, 1);
+        } else {
+            dow = config._locale._week.dow;
+            doy = config._locale._week.doy;
+
+            weekYear = defaults(w.gg, config._a[YEAR], weekOfYear(local__createLocal(), dow, doy).year);
+            week = defaults(w.w, 1);
+
+            if (w.d != null) {
+                // weekday -- low day numbers are considered next week
+                weekday = w.d;
+                if (weekday < dow) {
+                    ++week;
+                }
+            } else if (w.e != null) {
+                // local weekday -- counting starts from begining of week
+                weekday = w.e + dow;
+            } else {
+                // default to begining of week
+                weekday = dow;
+            }
+        }
+        temp = dayOfYearFromWeeks(weekYear, week, weekday, doy, dow);
+
+        config._a[YEAR] = temp.year;
+        config._dayOfYear = temp.dayOfYear;
+    }
+
+    utils_hooks__hooks.ISO_8601 = function () {};
+
+    // date from string and format string
+    function configFromStringAndFormat(config) {
+        // TODO: Move this to another part of the creation flow to prevent circular deps
+        if (config._f === utils_hooks__hooks.ISO_8601) {
+            configFromISO(config);
+            return;
+        }
+
+        config._a = [];
+        getParsingFlags(config).empty = true;
+
+        // This array is used to make a Date, either with `new Date` or `Date.UTC`
+        var string = '' + config._i,
+            i, parsedInput, tokens, token, skipped,
+            stringLength = string.length,
+            totalParsedInputLength = 0;
+
+        tokens = expandFormat(config._f, config._locale).match(formattingTokens) || [];
+
+        for (i = 0; i < tokens.length; i++) {
+            token = tokens[i];
+            parsedInput = (string.match(getParseRegexForToken(token, config)) || [])[0];
+            if (parsedInput) {
+                skipped = string.substr(0, string.indexOf(parsedInput));
+                if (skipped.length > 0) {
+                    getParsingFlags(config).unusedInput.push(skipped);
+                }
+                string = string.slice(string.indexOf(parsedInput) + parsedInput.length);
+                totalParsedInputLength += parsedInput.length;
+            }
+            // don't parse if it's not a known token
+            if (formatTokenFunctions[token]) {
+                if (parsedInput) {
+                    getParsingFlags(config).empty = false;
+                }
+                else {
+                    getParsingFlags(config).unusedTokens.push(token);
+                }
+                addTimeToArrayFromToken(token, parsedInput, config);
+            }
+            else if (config._strict && !parsedInput) {
+                getParsingFlags(config).unusedTokens.push(token);
+            }
+        }
+
+        // add remaining unparsed input length to the string
+        getParsingFlags(config).charsLeftOver = stringLength - totalParsedInputLength;
+        if (string.length > 0) {
+            getParsingFlags(config).unusedInput.push(string);
+        }
+
+        // clear _12h flag if hour is <= 12
+        if (getParsingFlags(config).bigHour === true &&
+                config._a[HOUR] <= 12 &&
+                config._a[HOUR] > 0) {
+            getParsingFlags(config).bigHour = undefined;
+        }
+        // handle meridiem
+        config._a[HOUR] = meridiemFixWrap(config._locale, config._a[HOUR], config._meridiem);
+
+        configFromArray(config);
+        checkOverflow(config);
+    }
+
+
+    function meridiemFixWrap (locale, hour, meridiem) {
+        var isPm;
+
+        if (meridiem == null) {
+            // nothing to do
+            return hour;
+        }
+        if (locale.meridiemHour != null) {
+            return locale.meridiemHour(hour, meridiem);
+        } else if (locale.isPM != null) {
+            // Fallback
+            isPm = locale.isPM(meridiem);
+            if (isPm && hour < 12) {
+                hour += 12;
+            }
+            if (!isPm && hour === 12) {
+                hour = 0;
+            }
+            return hour;
+        } else {
+            // this is not supposed to happen
+            return hour;
+        }
+    }
+
+    function configFromStringAndArray(config) {
+        var tempConfig,
+            bestMoment,
+
+            scoreToBeat,
+            i,
+            currentScore;
+
+        if (config._f.length === 0) {
+            getParsingFlags(config).invalidFormat = true;
+            config._d = new Date(NaN);
+            return;
+        }
+
+        for (i = 0; i < config._f.length; i++) {
+            currentScore = 0;
+            tempConfig = copyConfig({}, config);
+            if (config._useUTC != null) {
+                tempConfig._useUTC = config._useUTC;
+            }
+            tempConfig._f = config._f[i];
+            configFromStringAndFormat(tempConfig);
+
+            if (!valid__isValid(tempConfig)) {
+                continue;
+            }
+
+            // if there is any input that was not parsed add a penalty for that format
+            currentScore += getParsingFlags(tempConfig).charsLeftOver;
+
+            //or tokens
+            currentScore += getParsingFlags(tempConfig).unusedTokens.length * 10;
+
+            getParsingFlags(tempConfig).score = currentScore;
+
+            if (scoreToBeat == null || currentScore < scoreToBeat) {
+                scoreToBeat = currentScore;
+                bestMoment = tempConfig;
+            }
+        }
+
+        extend(config, bestMoment || tempConfig);
+    }
+
+    function configFromObject(config) {
+        if (config._d) {
+            return;
+        }
+
+        var i = normalizeObjectUnits(config._i);
+        config._a = [i.year, i.month, i.day || i.date, i.hour, i.minute, i.second, i.millisecond];
+
+        configFromArray(config);
+    }
+
+    function createFromConfig (config) {
+        var input = config._i,
+            format = config._f,
+            res;
+
+        config._locale = config._locale || locale_locales__getLocale(config._l);
+
+        if (input === null || (format === undefined && input === '')) {
+            return valid__createInvalid({nullInput: true});
+        }
+
+        if (typeof input === 'string') {
+            config._i = input = config._locale.preparse(input);
+        }
+
+        if (isMoment(input)) {
+            return new Moment(checkOverflow(input));
+        } else if (isArray(format)) {
+            configFromStringAndArray(config);
+        } else if (format) {
+            configFromStringAndFormat(config);
+        } else if (isDate(input)) {
+            config._d = input;
+        } else {
+            configFromInput(config);
+        }
+
+        res = new Moment(checkOverflow(config));
+        if (res._nextDay) {
+            // Adding is smart enough around DST
+            res.add(1, 'd');
+            res._nextDay = undefined;
+        }
+
+        return res;
+    }
+
+    function configFromInput(config) {
+        var input = config._i;
+        if (input === undefined) {
+            config._d = new Date();
+        } else if (isDate(input)) {
+            config._d = new Date(+input);
+        } else if (typeof input === 'string') {
+            configFromString(config);
+        } else if (isArray(input)) {
+            config._a = map(input.slice(0), function (obj) {
+                return parseInt(obj, 10);
+            });
+            configFromArray(config);
+        } else if (typeof(input) === 'object') {
+            configFromObject(config);
+        } else if (typeof(input) === 'number') {
+            // from milliseconds
+            config._d = new Date(input);
+        } else {
+            utils_hooks__hooks.createFromInputFallback(config);
+        }
+    }
+
+    function createLocalOrUTC (input, format, locale, strict, isUTC) {
+        var c = {};
+
+        if (typeof(locale) === 'boolean') {
+            strict = locale;
+            locale = undefined;
+        }
+        // object construction must be done this way.
+        // https://github.com/moment/moment/issues/1423
+        c._isAMomentObject = true;
+        c._useUTC = c._isUTC = isUTC;
+        c._l = locale;
+        c._i = input;
+        c._f = format;
+        c._strict = strict;
+
+        return createFromConfig(c);
+    }
+
+    function local__createLocal (input, format, locale, strict) {
+        return createLocalOrUTC(input, format, locale, strict, false);
+    }
+
+    var prototypeMin = deprecate(
+         'moment().min is deprecated, use moment.min instead. https://github.com/moment/moment/issues/1548',
+         function () {
+             var other = local__createLocal.apply(null, arguments);
+             return other < this ? this : other;
+         }
+     );
+
+    var prototypeMax = deprecate(
+        'moment().max is deprecated, use moment.max instead. https://github.com/moment/moment/issues/1548',
+        function () {
+            var other = local__createLocal.apply(null, arguments);
+            return other > this ? this : other;
+        }
+    );
+
+    // Pick a moment m from moments so that m[fn](other) is true for all
+    // other. This relies on the function fn to be transitive.
+    //
+    // moments should either be an array of moment objects or an array, whose
+    // first element is an array of moment objects.
+    function pickBy(fn, moments) {
+        var res, i;
+        if (moments.length === 1 && isArray(moments[0])) {
+            moments = moments[0];
+        }
+        if (!moments.length) {
+            return local__createLocal();
+        }
+        res = moments[0];
+        for (i = 1; i < moments.length; ++i) {
+            if (moments[i][fn](res)) {
+                res = moments[i];
+            }
+        }
+        return res;
+    }
+
+    // TODO: Use [].sort instead?
+    function min () {
+        var args = [].slice.call(arguments, 0);
+
+        return pickBy('isBefore', args);
+    }
+
+    function max () {
+        var args = [].slice.call(arguments, 0);
+
+        return pickBy('isAfter', args);
+    }
+
+    function Duration (duration) {
+        var normalizedInput = normalizeObjectUnits(duration),
+            years = normalizedInput.year || 0,
+            quarters = normalizedInput.quarter || 0,
+            months = normalizedInput.month || 0,
+            weeks = normalizedInput.week || 0,
+            days = normalizedInput.day || 0,
+            hours = normalizedInput.hour || 0,
+            minutes = normalizedInput.minute || 0,
+            seconds = normalizedInput.second || 0,
+            milliseconds = normalizedInput.millisecond || 0;
+
+        // representation for dateAddRemove
+        this._milliseconds = +milliseconds +
+            seconds * 1e3 + // 1000
+            minutes * 6e4 + // 1000 * 60
+            hours * 36e5; // 1000 * 60 * 60
+        // Because of dateAddRemove treats 24 hours as different from a
+        // day when working around DST, we need to store them separately
+        this._days = +days +
+            weeks * 7;
+        // It is impossible translate months into days without knowing
+        // which months you are are talking about, so we have to store
+        // it separately.
+        this._months = +months +
+            quarters * 3 +
+            years * 12;
+
+        this._data = {};
+
+        this._locale = locale_locales__getLocale();
+
+        this._bubble();
+    }
+
+    function isDuration (obj) {
+        return obj instanceof Duration;
+    }
+
+    function offset (token, separator) {
+        addFormatToken(token, 0, 0, function () {
+            var offset = this.utcOffset();
+            var sign = '+';
+            if (offset < 0) {
+                offset = -offset;
+                sign = '-';
+            }
+            return sign + zeroFill(~~(offset / 60), 2) + separator + zeroFill(~~(offset) % 60, 2);
+        });
+    }
+
+    offset('Z', ':');
+    offset('ZZ', '');
+
+    // PARSING
+
+    addRegexToken('Z',  matchOffset);
+    addRegexToken('ZZ', matchOffset);
+    addParseToken(['Z', 'ZZ'], function (input, array, config) {
+        config._useUTC = true;
+        config._tzm = offsetFromString(input);
+    });
+
+    // HELPERS
+
+    // timezone chunker
+    // '+10:00' > ['10',  '00']
+    // '-1530'  > ['-15', '30']
+    var chunkOffset = /([\+\-]|\d\d)/gi;
+
+    function offsetFromString(string) {
+        var matches = ((string || '').match(matchOffset) || []);
+        var chunk   = matches[matches.length - 1] || [];
+        var parts   = (chunk + '').match(chunkOffset) || ['-', 0, 0];
+        var minutes = +(parts[1] * 60) + toInt(parts[2]);
+
+        return parts[0] === '+' ? minutes : -minutes;
+    }
+
+    // Return a moment from input, that is local/utc/zone equivalent to model.
+    function cloneWithOffset(input, model) {
+        var res, diff;
+        if (model._isUTC) {
+            res = model.clone();
+            diff = (isMoment(input) || isDate(input) ? +input : +local__createLocal(input)) - (+res);
+            // Use low-level api, because this fn is low-level api.
+            res._d.setTime(+res._d + diff);
+            utils_hooks__hooks.updateOffset(res, false);
+            return res;
+        } else {
+            return local__createLocal(input).local();
+        }
+        return model._isUTC ? local__createLocal(input).zone(model._offset || 0) : local__createLocal(input).local();
+    }
+
+    function getDateOffset (m) {
+        // On Firefox.24 Date#getTimezoneOffset returns a floating point.
+        // https://github.com/moment/moment/pull/1871
+        return -Math.round(m._d.getTimezoneOffset() / 15) * 15;
+    }
+
+    // HOOKS
+
+    // This function will be called whenever a moment is mutated.
+    // It is intended to keep the offset in sync with the timezone.
+    utils_hooks__hooks.updateOffset = function () {};
+
+    // MOMENTS
+
+    // keepLocalTime = true means only change the timezone, without
+    // affecting the local hour. So 5:31:26 +0300 --[utcOffset(2, true)]-->
+    // 5:31:26 +0200 It is possible that 5:31:26 doesn't exist with offset
+    // +0200, so we adjust the time as needed, to be valid.
+    //
+    // Keeping the time actually adds/subtracts (one hour)
+    // from the actual represented time. That is why we call updateOffset
+    // a second time. In case it wants us to change the offset again
+    // _changeInProgress == true case, then we have to adjust, because
+    // there is no such time in the given timezone.
+    function getSetOffset (input, keepLocalTime) {
+        var offset = this._offset || 0,
+            localAdjust;
+        if (input != null) {
+            if (typeof input === 'string') {
+                input = offsetFromString(input);
+            }
+            if (Math.abs(input) < 16) {
+                input = input * 60;
+            }
+            if (!this._isUTC && keepLocalTime) {
+                localAdjust = getDateOffset(this);
+            }
+            this._offset = input;
+            this._isUTC = true;
+            if (localAdjust != null) {
+                this.add(localAdjust, 'm');
+            }
+            if (offset !== input) {
+                if (!keepLocalTime || this._changeInProgress) {
+                    add_subtract__addSubtract(this, create__createDuration(input - offset, 'm'), 1, false);
+                } else if (!this._changeInProgress) {
+                    this._changeInProgress = true;
+                    utils_hooks__hooks.updateOffset(this, true);
+                    this._changeInProgress = null;
+                }
+            }
+            return this;
+        } else {
+            return this._isUTC ? offset : getDateOffset(this);
+        }
+    }
+
+    function getSetZone (input, keepLocalTime) {
+        if (input != null) {
+            if (typeof input !== 'string') {
+                input = -input;
+            }
+
+            this.utcOffset(input, keepLocalTime);
+
+            return this;
+        } else {
+            return -this.utcOffset();
+        }
+    }
+
+    function setOffsetToUTC (keepLocalTime) {
+        return this.utcOffset(0, keepLocalTime);
+    }
+
+    function setOffsetToLocal (keepLocalTime) {
+        if (this._isUTC) {
+            this.utcOffset(0, keepLocalTime);
+            this._isUTC = false;
+
+            if (keepLocalTime) {
+                this.subtract(getDateOffset(this), 'm');
+            }
+        }
+        return this;
+    }
+
+    function setOffsetToParsedOffset () {
+        if (this._tzm) {
+            this.utcOffset(this._tzm);
+        } else if (typeof this._i === 'string') {
+            this.utcOffset(offsetFromString(this._i));
+        }
+        return this;
+    }
+
+    function hasAlignedHourOffset (input) {
+        if (!input) {
+            input = 0;
+        }
+        else {
+            input = local__createLocal(input).utcOffset();
+        }
+
+        return (this.utcOffset() - input) % 60 === 0;
+    }
+
+    function isDaylightSavingTime () {
+        return (
+            this.utcOffset() > this.clone().month(0).utcOffset() ||
+            this.utcOffset() > this.clone().month(5).utcOffset()
+        );
+    }
+
+    function isDaylightSavingTimeShifted () {
+        if (this._a) {
+            var other = this._isUTC ? create_utc__createUTC(this._a) : local__createLocal(this._a);
+            return this.isValid() && compareArrays(this._a, other.toArray()) > 0;
+        }
+
+        return false;
+    }
+
+    function isLocal () {
+        return !this._isUTC;
+    }
+
+    function isUtcOffset () {
+        return this._isUTC;
+    }
+
+    function isUtc () {
+        return this._isUTC && this._offset === 0;
+    }
+
+    var aspNetRegex = /(\-)?(?:(\d*)\.)?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?)?/;
+
+    // from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
+    // somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
+    var create__isoRegex = /^(-)?P(?:(?:([0-9,.]*)Y)?(?:([0-9,.]*)M)?(?:([0-9,.]*)D)?(?:T(?:([0-9,.]*)H)?(?:([0-9,.]*)M)?(?:([0-9,.]*)S)?)?|([0-9,.]*)W)$/;
+
+    function create__createDuration (input, key) {
+        var duration = input,
+            // matching against regexp is expensive, do it on demand
+            match = null,
+            sign,
+            ret,
+            diffRes;
+
+        if (isDuration(input)) {
+            duration = {
+                ms : input._milliseconds,
+                d  : input._days,
+                M  : input._months
+            };
+        } else if (typeof input === 'number') {
+            duration = {};
+            if (key) {
+                duration[key] = input;
+            } else {
+                duration.milliseconds = input;
+            }
+        } else if (!!(match = aspNetRegex.exec(input))) {
+            sign = (match[1] === '-') ? -1 : 1;
+            duration = {
+                y  : 0,
+                d  : toInt(match[DATE])        * sign,
+                h  : toInt(match[HOUR])        * sign,
+                m  : toInt(match[MINUTE])      * sign,
+                s  : toInt(match[SECOND])      * sign,
+                ms : toInt(match[MILLISECOND]) * sign
+            };
+        } else if (!!(match = create__isoRegex.exec(input))) {
+            sign = (match[1] === '-') ? -1 : 1;
+            duration = {
+                y : parseIso(match[2], sign),
+                M : parseIso(match[3], sign),
+                d : parseIso(match[4], sign),
+                h : parseIso(match[5], sign),
+                m : parseIso(match[6], sign),
+                s : parseIso(match[7], sign),
+                w : parseIso(match[8], sign)
+            };
+        } else if (duration == null) {// checks for null or undefined
+            duration = {};
+        } else if (typeof duration === 'object' && ('from' in duration || 'to' in duration)) {
+            diffRes = momentsDifference(local__createLocal(duration.from), local__createLocal(duration.to));
+
+            duration = {};
+            duration.ms = diffRes.milliseconds;
+            duration.M = diffRes.months;
+        }
+
+        ret = new Duration(duration);
+
+        if (isDuration(input) && hasOwnProp(input, '_locale')) {
+            ret._locale = input._locale;
+        }
+
+        return ret;
+    }
+
+    create__createDuration.fn = Duration.prototype;
+
+    function parseIso (inp, sign) {
+        // We'd normally use ~~inp for this, but unfortunately it also
+        // converts floats to ints.
+        // inp may be undefined, so careful calling replace on it.
+        var res = inp && parseFloat(inp.replace(',', '.'));
+        // apply sign while we're at it
+        return (isNaN(res) ? 0 : res) * sign;
+    }
+
+    function positiveMomentsDifference(base, other) {
+        var res = {milliseconds: 0, months: 0};
+
+        res.months = other.month() - base.month() +
+            (other.year() - base.year()) * 12;
+        if (base.clone().add(res.months, 'M').isAfter(other)) {
+            --res.months;
+        }
+
+        res.milliseconds = +other - +(base.clone().add(res.months, 'M'));
+
+        return res;
+    }
+
+    function momentsDifference(base, other) {
+        var res;
+        other = cloneWithOffset(other, base);
+        if (base.isBefore(other)) {
+            res = positiveMomentsDifference(base, other);
+        } else {
+            res = positiveMomentsDifference(other, base);
+            res.milliseconds = -res.milliseconds;
+            res.months = -res.months;
+        }
+
+        return res;
+    }
+
+    function createAdder(direction, name) {
+        return function (val, period) {
+            var dur, tmp;
+            //invert the arguments, but complain about it
+            if (period !== null && !isNaN(+period)) {
+                deprecateSimple(name, 'moment().' + name  + '(period, number) is deprecated. Please use moment().' + name + '(number, period).');
+                tmp = val; val = period; period = tmp;
+            }
+
+            val = typeof val === 'string' ? +val : val;
+            dur = create__createDuration(val, period);
+            add_subtract__addSubtract(this, dur, direction);
+            return this;
+        };
+    }
+
+    function add_subtract__addSubtract (mom, duration, isAdding, updateOffset) {
+        var milliseconds = duration._milliseconds,
+            days = duration._days,
+            months = duration._months;
+        updateOffset = updateOffset == null ? true : updateOffset;
+
+        if (milliseconds) {
+            mom._d.setTime(+mom._d + milliseconds * isAdding);
+        }
+        if (days) {
+            get_set__set(mom, 'Date', get_set__get(mom, 'Date') + days * isAdding);
+        }
+        if (months) {
+            setMonth(mom, get_set__get(mom, 'Month') + months * isAdding);
+        }
+        if (updateOffset) {
+            utils_hooks__hooks.updateOffset(mom, days || months);
+        }
+    }
+
+    var add_subtract__add      = createAdder(1, 'add');
+    var add_subtract__subtract = createAdder(-1, 'subtract');
+
+    function moment_calendar__calendar (time) {
+        // We want to compare the start of today, vs this.
+        // Getting start-of-today depends on whether we're local/utc/offset or not.
+        var now = time || local__createLocal(),
+            sod = cloneWithOffset(now, this).startOf('day'),
+            diff = this.diff(sod, 'days', true),
+            format = diff < -6 ? 'sameElse' :
+                diff < -1 ? 'lastWeek' :
+                diff < 0 ? 'lastDay' :
+                diff < 1 ? 'sameDay' :
+                diff < 2 ? 'nextDay' :
+                diff < 7 ? 'nextWeek' : 'sameElse';
+        return this.format(this.localeData().calendar(format, this, local__createLocal(now)));
+    }
+
+    function clone () {
+        return new Moment(this);
+    }
+
+    function isAfter (input, units) {
+        var inputMs;
+        units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
+        if (units === 'millisecond') {
+            input = isMoment(input) ? input : local__createLocal(input);
+            return +this > +input;
+        } else {
+            inputMs = isMoment(input) ? +input : +local__createLocal(input);
+            return inputMs < +this.clone().startOf(units);
+        }
+    }
+
+    function isBefore (input, units) {
+        var inputMs;
+        units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
+        if (units === 'millisecond') {
+            input = isMoment(input) ? input : local__createLocal(input);
+            return +this < +input;
+        } else {
+            inputMs = isMoment(input) ? +input : +local__createLocal(input);
+            return +this.clone().endOf(units) < inputMs;
+        }
+    }
+
+    function isBetween (from, to, units) {
+        return this.isAfter(from, units) && this.isBefore(to, units);
+    }
+
+    function isSame (input, units) {
+        var inputMs;
+        units = normalizeUnits(units || 'millisecond');
+        if (units === 'millisecond') {
+            input = isMoment(input) ? input : local__createLocal(input);
+            return +this === +input;
+        } else {
+            inputMs = +local__createLocal(input);
+            return +(this.clone().startOf(units)) <= inputMs && inputMs <= +(this.clone().endOf(units));
+        }
+    }
+
+    function absFloor (number) {
+        if (number < 0) {
+            return Math.ceil(number);
+        } else {
+            return Math.floor(number);
+        }
+    }
+
+    function diff (input, units, asFloat) {
+        var that = cloneWithOffset(input, this),
+            zoneDelta = (that.utcOffset() - this.utcOffset()) * 6e4,
+            delta, output;
+
+        units = normalizeUnits(units);
+
+        if (units === 'year' || units === 'month' || units === 'quarter') {
+            output = monthDiff(this, that);
+            if (units === 'quarter') {
+                output = output / 3;
+            } else if (units === 'year') {
+                output = output / 12;
+            }
+        } else {
+            delta = this - that;
+            output = units === 'second' ? delta / 1e3 : // 1000
+                units === 'minute' ? delta / 6e4 : // 1000 * 60
+                units === 'hour' ? delta / 36e5 : // 1000 * 60 * 60
+                units === 'day' ? (delta - zoneDelta) / 864e5 : // 1000 * 60 * 60 * 24, negate dst
+                units === 'week' ? (delta - zoneDelta) / 6048e5 : // 1000 * 60 * 60 * 24 * 7, negate dst
+                delta;
+        }
+        return asFloat ? output : absFloor(output);
+    }
+
+    function monthDiff (a, b) {
+        // difference in months
+        var wholeMonthDiff = ((b.year() - a.year()) * 12) + (b.month() - a.month()),
+            // b is in (anchor - 1 month, anchor + 1 month)
+            anchor = a.clone().add(wholeMonthDiff, 'months'),
+            anchor2, adjust;
+
+        if (b - anchor < 0) {
+            anchor2 = a.clone().add(wholeMonthDiff - 1, 'months');
+            // linear across the month
+            adjust = (b - anchor) / (anchor - anchor2);
+        } else {
+            anchor2 = a.clone().add(wholeMonthDiff + 1, 'months');
+            // linear across the month
+            adjust = (b - anchor) / (anchor2 - anchor);
+        }
+
+        return -(wholeMonthDiff + adjust);
+    }
+
+    utils_hooks__hooks.defaultFormat = 'YYYY-MM-DDTHH:mm:ssZ';
+
+    function toString () {
+        return this.clone().locale('en').format('ddd MMM DD YYYY HH:mm:ss [GMT]ZZ');
+    }
+
+    function moment_format__toISOString () {
+        var m = this.clone().utc();
+        if (0 < m.year() && m.year() <= 9999) {
+            if ('function' === typeof Date.prototype.toISOString) {
+                // native implementation is ~50x faster, use it when we can
+                return this.toDate().toISOString();
+            } else {
+                return formatMoment(m, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+            }
+        } else {
+            return formatMoment(m, 'YYYYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+        }
+    }
+
+    function format (inputString) {
+        var output = formatMoment(this, inputString || utils_hooks__hooks.defaultFormat);
+        return this.localeData().postformat(output);
+    }
+
+    function from (time, withoutSuffix) {
+        if (!this.isValid()) {
+            return this.localeData().invalidDate();
+        }
+        return create__createDuration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
+    }
+
+    function fromNow (withoutSuffix) {
+        return this.from(local__createLocal(), withoutSuffix);
+    }
+
+    function to (time, withoutSuffix) {
+        if (!this.isValid()) {
+            return this.localeData().invalidDate();
+        }
+        return create__createDuration({from: this, to: time}).locale(this.locale()).humanize(!withoutSuffix);
+    }
+
+    function toNow (withoutSuffix) {
+        return this.to(local__createLocal(), withoutSuffix);
+    }
+
+    function locale (key) {
+        var newLocaleData;
+
+        if (key === undefined) {
+            return this._locale._abbr;
+        } else {
+            newLocaleData = locale_locales__getLocale(key);
+            if (newLocaleData != null) {
+                this._locale = newLocaleData;
+            }
+            return this;
+        }
+    }
+
+    var lang = deprecate(
+        'moment().lang() is deprecated. Instead, use moment().localeData() to get the language configuration. Use moment().locale() to change languages.',
+        function (key) {
+            if (key === undefined) {
+                return this.localeData();
+            } else {
+                return this.locale(key);
+            }
+        }
+    );
+
+    function localeData () {
+        return this._locale;
+    }
+
+    function startOf (units) {
+        units = normalizeUnits(units);
+        // the following switch intentionally omits break keywords
+        // to utilize falling through the cases.
+        switch (units) {
+        case 'year':
+            this.month(0);
+            /* falls through */
+        case 'quarter':
+        case 'month':
+            this.date(1);
+            /* falls through */
+        case 'week':
+        case 'isoWeek':
+        case 'day':
+            this.hours(0);
+            /* falls through */
+        case 'hour':
+            this.minutes(0);
+            /* falls through */
+        case 'minute':
+            this.seconds(0);
+            /* falls through */
+        case 'second':
+            this.milliseconds(0);
+        }
+
+        // weeks are a special case
+        if (units === 'week') {
+            this.weekday(0);
+        }
+        if (units === 'isoWeek') {
+            this.isoWeekday(1);
+        }
+
+        // quarters are also special
+        if (units === 'quarter') {
+            this.month(Math.floor(this.month() / 3) * 3);
+        }
+
+        return this;
+    }
+
+    function endOf (units) {
+        units = normalizeUnits(units);
+        if (units === undefined || units === 'millisecond') {
+            return this;
+        }
+        return this.startOf(units).add(1, (units === 'isoWeek' ? 'week' : units)).subtract(1, 'ms');
+    }
+
+    function to_type__valueOf () {
+        return +this._d - ((this._offset || 0) * 60000);
+    }
+
+    function unix () {
+        return Math.floor(+this / 1000);
+    }
+
+    function toDate () {
+        return this._offset ? new Date(+this) : this._d;
+    }
+
+    function toArray () {
+        var m = this;
+        return [m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second(), m.millisecond()];
+    }
+
+    function moment_valid__isValid () {
+        return valid__isValid(this);
+    }
+
+    function parsingFlags () {
+        return extend({}, getParsingFlags(this));
+    }
+
+    function invalidAt () {
+        return getParsingFlags(this).overflow;
+    }
+
+    addFormatToken(0, ['gg', 2], 0, function () {
+        return this.weekYear() % 100;
+    });
+
+    addFormatToken(0, ['GG', 2], 0, function () {
+        return this.isoWeekYear() % 100;
+    });
+
+    function addWeekYearFormatToken (token, getter) {
+        addFormatToken(0, [token, token.length], 0, getter);
+    }
+
+    addWeekYearFormatToken('gggg',     'weekYear');
+    addWeekYearFormatToken('ggggg',    'weekYear');
+    addWeekYearFormatToken('GGGG',  'isoWeekYear');
+    addWeekYearFormatToken('GGGGG', 'isoWeekYear');
+
+    // ALIASES
+
+    addUnitAlias('weekYear', 'gg');
+    addUnitAlias('isoWeekYear', 'GG');
+
+    // PARSING
+
+    addRegexToken('G',      matchSigned);
+    addRegexToken('g',      matchSigned);
+    addRegexToken('GG',     match1to2, match2);
+    addRegexToken('gg',     match1to2, match2);
+    addRegexToken('GGGG',   match1to4, match4);
+    addRegexToken('gggg',   match1to4, match4);
+    addRegexToken('GGGGG',  match1to6, match6);
+    addRegexToken('ggggg',  match1to6, match6);
+
+    addWeekParseToken(['gggg', 'ggggg', 'GGGG', 'GGGGG'], function (input, week, config, token) {
+        week[token.substr(0, 2)] = toInt(input);
+    });
+
+    addWeekParseToken(['gg', 'GG'], function (input, week, config, token) {
+        week[token] = utils_hooks__hooks.parseTwoDigitYear(input);
+    });
+
+    // HELPERS
+
+    function weeksInYear(year, dow, doy) {
+        return weekOfYear(local__createLocal([year, 11, 31 + dow - doy]), dow, doy).week;
+    }
+
+    // MOMENTS
+
+    function getSetWeekYear (input) {
+        var year = weekOfYear(this, this.localeData()._week.dow, this.localeData()._week.doy).year;
+        return input == null ? year : this.add((input - year), 'y');
+    }
+
+    function getSetISOWeekYear (input) {
+        var year = weekOfYear(this, 1, 4).year;
+        return input == null ? year : this.add((input - year), 'y');
+    }
+
+    function getISOWeeksInYear () {
+        return weeksInYear(this.year(), 1, 4);
+    }
+
+    function getWeeksInYear () {
+        var weekInfo = this.localeData()._week;
+        return weeksInYear(this.year(), weekInfo.dow, weekInfo.doy);
+    }
+
+    addFormatToken('Q', 0, 0, 'quarter');
+
+    // ALIASES
+
+    addUnitAlias('quarter', 'Q');
+
+    // PARSING
+
+    addRegexToken('Q', match1);
+    addParseToken('Q', function (input, array) {
+        array[MONTH] = (toInt(input) - 1) * 3;
+    });
+
+    // MOMENTS
+
+    function getSetQuarter (input) {
+        return input == null ? Math.ceil((this.month() + 1) / 3) : this.month((input - 1) * 3 + this.month() % 3);
+    }
+
+    addFormatToken('D', ['DD', 2], 'Do', 'date');
+
+    // ALIASES
+
+    addUnitAlias('date', 'D');
+
+    // PARSING
+
+    addRegexToken('D',  match1to2);
+    addRegexToken('DD', match1to2, match2);
+    addRegexToken('Do', function (isStrict, locale) {
+        return isStrict ? locale._ordinalParse : locale._ordinalParseLenient;
+    });
+
+    addParseToken(['D', 'DD'], DATE);
+    addParseToken('Do', function (input, array) {
+        array[DATE] = toInt(input.match(match1to2)[0], 10);
+    });
+
+    // MOMENTS
+
+    var getSetDayOfMonth = makeGetSet('Date', true);
+
+    addFormatToken('d', 0, 'do', 'day');
+
+    addFormatToken('dd', 0, 0, function (format) {
+        return this.localeData().weekdaysMin(this, format);
+    });
+
+    addFormatToken('ddd', 0, 0, function (format) {
+        return this.localeData().weekdaysShort(this, format);
+    });
+
+    addFormatToken('dddd', 0, 0, function (format) {
+        return this.localeData().weekdays(this, format);
+    });
+
+    addFormatToken('e', 0, 0, 'weekday');
+    addFormatToken('E', 0, 0, 'isoWeekday');
+
+    // ALIASES
+
+    addUnitAlias('day', 'd');
+    addUnitAlias('weekday', 'e');
+    addUnitAlias('isoWeekday', 'E');
+
+    // PARSING
+
+    addRegexToken('d',    match1to2);
+    addRegexToken('e',    match1to2);
+    addRegexToken('E',    match1to2);
+    addRegexToken('dd',   matchWord);
+    addRegexToken('ddd',  matchWord);
+    addRegexToken('dddd', matchWord);
+
+    addWeekParseToken(['dd', 'ddd', 'dddd'], function (input, week, config) {
+        var weekday = config._locale.weekdaysParse(input);
+        // if we didn't get a weekday name, mark the date as invalid
+        if (weekday != null) {
+            week.d = weekday;
+        } else {
+            getParsingFlags(config).invalidWeekday = input;
+        }
+    });
+
+    addWeekParseToken(['d', 'e', 'E'], function (input, week, config, token) {
+        week[token] = toInt(input);
+    });
+
+    // HELPERS
+
+    function parseWeekday(input, locale) {
+        if (typeof input === 'string') {
+            if (!isNaN(input)) {
+                input = parseInt(input, 10);
+            }
+            else {
+                input = locale.weekdaysParse(input);
+                if (typeof input !== 'number') {
+                    return null;
+                }
+            }
+        }
+        return input;
+    }
+
+    // LOCALES
+
+    var defaultLocaleWeekdays = 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_');
+    function localeWeekdays (m) {
+        return this._weekdays[m.day()];
+    }
+
+    var defaultLocaleWeekdaysShort = 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_');
+    function localeWeekdaysShort (m) {
+        return this._weekdaysShort[m.day()];
+    }
+
+    var defaultLocaleWeekdaysMin = 'Su_Mo_Tu_We_Th_Fr_Sa'.split('_');
+    function localeWeekdaysMin (m) {
+        return this._weekdaysMin[m.day()];
+    }
+
+    function localeWeekdaysParse (weekdayName) {
+        var i, mom, regex;
+
+        if (!this._weekdaysParse) {
+            this._weekdaysParse = [];
+        }
+
+        for (i = 0; i < 7; i++) {
+            // make the regex if we don't have it already
+            if (!this._weekdaysParse[i]) {
+                mom = local__createLocal([2000, 1]).day(i);
+                regex = '^' + this.weekdays(mom, '') + '|^' + this.weekdaysShort(mom, '') + '|^' + this.weekdaysMin(mom, '');
+                this._weekdaysParse[i] = new RegExp(regex.replace('.', ''), 'i');
+            }
+            // test the regex
+            if (this._weekdaysParse[i].test(weekdayName)) {
+                return i;
+            }
+        }
+    }
+
+    // MOMENTS
+
+    function getSetDayOfWeek (input) {
+        var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
+        if (input != null) {
+            input = parseWeekday(input, this.localeData());
+            return this.add(input - day, 'd');
+        } else {
+            return day;
+        }
+    }
+
+    function getSetLocaleDayOfWeek (input) {
+        var weekday = (this.day() + 7 - this.localeData()._week.dow) % 7;
+        return input == null ? weekday : this.add(input - weekday, 'd');
+    }
+
+    function getSetISODayOfWeek (input) {
+        // behaves the same as moment#day except
+        // as a getter, returns 7 instead of 0 (1-7 range instead of 0-6)
+        // as a setter, sunday should belong to the previous week.
+        return input == null ? this.day() || 7 : this.day(this.day() % 7 ? input : input - 7);
+    }
+
+    addFormatToken('H', ['HH', 2], 0, 'hour');
+    addFormatToken('h', ['hh', 2], 0, function () {
+        return this.hours() % 12 || 12;
+    });
+
+    function meridiem (token, lowercase) {
+        addFormatToken(token, 0, 0, function () {
+            return this.localeData().meridiem(this.hours(), this.minutes(), lowercase);
+        });
+    }
+
+    meridiem('a', true);
+    meridiem('A', false);
+
+    // ALIASES
+
+    addUnitAlias('hour', 'h');
+
+    // PARSING
+
+    function matchMeridiem (isStrict, locale) {
+        return locale._meridiemParse;
+    }
+
+    addRegexToken('a',  matchMeridiem);
+    addRegexToken('A',  matchMeridiem);
+    addRegexToken('H',  match1to2);
+    addRegexToken('h',  match1to2);
+    addRegexToken('HH', match1to2, match2);
+    addRegexToken('hh', match1to2, match2);
+
+    addParseToken(['H', 'HH'], HOUR);
+    addParseToken(['a', 'A'], function (input, array, config) {
+        config._isPm = config._locale.isPM(input);
+        config._meridiem = input;
+    });
+    addParseToken(['h', 'hh'], function (input, array, config) {
+        array[HOUR] = toInt(input);
+        getParsingFlags(config).bigHour = true;
+    });
+
+    // LOCALES
+
+    function localeIsPM (input) {
+        // IE8 Quirks Mode & IE7 Standards Mode do not allow accessing strings like arrays
+        // Using charAt should be more compatible.
+        return ((input + '').toLowerCase().charAt(0) === 'p');
+    }
+
+    var defaultLocaleMeridiemParse = /[ap]\.?m?\.?/i;
+    function localeMeridiem (hours, minutes, isLower) {
+        if (hours > 11) {
+            return isLower ? 'pm' : 'PM';
+        } else {
+            return isLower ? 'am' : 'AM';
+        }
+    }
+
+
+    // MOMENTS
+
+    // Setting the hour should keep the time, because the user explicitly
+    // specified which hour he wants. So trying to maintain the same hour (in
+    // a new timezone) makes sense. Adding/subtracting hours does not follow
+    // this rule.
+    var getSetHour = makeGetSet('Hours', true);
+
+    addFormatToken('m', ['mm', 2], 0, 'minute');
+
+    // ALIASES
+
+    addUnitAlias('minute', 'm');
+
+    // PARSING
+
+    addRegexToken('m',  match1to2);
+    addRegexToken('mm', match1to2, match2);
+    addParseToken(['m', 'mm'], MINUTE);
+
+    // MOMENTS
+
+    var getSetMinute = makeGetSet('Minutes', false);
+
+    addFormatToken('s', ['ss', 2], 0, 'second');
+
+    // ALIASES
+
+    addUnitAlias('second', 's');
+
+    // PARSING
+
+    addRegexToken('s',  match1to2);
+    addRegexToken('ss', match1to2, match2);
+    addParseToken(['s', 'ss'], SECOND);
+
+    // MOMENTS
+
+    var getSetSecond = makeGetSet('Seconds', false);
+
+    addFormatToken('S', 0, 0, function () {
+        return ~~(this.millisecond() / 100);
+    });
+
+    addFormatToken(0, ['SS', 2], 0, function () {
+        return ~~(this.millisecond() / 10);
+    });
+
+    function millisecond__milliseconds (token) {
+        addFormatToken(0, [token, 3], 0, 'millisecond');
+    }
+
+    millisecond__milliseconds('SSS');
+    millisecond__milliseconds('SSSS');
+
+    // ALIASES
+
+    addUnitAlias('millisecond', 'ms');
+
+    // PARSING
+
+    addRegexToken('S',    match1to3, match1);
+    addRegexToken('SS',   match1to3, match2);
+    addRegexToken('SSS',  match1to3, match3);
+    addRegexToken('SSSS', matchUnsigned);
+    addParseToken(['S', 'SS', 'SSS', 'SSSS'], function (input, array) {
+        array[MILLISECOND] = toInt(('0.' + input) * 1000);
+    });
+
+    // MOMENTS
+
+    var getSetMillisecond = makeGetSet('Milliseconds', false);
+
+    addFormatToken('z',  0, 0, 'zoneAbbr');
+    addFormatToken('zz', 0, 0, 'zoneName');
+
+    // MOMENTS
+
+    function getZoneAbbr () {
+        return this._isUTC ? 'UTC' : '';
+    }
+
+    function getZoneName () {
+        return this._isUTC ? 'Coordinated Universal Time' : '';
+    }
+
+    var momentPrototype__proto = Moment.prototype;
+
+    momentPrototype__proto.add          = add_subtract__add;
+    momentPrototype__proto.calendar     = moment_calendar__calendar;
+    momentPrototype__proto.clone        = clone;
+    momentPrototype__proto.diff         = diff;
+    momentPrototype__proto.endOf        = endOf;
+    momentPrototype__proto.format       = format;
+    momentPrototype__proto.from         = from;
+    momentPrototype__proto.fromNow      = fromNow;
+    momentPrototype__proto.to           = to;
+    momentPrototype__proto.toNow        = toNow;
+    momentPrototype__proto.get          = getSet;
+    momentPrototype__proto.invalidAt    = invalidAt;
+    momentPrototype__proto.isAfter      = isAfter;
+    momentPrototype__proto.isBefore     = isBefore;
+    momentPrototype__proto.isBetween    = isBetween;
+    momentPrototype__proto.isSame       = isSame;
+    momentPrototype__proto.isValid      = moment_valid__isValid;
+    momentPrototype__proto.lang         = lang;
+    momentPrototype__proto.locale       = locale;
+    momentPrototype__proto.localeData   = localeData;
+    momentPrototype__proto.max          = prototypeMax;
+    momentPrototype__proto.min          = prototypeMin;
+    momentPrototype__proto.parsingFlags = parsingFlags;
+    momentPrototype__proto.set          = getSet;
+    momentPrototype__proto.startOf      = startOf;
+    momentPrototype__proto.subtract     = add_subtract__subtract;
+    momentPrototype__proto.toArray      = toArray;
+    momentPrototype__proto.toDate       = toDate;
+    momentPrototype__proto.toISOString  = moment_format__toISOString;
+    momentPrototype__proto.toJSON       = moment_format__toISOString;
+    momentPrototype__proto.toString     = toString;
+    momentPrototype__proto.unix         = unix;
+    momentPrototype__proto.valueOf      = to_type__valueOf;
+
+    // Year
+    momentPrototype__proto.year       = getSetYear;
+    momentPrototype__proto.isLeapYear = getIsLeapYear;
+
+    // Week Year
+    momentPrototype__proto.weekYear    = getSetWeekYear;
+    momentPrototype__proto.isoWeekYear = getSetISOWeekYear;
+
+    // Quarter
+    momentPrototype__proto.quarter = momentPrototype__proto.quarters = getSetQuarter;
+
+    // Month
+    momentPrototype__proto.month       = getSetMonth;
+    momentPrototype__proto.daysInMonth = getDaysInMonth;
+
+    // Week
+    momentPrototype__proto.week           = momentPrototype__proto.weeks        = getSetWeek;
+    momentPrototype__proto.isoWeek        = momentPrototype__proto.isoWeeks     = getSetISOWeek;
+    momentPrototype__proto.weeksInYear    = getWeeksInYear;
+    momentPrototype__proto.isoWeeksInYear = getISOWeeksInYear;
+
+    // Day
+    momentPrototype__proto.date       = getSetDayOfMonth;
+    momentPrototype__proto.day        = momentPrototype__proto.days             = getSetDayOfWeek;
+    momentPrototype__proto.weekday    = getSetLocaleDayOfWeek;
+    momentPrototype__proto.isoWeekday = getSetISODayOfWeek;
+    momentPrototype__proto.dayOfYear  = getSetDayOfYear;
+
+    // Hour
+    momentPrototype__proto.hour = momentPrototype__proto.hours = getSetHour;
+
+    // Minute
+    momentPrototype__proto.minute = momentPrototype__proto.minutes = getSetMinute;
+
+    // Second
+    momentPrototype__proto.second = momentPrototype__proto.seconds = getSetSecond;
+
+    // Millisecond
+    momentPrototype__proto.millisecond = momentPrototype__proto.milliseconds = getSetMillisecond;
+
+    // Offset
+    momentPrototype__proto.utcOffset            = getSetOffset;
+    momentPrototype__proto.utc                  = setOffsetToUTC;
+    momentPrototype__proto.local                = setOffsetToLocal;
+    momentPrototype__proto.parseZone            = setOffsetToParsedOffset;
+    momentPrototype__proto.hasAlignedHourOffset = hasAlignedHourOffset;
+    momentPrototype__proto.isDST                = isDaylightSavingTime;
+    momentPrototype__proto.isDSTShifted         = isDaylightSavingTimeShifted;
+    momentPrototype__proto.isLocal              = isLocal;
+    momentPrototype__proto.isUtcOffset          = isUtcOffset;
+    momentPrototype__proto.isUtc                = isUtc;
+    momentPrototype__proto.isUTC                = isUtc;
+
+    // Timezone
+    momentPrototype__proto.zoneAbbr = getZoneAbbr;
+    momentPrototype__proto.zoneName = getZoneName;
+
+    // Deprecations
+    momentPrototype__proto.dates  = deprecate('dates accessor is deprecated. Use date instead.', getSetDayOfMonth);
+    momentPrototype__proto.months = deprecate('months accessor is deprecated. Use month instead', getSetMonth);
+    momentPrototype__proto.years  = deprecate('years accessor is deprecated. Use year instead', getSetYear);
+    momentPrototype__proto.zone   = deprecate('moment().zone is deprecated, use moment().utcOffset instead. https://github.com/moment/moment/issues/1779', getSetZone);
+
+    var momentPrototype = momentPrototype__proto;
+
+    function moment__createUnix (input) {
+        return local__createLocal(input * 1000);
+    }
+
+    function moment__createInZone () {
+        return local__createLocal.apply(null, arguments).parseZone();
+    }
+
+    var defaultCalendar = {
+        sameDay : '[Today at] LT',
+        nextDay : '[Tomorrow at] LT',
+        nextWeek : 'dddd [at] LT',
+        lastDay : '[Yesterday at] LT',
+        lastWeek : '[Last] dddd [at] LT',
+        sameElse : 'L'
+    };
+
+    function locale_calendar__calendar (key, mom, now) {
+        var output = this._calendar[key];
+        return typeof output === 'function' ? output.call(mom, now) : output;
+    }
+
+    var defaultLongDateFormat = {
+        LTS  : 'h:mm:ss A',
+        LT   : 'h:mm A',
+        L    : 'MM/DD/YYYY',
+        LL   : 'MMMM D, YYYY',
+        LLL  : 'MMMM D, YYYY LT',
+        LLLL : 'dddd, MMMM D, YYYY LT'
+    };
+
+    function longDateFormat (key) {
+        var output = this._longDateFormat[key];
+        if (!output && this._longDateFormat[key.toUpperCase()]) {
+            output = this._longDateFormat[key.toUpperCase()].replace(/MMMM|MM|DD|dddd/g, function (val) {
+                return val.slice(1);
+            });
+            this._longDateFormat[key] = output;
+        }
+        return output;
+    }
+
+    var defaultInvalidDate = 'Invalid date';
+
+    function invalidDate () {
+        return this._invalidDate;
+    }
+
+    var defaultOrdinal = '%d';
+    var defaultOrdinalParse = /\d{1,2}/;
+
+    function ordinal (number) {
+        return this._ordinal.replace('%d', number);
+    }
+
+    function preParsePostFormat (string) {
+        return string;
+    }
+
+    var defaultRelativeTime = {
+        future : 'in %s',
+        past   : '%s ago',
+        s  : 'a few seconds',
+        m  : 'a minute',
+        mm : '%d minutes',
+        h  : 'an hour',
+        hh : '%d hours',
+        d  : 'a day',
+        dd : '%d days',
+        M  : 'a month',
+        MM : '%d months',
+        y  : 'a year',
+        yy : '%d years'
+    };
+
+    function relative__relativeTime (number, withoutSuffix, string, isFuture) {
+        var output = this._relativeTime[string];
+        return (typeof output === 'function') ?
+            output(number, withoutSuffix, string, isFuture) :
+            output.replace(/%d/i, number);
+    }
+
+    function pastFuture (diff, output) {
+        var format = this._relativeTime[diff > 0 ? 'future' : 'past'];
+        return typeof format === 'function' ? format(output) : format.replace(/%s/i, output);
+    }
+
+    function locale_set__set (config) {
+        var prop, i;
+        for (i in config) {
+            prop = config[i];
+            if (typeof prop === 'function') {
+                this[i] = prop;
+            } else {
+                this['_' + i] = prop;
+            }
+        }
+        // Lenient ordinal parsing accepts just a number in addition to
+        // number + (possibly) stuff coming from _ordinalParseLenient.
+        this._ordinalParseLenient = new RegExp(this._ordinalParse.source + '|' + (/\d{1,2}/).source);
+    }
+
+    var prototype__proto = Locale.prototype;
+
+    prototype__proto._calendar       = defaultCalendar;
+    prototype__proto.calendar        = locale_calendar__calendar;
+    prototype__proto._longDateFormat = defaultLongDateFormat;
+    prototype__proto.longDateFormat  = longDateFormat;
+    prototype__proto._invalidDate    = defaultInvalidDate;
+    prototype__proto.invalidDate     = invalidDate;
+    prototype__proto._ordinal        = defaultOrdinal;
+    prototype__proto.ordinal         = ordinal;
+    prototype__proto._ordinalParse   = defaultOrdinalParse;
+    prototype__proto.preparse        = preParsePostFormat;
+    prototype__proto.postformat      = preParsePostFormat;
+    prototype__proto._relativeTime   = defaultRelativeTime;
+    prototype__proto.relativeTime    = relative__relativeTime;
+    prototype__proto.pastFuture      = pastFuture;
+    prototype__proto.set             = locale_set__set;
+
+    // Month
+    prototype__proto.months       =        localeMonths;
+    prototype__proto._months      = defaultLocaleMonths;
+    prototype__proto.monthsShort  =        localeMonthsShort;
+    prototype__proto._monthsShort = defaultLocaleMonthsShort;
+    prototype__proto.monthsParse  =        localeMonthsParse;
+
+    // Week
+    prototype__proto.week = localeWeek;
+    prototype__proto._week = defaultLocaleWeek;
+    prototype__proto.firstDayOfYear = localeFirstDayOfYear;
+    prototype__proto.firstDayOfWeek = localeFirstDayOfWeek;
+
+    // Day of Week
+    prototype__proto.weekdays       =        localeWeekdays;
+    prototype__proto._weekdays      = defaultLocaleWeekdays;
+    prototype__proto.weekdaysMin    =        localeWeekdaysMin;
+    prototype__proto._weekdaysMin   = defaultLocaleWeekdaysMin;
+    prototype__proto.weekdaysShort  =        localeWeekdaysShort;
+    prototype__proto._weekdaysShort = defaultLocaleWeekdaysShort;
+    prototype__proto.weekdaysParse  =        localeWeekdaysParse;
+
+    // Hours
+    prototype__proto.isPM = localeIsPM;
+    prototype__proto._meridiemParse = defaultLocaleMeridiemParse;
+    prototype__proto.meridiem = localeMeridiem;
+
+    function lists__get (format, index, field, setter) {
+        var locale = locale_locales__getLocale();
+        var utc = create_utc__createUTC().set(setter, index);
+        return locale[field](utc, format);
+    }
+
+    function list (format, index, field, count, setter) {
+        if (typeof format === 'number') {
+            index = format;
+            format = undefined;
+        }
+
+        format = format || '';
+
+        if (index != null) {
+            return lists__get(format, index, field, setter);
+        }
+
+        var i;
+        var out = [];
+        for (i = 0; i < count; i++) {
+            out[i] = lists__get(format, i, field, setter);
+        }
+        return out;
+    }
+
+    function lists__listMonths (format, index) {
+        return list(format, index, 'months', 12, 'month');
+    }
+
+    function lists__listMonthsShort (format, index) {
+        return list(format, index, 'monthsShort', 12, 'month');
+    }
+
+    function lists__listWeekdays (format, index) {
+        return list(format, index, 'weekdays', 7, 'day');
+    }
+
+    function lists__listWeekdaysShort (format, index) {
+        return list(format, index, 'weekdaysShort', 7, 'day');
+    }
+
+    function lists__listWeekdaysMin (format, index) {
+        return list(format, index, 'weekdaysMin', 7, 'day');
+    }
+
+    locale_locales__getSetGlobalLocale('en', {
+        ordinalParse: /\d{1,2}(th|st|nd|rd)/,
+        ordinal : function (number) {
+            var b = number % 10,
+                output = (toInt(number % 100 / 10) === 1) ? 'th' :
+                (b === 1) ? 'st' :
+                (b === 2) ? 'nd' :
+                (b === 3) ? 'rd' : 'th';
+            return number + output;
+        }
+    });
+
+    // Side effect imports
+    utils_hooks__hooks.lang = deprecate('moment.lang is deprecated. Use moment.locale instead.', locale_locales__getSetGlobalLocale);
+    utils_hooks__hooks.langData = deprecate('moment.langData is deprecated. Use moment.localeData instead.', locale_locales__getLocale);
+
+    var mathAbs = Math.abs;
+
+    function duration_abs__abs () {
+        var data           = this._data;
+
+        this._milliseconds = mathAbs(this._milliseconds);
+        this._days         = mathAbs(this._days);
+        this._months       = mathAbs(this._months);
+
+        data.milliseconds  = mathAbs(data.milliseconds);
+        data.seconds       = mathAbs(data.seconds);
+        data.minutes       = mathAbs(data.minutes);
+        data.hours         = mathAbs(data.hours);
+        data.months        = mathAbs(data.months);
+        data.years         = mathAbs(data.years);
+
+        return this;
+    }
+
+    function duration_add_subtract__addSubtract (duration, input, value, direction) {
+        var other = create__createDuration(input, value);
+
+        duration._milliseconds += direction * other._milliseconds;
+        duration._days         += direction * other._days;
+        duration._months       += direction * other._months;
+
+        return duration._bubble();
+    }
+
+    // supports only 2.0-style add(1, 's') or add(duration)
+    function duration_add_subtract__add (input, value) {
+        return duration_add_subtract__addSubtract(this, input, value, 1);
+    }
+
+    // supports only 2.0-style subtract(1, 's') or subtract(duration)
+    function duration_add_subtract__subtract (input, value) {
+        return duration_add_subtract__addSubtract(this, input, value, -1);
+    }
+
+    function bubble () {
+        var milliseconds = this._milliseconds;
+        var days         = this._days;
+        var months       = this._months;
+        var data         = this._data;
+        var seconds, minutes, hours, years = 0;
+
+        // The following code bubbles up values, see the tests for
+        // examples of what that means.
+        data.milliseconds = milliseconds % 1000;
+
+        seconds           = absFloor(milliseconds / 1000);
+        data.seconds      = seconds % 60;
+
+        minutes           = absFloor(seconds / 60);
+        data.minutes      = minutes % 60;
+
+        hours             = absFloor(minutes / 60);
+        data.hours        = hours % 24;
+
+        days += absFloor(hours / 24);
+
+        // Accurately convert days to years, assume start from year 0.
+        years = absFloor(daysToYears(days));
+        days -= absFloor(yearsToDays(years));
+
+        // 30 days to a month
+        // TODO (iskren): Use anchor date (like 1st Jan) to compute this.
+        months += absFloor(days / 30);
+        days   %= 30;
+
+        // 12 months -> 1 year
+        years  += absFloor(months / 12);
+        months %= 12;
+
+        data.days   = days;
+        data.months = months;
+        data.years  = years;
+
+        return this;
+    }
+
+    function daysToYears (days) {
+        // 400 years have 146097 days (taking into account leap year rules)
+        return days * 400 / 146097;
+    }
+
+    function yearsToDays (years) {
+        // years * 365 + absFloor(years / 4) -
+        //     absFloor(years / 100) + absFloor(years / 400);
+        return years * 146097 / 400;
+    }
+
+    function as (units) {
+        var days;
+        var months;
+        var milliseconds = this._milliseconds;
+
+        units = normalizeUnits(units);
+
+        if (units === 'month' || units === 'year') {
+            days   = this._days   + milliseconds / 864e5;
+            months = this._months + daysToYears(days) * 12;
+            return units === 'month' ? months : months / 12;
+        } else {
+            // handle milliseconds separately because of floating point math errors (issue #1867)
+            days = this._days + Math.round(yearsToDays(this._months / 12));
+            switch (units) {
+                case 'week'   : return days / 7     + milliseconds / 6048e5;
+                case 'day'    : return days         + milliseconds / 864e5;
+                case 'hour'   : return days * 24    + milliseconds / 36e5;
+                case 'minute' : return days * 1440  + milliseconds / 6e4;
+                case 'second' : return days * 86400 + milliseconds / 1000;
+                // Math.floor prevents floating point math errors here
+                case 'millisecond': return Math.floor(days * 864e5) + milliseconds;
+                default: throw new Error('Unknown unit ' + units);
+            }
+        }
+    }
+
+    // TODO: Use this.as('ms')?
+    function duration_as__valueOf () {
+        return (
+            this._milliseconds +
+            this._days * 864e5 +
+            (this._months % 12) * 2592e6 +
+            toInt(this._months / 12) * 31536e6
+        );
+    }
+
+    function makeAs (alias) {
+        return function () {
+            return this.as(alias);
+        };
+    }
+
+    var asMilliseconds = makeAs('ms');
+    var asSeconds      = makeAs('s');
+    var asMinutes      = makeAs('m');
+    var asHours        = makeAs('h');
+    var asDays         = makeAs('d');
+    var asWeeks        = makeAs('w');
+    var asMonths       = makeAs('M');
+    var asYears        = makeAs('y');
+
+    function duration_get__get (units) {
+        units = normalizeUnits(units);
+        return this[units + 's']();
+    }
+
+    function makeGetter(name) {
+        return function () {
+            return this._data[name];
+        };
+    }
+
+    var duration_get__milliseconds = makeGetter('milliseconds');
+    var seconds      = makeGetter('seconds');
+    var minutes      = makeGetter('minutes');
+    var hours        = makeGetter('hours');
+    var days         = makeGetter('days');
+    var months       = makeGetter('months');
+    var years        = makeGetter('years');
+
+    function weeks () {
+        return absFloor(this.days() / 7);
+    }
+
+    var round = Math.round;
+    var thresholds = {
+        s: 45,  // seconds to minute
+        m: 45,  // minutes to hour
+        h: 22,  // hours to day
+        d: 26,  // days to month
+        M: 11   // months to year
+    };
+
+    // helper function for moment.fn.from, moment.fn.fromNow, and moment.duration.fn.humanize
+    function substituteTimeAgo(string, number, withoutSuffix, isFuture, locale) {
+        return locale.relativeTime(number || 1, !!withoutSuffix, string, isFuture);
+    }
+
+    function duration_humanize__relativeTime (posNegDuration, withoutSuffix, locale) {
+        var duration = create__createDuration(posNegDuration).abs();
+        var seconds  = round(duration.as('s'));
+        var minutes  = round(duration.as('m'));
+        var hours    = round(duration.as('h'));
+        var days     = round(duration.as('d'));
+        var months   = round(duration.as('M'));
+        var years    = round(duration.as('y'));
+
+        var a = seconds < thresholds.s && ['s', seconds]  ||
+                minutes === 1          && ['m']           ||
+                minutes < thresholds.m && ['mm', minutes] ||
+                hours   === 1          && ['h']           ||
+                hours   < thresholds.h && ['hh', hours]   ||
+                days    === 1          && ['d']           ||
+                days    < thresholds.d && ['dd', days]    ||
+                months  === 1          && ['M']           ||
+                months  < thresholds.M && ['MM', months]  ||
+                years   === 1          && ['y']           || ['yy', years];
+
+        a[2] = withoutSuffix;
+        a[3] = +posNegDuration > 0;
+        a[4] = locale;
+        return substituteTimeAgo.apply(null, a);
+    }
+
+    // This function allows you to set a threshold for relative time strings
+    function duration_humanize__getSetRelativeTimeThreshold (threshold, limit) {
+        if (thresholds[threshold] === undefined) {
+            return false;
+        }
+        if (limit === undefined) {
+            return thresholds[threshold];
+        }
+        thresholds[threshold] = limit;
+        return true;
+    }
+
+    function humanize (withSuffix) {
+        var locale = this.localeData();
+        var output = duration_humanize__relativeTime(this, !withSuffix, locale);
+
+        if (withSuffix) {
+            output = locale.pastFuture(+this, output);
+        }
+
+        return locale.postformat(output);
+    }
+
+    var iso_string__abs = Math.abs;
+
+    function iso_string__toISOString() {
+        // inspired by https://github.com/dordille/moment-isoduration/blob/master/moment.isoduration.js
+        var Y = iso_string__abs(this.years());
+        var M = iso_string__abs(this.months());
+        var D = iso_string__abs(this.days());
+        var h = iso_string__abs(this.hours());
+        var m = iso_string__abs(this.minutes());
+        var s = iso_string__abs(this.seconds() + this.milliseconds() / 1000);
+        var total = this.asSeconds();
+
+        if (!total) {
+            // this is the same as C#'s (Noda) and python (isodate)...
+            // but not other JS (goog.date)
+            return 'P0D';
+        }
+
+        return (total < 0 ? '-' : '') +
+            'P' +
+            (Y ? Y + 'Y' : '') +
+            (M ? M + 'M' : '') +
+            (D ? D + 'D' : '') +
+            ((h || m || s) ? 'T' : '') +
+            (h ? h + 'H' : '') +
+            (m ? m + 'M' : '') +
+            (s ? s + 'S' : '');
+    }
+
+    var duration_prototype__proto = Duration.prototype;
+
+    duration_prototype__proto.abs            = duration_abs__abs;
+    duration_prototype__proto.add            = duration_add_subtract__add;
+    duration_prototype__proto.subtract       = duration_add_subtract__subtract;
+    duration_prototype__proto.as             = as;
+    duration_prototype__proto.asMilliseconds = asMilliseconds;
+    duration_prototype__proto.asSeconds      = asSeconds;
+    duration_prototype__proto.asMinutes      = asMinutes;
+    duration_prototype__proto.asHours        = asHours;
+    duration_prototype__proto.asDays         = asDays;
+    duration_prototype__proto.asWeeks        = asWeeks;
+    duration_prototype__proto.asMonths       = asMonths;
+    duration_prototype__proto.asYears        = asYears;
+    duration_prototype__proto.valueOf        = duration_as__valueOf;
+    duration_prototype__proto._bubble        = bubble;
+    duration_prototype__proto.get            = duration_get__get;
+    duration_prototype__proto.milliseconds   = duration_get__milliseconds;
+    duration_prototype__proto.seconds        = seconds;
+    duration_prototype__proto.minutes        = minutes;
+    duration_prototype__proto.hours          = hours;
+    duration_prototype__proto.days           = days;
+    duration_prototype__proto.weeks          = weeks;
+    duration_prototype__proto.months         = months;
+    duration_prototype__proto.years          = years;
+    duration_prototype__proto.humanize       = humanize;
+    duration_prototype__proto.toISOString    = iso_string__toISOString;
+    duration_prototype__proto.toString       = iso_string__toISOString;
+    duration_prototype__proto.toJSON         = iso_string__toISOString;
+    duration_prototype__proto.locale         = locale;
+    duration_prototype__proto.localeData     = localeData;
+
+    // Deprecations
+    duration_prototype__proto.toIsoString = deprecate('toIsoString() is deprecated. Please use toISOString() instead (notice the capitals)', iso_string__toISOString);
+    duration_prototype__proto.lang = lang;
+
+    // Side effect imports
+
+    addFormatToken('X', 0, 0, 'unix');
+    addFormatToken('x', 0, 0, 'valueOf');
+
+    // PARSING
+
+    addRegexToken('x', matchSigned);
+    addRegexToken('X', matchTimestamp);
+    addParseToken('X', function (input, array, config) {
+        config._d = new Date(parseFloat(input, 10) * 1000);
+    });
+    addParseToken('x', function (input, array, config) {
+        config._d = new Date(toInt(input));
+    });
+
+    // Side effect imports
+
+
+    utils_hooks__hooks.version = '2.10.3';
+
+    setHookCallback(local__createLocal);
+
+    utils_hooks__hooks.fn                    = momentPrototype;
+    utils_hooks__hooks.min                   = min;
+    utils_hooks__hooks.max                   = max;
+    utils_hooks__hooks.utc                   = create_utc__createUTC;
+    utils_hooks__hooks.unix                  = moment__createUnix;
+    utils_hooks__hooks.months                = lists__listMonths;
+    utils_hooks__hooks.isDate                = isDate;
+    utils_hooks__hooks.locale                = locale_locales__getSetGlobalLocale;
+    utils_hooks__hooks.invalid               = valid__createInvalid;
+    utils_hooks__hooks.duration              = create__createDuration;
+    utils_hooks__hooks.isMoment              = isMoment;
+    utils_hooks__hooks.weekdays              = lists__listWeekdays;
+    utils_hooks__hooks.parseZone             = moment__createInZone;
+    utils_hooks__hooks.localeData            = locale_locales__getLocale;
+    utils_hooks__hooks.isDuration            = isDuration;
+    utils_hooks__hooks.monthsShort           = lists__listMonthsShort;
+    utils_hooks__hooks.weekdaysMin           = lists__listWeekdaysMin;
+    utils_hooks__hooks.defineLocale          = defineLocale;
+    utils_hooks__hooks.weekdaysShort         = lists__listWeekdaysShort;
+    utils_hooks__hooks.normalizeUnits        = normalizeUnits;
+    utils_hooks__hooks.relativeTimeThreshold = duration_humanize__getSetRelativeTimeThreshold;
+
+    var _moment = utils_hooks__hooks;
+
+    return _moment;
+
+}));
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/reais/reais.js":[function(require,module,exports){
+/*!
+ * Reais
+ *
+ * Copyright © 2013 Giovanni Torres Parra | BSD & MIT license
+ */
+
+(function (root, factory) {
+  'use strict';
+
+  if (typeof exports === 'object') {
+    module.exports = factory();
+  } 
+  else if (typeof define === 'function' && define.amd) {
+    define(function () {
+      return factory();
+    });
+  } 
+  else {
+    root.Reais = factory();
+  }
+}(this, function () {
+
+  function reaisToInteger (reais) {
+    reais = reais.trim()
+    var signal = ''
+    if (reais[0] === '-') {
+      signal = '-'
+      reais = reais.slice(1)
+    }
+    var integer = reais.replace(/(\d*)(,(\d)?(\d)?)?.*/, function (match, a, b, c, d) {
+      var reais = parseInt(a || 0)
+      var centavos = parseInt((c || 0) + (d || 0))
+      return reais * 100 + centavos
+    })
+    return parseInt(signal + integer)
+  }
+
+  function reaisFromInteger (integer, prefix) {
+    if (!prefix) prefix = ''
+
+    var r = ('' + (parseFloat(integer)/100).toFixed(2)).replace('.', ',')
+    if (r == 'NaN') {
+      return '-'
+    } else {
+      return prefix + r
+    }
+  }
+
+  Reais = {}
+  Reais.toInteger = reaisToInteger
+  Reais.fromInteger = reaisFromInteger
+
+  return Reais
+
+}))
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent-promise/index.js":[function(require,module,exports){
+/**
+ * Promise wrapper for superagent
+ */
+
+function wrap(superagent, Promise) {
+  /**
+   * Request object similar to superagent.Request, but with end() returning
+   * a promise.
+   */
+  function PromiseRequest() {
+    superagent.Request.apply(this, arguments);
+  }
+
+  // Inherit form superagent.Request
+  PromiseRequest.prototype = Object.create(superagent.Request.prototype);
+
+  /** Send request and get a promise that `end` was emitted */
+  PromiseRequest.prototype.end = function(cb) {
+    var _end = superagent.Request.prototype.end;
+    var self = this;
+
+    return new Promise(function(accept, reject) {
+      _end.call(self, function(err, value) {
+        if (cb) {
+          cb(err, value);
+        }
+
+        if (err) {
+          reject(err);
+        } else {
+          accept(value);
+        }
+      });
+    });
+  };
+
+  /** Provide a more promise-y interface */
+  PromiseRequest.prototype.then = function(resolve, reject) {
+    var _end = superagent.Request.prototype.end;
+    var self = this;
+
+    return new Promise(function(accept, reject) {
+      _end.call(self, function(err, value) {
+        if (err) {
+          reject(err);
+        } else {
+          accept(value);
+        }
+      });
+    }).then(resolve, reject);
+  };
+
+  /**
+   * Request builder with same interface as superagent.
+   * It is convenient to import this as `request` in place of superagent.
+   */
+  var request = function(method, url) {
+    return new PromiseRequest(method, url);
+  };
+
+  /** Helper for making a get request */
+  request.get = function(url, data) {
+    var req = request('GET', url);
+    if (data) {
+      req.query(data);
+    }
+    return req;
+  };
+
+  /** Helper for making a head request */
+  request.head = function(url, data) {
+    var req = request('HEAD', url);
+    if (data) {
+      req.send(data);
+    }
+    return req;
+  };
+
+  /** Helper for making a delete request */
+  request.del = function(url) {
+    return request('DELETE', url);
+  };
+
+  /** Helper for making a patch request */
+  request.patch = function(url, data) {
+    var req = request('PATCH', url);
+    if (data) {
+      req.send(data);
+    }
+    return req;
+  };
+
+  /** Helper for making a post request */
+  request.post = function(url, data) {
+    var req = request('POST', url);
+    if (data) {
+      req.send(data);
+    }
+    return req;
+  };
+
+  /** Helper for making a put request */
+  request.put = function(url, data) {
+    var req = request('PUT', url);
+    if (data) {
+      req.send(data);
+    }
+    return req;
+  };
+
+  // Export the request builder
+  return request;
+}
+
+module.exports = wrap;
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/lib/client.js":[function(require,module,exports){
+/**
+ * Module dependencies.
+ */
+
+var Emitter = require('emitter');
+var reduce = require('reduce');
+
+/**
+ * Root reference for iframes.
+ */
+
+var root = 'undefined' == typeof window
+  ? (this || self)
+  : window;
+
+/**
+ * Noop.
+ */
+
+function noop(){};
+
+/**
+ * Check if `obj` is a host object,
+ * we don't want to serialize these :)
+ *
+ * TODO: future proof, move to compoent land
+ *
+ * @param {Object} obj
+ * @return {Boolean}
+ * @api private
+ */
+
+function isHost(obj) {
+  var str = {}.toString.call(obj);
+
+  switch (str) {
+    case '[object File]':
+    case '[object Blob]':
+    case '[object FormData]':
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Determine XHR.
+ */
+
+request.getXHR = function () {
+  if (root.XMLHttpRequest
+      && (!root.location || 'file:' != root.location.protocol
+          || !root.ActiveXObject)) {
+    return new XMLHttpRequest;
+  } else {
+    try { return new ActiveXObject('Microsoft.XMLHTTP'); } catch(e) {}
+    try { return new ActiveXObject('Msxml2.XMLHTTP.6.0'); } catch(e) {}
+    try { return new ActiveXObject('Msxml2.XMLHTTP.3.0'); } catch(e) {}
+    try { return new ActiveXObject('Msxml2.XMLHTTP'); } catch(e) {}
   }
   return false;
 };
 
-module.exports = type;
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/update.js":[function(require,module,exports){
 /**
- * Baobab Update
- * ==============
+ * Removes leading and trailing whitespace, added to support IE.
  *
- * A handy method to mutate an atom according to the given specification.
- * Mostly inspired by http://facebook.github.io/react/docs/update.html
+ * @param {String} s
+ * @return {String}
+ * @api private
  */
-var helpers = require('./helpers.js'),
-    type = require('./type.js');
 
-var COMMANDS = {};
-[
-  '$set',
-  '$push',
-  '$unshift',
-  '$apply',
-  '$merge'
-].forEach(function(c) {
-  COMMANDS[c] = true;
-});
+var trim = ''.trim
+  ? function(s) { return s.trim(); }
+  : function(s) { return s.replace(/(^\s*|\s*$)/g, ''); };
 
-// Helpers
-function makeError(path, message) {
-  var e = new Error('baobab.update: ' + message + ' at path /' +
-                    path.toString());
+/**
+ * Check if `obj` is an object.
+ *
+ * @param {Object} obj
+ * @return {Boolean}
+ * @api private
+ */
 
-  e.path = path;
-  return e;
+function isObject(obj) {
+  return obj === Object(obj);
 }
 
-// Core function
-function update(target, spec, opts) {
-  opts = opts || {};
-  var log = {};
+/**
+ * Serialize the given `obj`.
+ *
+ * @param {Object} obj
+ * @return {String}
+ * @api private
+ */
 
-  // Closure mutating the internal object
-  (function mutator(o, spec, path) {
-    path = path || [];
-
-    var hash = path.join('λ'),
-        fn,
-        h,
-        k,
-        v;
-
-    for (k in spec) {
-      if (COMMANDS[k]) {
-        v = spec[k];
-
-        // Logging update
-        log[hash] = true;
-
-        // Applying
-        switch (k) {
-          case '$push':
-            if (!type.Array(o))
-              throw makeError(path, 'using command $push to a non array');
-
-            if (!type.Array(v))
-              o.push(v);
-            else
-              o.push.apply(o, v);
-            break;
-          case '$unshift':
-            if (!type.Array(o))
-              throw makeError(path, 'using command $unshift to a non array');
-
-            if (!type.Array(v))
-              o.unshift(v);
-            else
-              o.unshift.apply(o, v);
-            break;
-        }
-      }
-      else {
-        h = hash ? hash + 'λ' + k : k;
-
-        if ('$unset' in (spec[k] || {})) {
-
-          // Logging update
-          log[h] = true;
-          delete o[k];
-        }
-        else if ('$set' in (spec[k] || {})) {
-          v = spec[k].$set;
-
-          // Logging update
-          log[h] = true;
-          o[k] = v;
-        }
-        else if ('$apply' in (spec[k] || {})) {
-          fn = spec[k].$apply;
-
-          if (typeof fn !== 'function')
-            throw makeError(path.concat(k), 'using command $apply with a non function');
-
-          // Logging update
-          log[h] = true;
-          o[k] = fn.call(null, o[k]);
-        }
-        else if ('$merge' in (spec[k] || {})) {
-          v = spec[k].$merge;
-
-          if (!type.Object(o[k]))
-            throw makeError(path.concat(k), 'using command $merge on a non-object');
-
-          // Logging update
-          log[h] = true;
-          o[k] = helpers.shallowMerge(o[k], v);
-        }
-        else if (opts.shiftReferences &&
-                 ('$push' in (spec[k] || {}) ||
-                  '$unshift' in (spec[k] || {}))) {
-          if ('$push' in (spec[k] || {})) {
-            v = spec[k].$push;
-
-            if (!type.Array(o[k]))
-              throw makeError(path.concat(k), 'using command $push to a non array');
-            o[k] = o[k].concat(v);
-          }
-          if ('$unshift' in (spec[k] || {})) {
-            v = spec[k].$unshift;
-
-            if (!type.Array(o[k]))
-              throw makeError(path.concat(k), 'using command $unshift to a non array');
-            o[k] = (v instanceof Array ? v : [v]).concat(o[k]);
-          }
-
-          // Logging update
-          log[h] = true;
-        }
-        else {
-
-          // If nested object does not exist, we create it
-          if (typeof o[k] === 'undefined')
-            o[k] = {};
-
-          // Shifting reference
-          if (opts.shiftReferences)
-            o[k] = helpers.shallowClone(o[k]);
-
-          // Recur
-          mutator(
-            o[k],
-            spec[k],
-            path.concat(k)
-          );
-        }
-      }
+function serialize(obj) {
+  if (!isObject(obj)) return obj;
+  var pairs = [];
+  for (var key in obj) {
+    if (null != obj[key]) {
+      pairs.push(encodeURIComponent(key)
+        + '=' + encodeURIComponent(obj[key]));
     }
-  })(target, spec);
+  }
+  return pairs.join('&');
+}
 
-  return Object.keys(log).map(function(hash) {
-    return hash.split('λ');
+/**
+ * Expose serialization method.
+ */
+
+ request.serializeObject = serialize;
+
+ /**
+  * Parse the given x-www-form-urlencoded `str`.
+  *
+  * @param {String} str
+  * @return {Object}
+  * @api private
+  */
+
+function parseString(str) {
+  var obj = {};
+  var pairs = str.split('&');
+  var parts;
+  var pair;
+
+  for (var i = 0, len = pairs.length; i < len; ++i) {
+    pair = pairs[i];
+    parts = pair.split('=');
+    obj[decodeURIComponent(parts[0])] = decodeURIComponent(parts[1]);
+  }
+
+  return obj;
+}
+
+/**
+ * Expose parser.
+ */
+
+request.parseString = parseString;
+
+/**
+ * Default MIME type map.
+ *
+ *     superagent.types.xml = 'application/xml';
+ *
+ */
+
+request.types = {
+  html: 'text/html',
+  json: 'application/json',
+  xml: 'application/xml',
+  urlencoded: 'application/x-www-form-urlencoded',
+  'form': 'application/x-www-form-urlencoded',
+  'form-data': 'application/x-www-form-urlencoded'
+};
+
+/**
+ * Default serialization map.
+ *
+ *     superagent.serialize['application/xml'] = function(obj){
+ *       return 'generated xml here';
+ *     };
+ *
+ */
+
+ request.serialize = {
+   'application/x-www-form-urlencoded': serialize,
+   'application/json': JSON.stringify
+ };
+
+ /**
+  * Default parsers.
+  *
+  *     superagent.parse['application/xml'] = function(str){
+  *       return { object parsed from str };
+  *     };
+  *
+  */
+
+request.parse = {
+  'application/x-www-form-urlencoded': parseString,
+  'application/json': JSON.parse
+};
+
+/**
+ * Parse the given header `str` into
+ * an object containing the mapped fields.
+ *
+ * @param {String} str
+ * @return {Object}
+ * @api private
+ */
+
+function parseHeader(str) {
+  var lines = str.split(/\r?\n/);
+  var fields = {};
+  var index;
+  var line;
+  var field;
+  var val;
+
+  lines.pop(); // trailing CRLF
+
+  for (var i = 0, len = lines.length; i < len; ++i) {
+    line = lines[i];
+    index = line.indexOf(':');
+    field = line.slice(0, index).toLowerCase();
+    val = trim(line.slice(index + 1));
+    fields[field] = val;
+  }
+
+  return fields;
+}
+
+/**
+ * Return the mime type for the given `str`.
+ *
+ * @param {String} str
+ * @return {String}
+ * @api private
+ */
+
+function type(str){
+  return str.split(/ *; */).shift();
+};
+
+/**
+ * Return header field parameters.
+ *
+ * @param {String} str
+ * @return {Object}
+ * @api private
+ */
+
+function params(str){
+  return reduce(str.split(/ *; */), function(obj, str){
+    var parts = str.split(/ *= */)
+      , key = parts.shift()
+      , val = parts.shift();
+
+    if (key && val) obj[key] = val;
+    return obj;
+  }, {});
+};
+
+/**
+ * Initialize a new `Response` with the given `xhr`.
+ *
+ *  - set flags (.ok, .error, etc)
+ *  - parse header
+ *
+ * Examples:
+ *
+ *  Aliasing `superagent` as `request` is nice:
+ *
+ *      request = superagent;
+ *
+ *  We can use the promise-like API, or pass callbacks:
+ *
+ *      request.get('/').end(function(res){});
+ *      request.get('/', function(res){});
+ *
+ *  Sending data can be chained:
+ *
+ *      request
+ *        .post('/user')
+ *        .send({ name: 'tj' })
+ *        .end(function(res){});
+ *
+ *  Or passed to `.send()`:
+ *
+ *      request
+ *        .post('/user')
+ *        .send({ name: 'tj' }, function(res){});
+ *
+ *  Or passed to `.post()`:
+ *
+ *      request
+ *        .post('/user', { name: 'tj' })
+ *        .end(function(res){});
+ *
+ * Or further reduced to a single call for simple cases:
+ *
+ *      request
+ *        .post('/user', { name: 'tj' }, function(res){});
+ *
+ * @param {XMLHTTPRequest} xhr
+ * @param {Object} options
+ * @api private
+ */
+
+function Response(req, options) {
+  options = options || {};
+  this.req = req;
+  this.xhr = this.req.xhr;
+  // responseText is accessible only if responseType is '' or 'text' and on older browsers
+  this.text = ((this.req.method !='HEAD' && (this.xhr.responseType === '' || this.xhr.responseType === 'text')) || typeof this.xhr.responseType === 'undefined')
+     ? this.xhr.responseText
+     : null;
+  this.statusText = this.req.xhr.statusText;
+  this.setStatusProperties(this.xhr.status);
+  this.header = this.headers = parseHeader(this.xhr.getAllResponseHeaders());
+  // getAllResponseHeaders sometimes falsely returns "" for CORS requests, but
+  // getResponseHeader still works. so we get content-type even if getting
+  // other headers fails.
+  this.header['content-type'] = this.xhr.getResponseHeader('content-type');
+  this.setHeaderProperties(this.header);
+  this.body = this.req.method != 'HEAD'
+    ? this.parseBody(this.text ? this.text : this.xhr.response)
+    : null;
+}
+
+/**
+ * Get case-insensitive `field` value.
+ *
+ * @param {String} field
+ * @return {String}
+ * @api public
+ */
+
+Response.prototype.get = function(field){
+  return this.header[field.toLowerCase()];
+};
+
+/**
+ * Set header related properties:
+ *
+ *   - `.type` the content type without params
+ *
+ * A response of "Content-Type: text/plain; charset=utf-8"
+ * will provide you with a `.type` of "text/plain".
+ *
+ * @param {Object} header
+ * @api private
+ */
+
+Response.prototype.setHeaderProperties = function(header){
+  // content-type
+  var ct = this.header['content-type'] || '';
+  this.type = type(ct);
+
+  // params
+  var obj = params(ct);
+  for (var key in obj) this[key] = obj[key];
+};
+
+/**
+ * Parse the given body `str`.
+ *
+ * Used for auto-parsing of bodies. Parsers
+ * are defined on the `superagent.parse` object.
+ *
+ * @param {String} str
+ * @return {Mixed}
+ * @api private
+ */
+
+Response.prototype.parseBody = function(str){
+  var parse = request.parse[this.type];
+  return parse && str && (str.length || str instanceof Object)
+    ? parse(str)
+    : null;
+};
+
+/**
+ * Set flags such as `.ok` based on `status`.
+ *
+ * For example a 2xx response will give you a `.ok` of __true__
+ * whereas 5xx will be __false__ and `.error` will be __true__. The
+ * `.clientError` and `.serverError` are also available to be more
+ * specific, and `.statusType` is the class of error ranging from 1..5
+ * sometimes useful for mapping respond colors etc.
+ *
+ * "sugar" properties are also defined for common cases. Currently providing:
+ *
+ *   - .noContent
+ *   - .badRequest
+ *   - .unauthorized
+ *   - .notAcceptable
+ *   - .notFound
+ *
+ * @param {Number} status
+ * @api private
+ */
+
+Response.prototype.setStatusProperties = function(status){
+  // handle IE9 bug: http://stackoverflow.com/questions/10046972/msie-returns-status-code-of-1223-for-ajax-request
+  if (status === 1223) {
+    status = 204;
+  }
+
+  var type = status / 100 | 0;
+
+  // status / class
+  this.status = status;
+  this.statusType = type;
+
+  // basics
+  this.info = 1 == type;
+  this.ok = 2 == type;
+  this.clientError = 4 == type;
+  this.serverError = 5 == type;
+  this.error = (4 == type || 5 == type)
+    ? this.toError()
+    : false;
+
+  // sugar
+  this.accepted = 202 == status;
+  this.noContent = 204 == status;
+  this.badRequest = 400 == status;
+  this.unauthorized = 401 == status;
+  this.notAcceptable = 406 == status;
+  this.notFound = 404 == status;
+  this.forbidden = 403 == status;
+};
+
+/**
+ * Return an `Error` representative of this response.
+ *
+ * @return {Error}
+ * @api public
+ */
+
+Response.prototype.toError = function(){
+  var req = this.req;
+  var method = req.method;
+  var url = req.url;
+
+  var msg = 'cannot ' + method + ' ' + url + ' (' + this.status + ')';
+  var err = new Error(msg);
+  err.status = this.status;
+  err.method = method;
+  err.url = url;
+
+  return err;
+};
+
+/**
+ * Expose `Response`.
+ */
+
+request.Response = Response;
+
+/**
+ * Initialize a new `Request` with the given `method` and `url`.
+ *
+ * @param {String} method
+ * @param {String} url
+ * @api public
+ */
+
+function Request(method, url) {
+  var self = this;
+  Emitter.call(this);
+  this._query = this._query || [];
+  this.method = method;
+  this.url = url;
+  this.header = {};
+  this._header = {};
+  this.on('end', function(){
+    var err = null;
+    var res = null;
+
+    try {
+      res = new Response(self);
+    } catch(e) {
+      err = new Error('Parser is unable to parse the response');
+      err.parse = true;
+      err.original = e;
+      return self.callback(err);
+    }
+
+    self.emit('response', res);
+
+    if (err) {
+      return self.callback(err, res);
+    }
+
+    if (res.status >= 200 && res.status < 300) {
+      return self.callback(err, res);
+    }
+
+    var new_err = new Error(res.statusText || 'Unsuccessful HTTP response');
+    new_err.original = err;
+    new_err.response = res;
+    new_err.status = res.status;
+
+    self.callback(err || new_err, res);
   });
 }
 
-// Exporting
-module.exports = update;
-
-},{"./helpers.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/helpers.js","./type.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/baobab/src/type.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/cuid/dist/browser-cuid.js":[function(require,module,exports){
 /**
- * cuid.js
- * Collision-resistant UID generator for browsers and node.
- * Sequential for fast db lookups and recency sorting.
- * Safe for element IDs and server-side lookups.
- *
- * Extracted from CLCTR
- * 
- * Copyright (c) Eric Elliott 2012
- * MIT License
+ * Mixin `Emitter`.
  */
 
-/*global window, navigator, document, require, process, module */
-(function (app) {
-  'use strict';
-  var namespace = 'cuid',
-    c = 0,
-    blockSize = 4,
-    base = 36,
-    discreteValues = Math.pow(base, blockSize),
+Emitter(Request.prototype);
 
-    pad = function pad(num, size) {
-      var s = "000000000" + num;
-      return s.substr(s.length-size);
-    },
-
-    randomBlock = function randomBlock() {
-      return pad((Math.random() *
-            discreteValues << 0)
-            .toString(base), blockSize);
-    },
-
-    safeCounter = function () {
-      c = (c < discreteValues) ? c : 0;
-      c++; // this is not subliminal
-      return c - 1;
-    },
-
-    api = function cuid() {
-      // Starting with a lowercase letter makes
-      // it HTML element ID friendly.
-      var letter = 'c', // hard-coded allows for sequential access
-
-        // timestamp
-        // warning: this exposes the exact date and time
-        // that the uid was created.
-        timestamp = (new Date().getTime()).toString(base),
-
-        // Prevent same-machine collisions.
-        counter,
-
-        // A few chars to generate distinct ids for different
-        // clients (so different computers are far less
-        // likely to generate the same id)
-        fingerprint = api.fingerprint(),
-
-        // Grab some more chars from Math.random()
-        random = randomBlock() + randomBlock();
-
-        counter = pad(safeCounter().toString(base), blockSize);
-
-      return  (letter + timestamp + counter + fingerprint + random);
-    };
-
-  api.slug = function slug() {
-    var date = new Date().getTime().toString(36),
-      counter,
-      print = api.fingerprint().slice(0,1) +
-        api.fingerprint().slice(-1),
-      random = randomBlock().slice(-2);
-
-      counter = safeCounter().toString(36).slice(-4);
-
-    return date.slice(-2) + 
-      counter + print + random;
-  };
-
-  api.globalCount = function globalCount() {
-    // We want to cache the results of this
-    var cache = (function calc() {
-        var i,
-          count = 0;
-
-        for (i in window) {
-          count++;
-        }
-
-        return count;
-      }());
-
-    api.globalCount = function () { return cache; };
-    return cache;
-  };
-
-  api.fingerprint = function browserPrint() {
-    return pad((navigator.mimeTypes.length +
-      navigator.userAgent.length).toString(36) +
-      api.globalCount().toString(36), 4);
-  };
-
-  // don't change anything from here down.
-  if (app.register) {
-    app.register(namespace, api);
-  } else if (typeof module !== 'undefined') {
-    module.exports = api;
-  } else {
-    app[namespace] = api;
-  }
-
-}(this.applitude || this));
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/current-week-number/index.js":[function(require,module,exports){
 /**
- * current-week-number <https://github.com/tunnckoCore/current-week-number>
- *
- * Copyright (c) 2014 Charlike Mike Reagent, contributors.
- * Released under the MIT license.
+ * Allow for extension
  */
 
-'use strict';
+Request.prototype.use = function(fn) {
+  fn(this);
+  return this;
+}
 
-module.exports = function currentWeekNumber(date) {
-  var instance;
-  if (date && typeof date === 'string' && date !== '') {
-    instance = new Date(date);
-  } else {
-    instance = new Date();
+/**
+ * Set timeout to `ms`.
+ *
+ * @param {Number} ms
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.timeout = function(ms){
+  this._timeout = ms;
+  return this;
+};
+
+/**
+ * Clear previous timeout.
+ *
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.clearTimeout = function(){
+  this._timeout = 0;
+  clearTimeout(this._timer);
+  return this;
+};
+
+/**
+ * Abort the request, and clear potential timeout.
+ *
+ * @return {Request}
+ * @api public
+ */
+
+Request.prototype.abort = function(){
+  if (this.aborted) return;
+  this.aborted = true;
+  this.xhr.abort();
+  this.clearTimeout();
+  this.emit('abort');
+  return this;
+};
+
+/**
+ * Set header `field` to `val`, or multiple fields with one object.
+ *
+ * Examples:
+ *
+ *      req.get('/')
+ *        .set('Accept', 'application/json')
+ *        .set('X-API-Key', 'foobar')
+ *        .end(callback);
+ *
+ *      req.get('/')
+ *        .set({ Accept: 'application/json', 'X-API-Key': 'foobar' })
+ *        .end(callback);
+ *
+ * @param {String|Object} field
+ * @param {String} val
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.set = function(field, val){
+  if (isObject(field)) {
+    for (var key in field) {
+      this.set(key, field[key]);
+    }
+    return this;
   }
-  // Create a copy of this date object
-  var target = new Date(instance.valueOf());
-
-  // ISO week date weeks start on monday
-  // so correct the day number
-  var dayNr = (instance.getDay() + 6) % 7;
-
-  // ISO 8601 states that week 1 is the week
-  // with the first thursday of that year.
-  // Set the target date to the thursday in the target week
-  target.setDate(target.getDate() - dayNr + 3);
-
-  // Store the millisecond value of the target date
-  var firstThursday = target.valueOf();
-
-  // Set the target to the first thursday of the year
-  // First set the target to january first
-  target.setMonth(0, 1);
-  // Not a thursday? Correct the date to the next thursday
-  if (target.getDay() !== 4) {
-    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
-  }
-
-  // The weeknumber is the number of weeks between the
-  // first thursday of the year and the thursday in the target week
-  var weekNumber = 1 + Math.ceil((firstThursday - target) / 604800000);
-  return weekNumber;
+  this._header[field.toLowerCase()] = val;
+  this.header[field] = val;
+  return this;
 };
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
-module.exports = function(obj) {
-    if (typeof obj === 'string') return camelCase(obj);
-    return walk(obj);
+/**
+ * Remove header `field`.
+ *
+ * Example:
+ *
+ *      req.get('/')
+ *        .unset('User-Agent')
+ *        .end(callback);
+ *
+ * @param {String} field
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.unset = function(field){
+  delete this._header[field.toLowerCase()];
+  delete this.header[field];
+  return this;
 };
 
-function walk (obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    if (isDate(obj) || isRegex(obj)) return obj;
-    if (isArray(obj)) return map(obj, walk);
-    return reduce(objectKeys(obj), function (acc, key) {
-        var camel = camelCase(key);
-        acc[camel] = walk(obj[key]);
-        return acc;
-    }, {});
-}
+/**
+ * Get case-insensitive header `field` value.
+ *
+ * @param {String} field
+ * @return {String}
+ * @api private
+ */
 
-function camelCase(str) {
-    return str.replace(/[_.-](\w|$)/g, function (_,x) {
-        return x.toUpperCase();
-    });
-}
-
-var isArray = Array.isArray || function (obj) {
-    return Object.prototype.toString.call(obj) === '[object Array]';
+Request.prototype.getHeader = function(field){
+  return this._header[field.toLowerCase()];
 };
 
-var isDate = function (obj) {
-    return Object.prototype.toString.call(obj) === '[object Date]';
+/**
+ * Set Content-Type to `type`, mapping values from `request.types`.
+ *
+ * Examples:
+ *
+ *      superagent.types.xml = 'application/xml';
+ *
+ *      request.post('/')
+ *        .type('xml')
+ *        .send(xmlstring)
+ *        .end(callback);
+ *
+ *      request.post('/')
+ *        .type('application/xml')
+ *        .send(xmlstring)
+ *        .end(callback);
+ *
+ * @param {String} type
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.type = function(type){
+  this.set('Content-Type', request.types[type] || type);
+  return this;
 };
 
-var isRegex = function (obj) {
-    return Object.prototype.toString.call(obj) === '[object RegExp]';
+/**
+ * Set Accept to `type`, mapping values from `request.types`.
+ *
+ * Examples:
+ *
+ *      superagent.types.json = 'application/json';
+ *
+ *      request.get('/agent')
+ *        .accept('json')
+ *        .end(callback);
+ *
+ *      request.get('/agent')
+ *        .accept('application/json')
+ *        .end(callback);
+ *
+ * @param {String} accept
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.accept = function(type){
+  this.set('Accept', request.types[type] || type);
+  return this;
 };
 
-var has = Object.prototype.hasOwnProperty;
-var objectKeys = Object.keys || function (obj) {
-    var keys = [];
-    for (var key in obj) {
-        if (has.call(obj, key)) keys.push(key);
-    }
-    return keys;
+/**
+ * Set Authorization field value with `user` and `pass`.
+ *
+ * @param {String} user
+ * @param {String} pass
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.auth = function(user, pass){
+  var str = btoa(user + ':' + pass);
+  this.set('Authorization', 'Basic ' + str);
+  return this;
 };
 
-function map (xs, f) {
-    if (xs.map) return xs.map(f);
-    var res = [];
-    for (var i = 0; i < xs.length; i++) {
-        res.push(f(xs[i], i));
-    }
-    return res;
-}
-
-function reduce (xs, f, acc) {
-    if (xs.reduce) return xs.reduce(f, acc);
-    for (var i = 0; i < xs.length; i++) {
-        acc = f(acc, xs[i], i);
-    }
-    return acc;
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
-var nargs = /\{([0-9a-zA-Z]+)\}/g
-var slice = Array.prototype.slice
-
-module.exports = template
-
-function template(string) {
-    var args
-
-    if (arguments.length === 2 && typeof arguments[1] === "object") {
-        args = arguments[1]
-    } else {
-        args = slice.call(arguments, 1)
-    }
-
-    if (!args || !args.hasOwnProperty) {
-        args = {}
-    }
-
-    return string.replace(nargs, function replaceArg(match, i, index) {
-        var result
-
-        if (string[index - 1] === "{" &&
-            string[index + match.length] === "}") {
-            return i
-        } else {
-            result = args.hasOwnProperty(i) ? args[i] : null
-            if (result === null || result === undefined) {
-                return ""
-            }
-
-            return result
-        }
-    })
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/typed.js":[function(require,module,exports){
-'use strict';
-
-var camelize = require('camelize');
-var template = require('string-template');
-var extend = require('xtend/mutable');
-
-module.exports = TypedError;
-
-function TypedError(args) {
-    if (!args) {
-        throw new Error('args is required');
-    }
-    if (!args.type) {
-        throw new Error('args.type is required');
-    }
-
-    var message = args.message;
-
-    if (args.type && !args.name) {
-        var errorName = camelize(args.type) + 'Error';
-        args.name = errorName[0].toUpperCase() + errorName.substr(1);
-    }
-
-    extend(createError, args);
-    createError._name = args.name;
-
-    return createError;
-
-    function createError(opts) {
-        var result = new Error();
-
-        Object.defineProperty(result, 'type', {
-            value: result.type,
-            enumerable: true,
-            writable: true,
-            configurable: true
-        });
-
-        var options = extend({}, args, opts);
-
-        extend(result, options);
-        if (opts && opts.message) {
-            result.message = template(opts.message, options);
-        } else if (message) {
-            result.message = template(message, options);
-        }
-
-        return result;
-    }
-}
-
-},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/firebase/lib/firebase-web.js":[function(require,module,exports){
-/*! @license Firebase v2.0.6 - License: https://www.firebase.com/terms/terms-of-service.html */ (function() {var h,aa=this;function n(a){return void 0!==a}function ba(){}function ca(a){a.Qb=function(){return a.ef?a.ef:a.ef=new a}}
-function da(a){var b=typeof a;if("object"==b)if(a){if(a instanceof Array)return"array";if(a instanceof Object)return b;var c=Object.prototype.toString.call(a);if("[object Window]"==c)return"object";if("[object Array]"==c||"number"==typeof a.length&&"undefined"!=typeof a.splice&&"undefined"!=typeof a.propertyIsEnumerable&&!a.propertyIsEnumerable("splice"))return"array";if("[object Function]"==c||"undefined"!=typeof a.call&&"undefined"!=typeof a.propertyIsEnumerable&&!a.propertyIsEnumerable("call"))return"function"}else return"null";
-else if("function"==b&&"undefined"==typeof a.call)return"object";return b}function ea(a){return"array"==da(a)}function fa(a){var b=da(a);return"array"==b||"object"==b&&"number"==typeof a.length}function p(a){return"string"==typeof a}function ga(a){return"number"==typeof a}function ha(a){return"function"==da(a)}function ia(a){var b=typeof a;return"object"==b&&null!=a||"function"==b}function ja(a,b,c){return a.call.apply(a.bind,arguments)}
-function ka(a,b,c){if(!a)throw Error();if(2<arguments.length){var d=Array.prototype.slice.call(arguments,2);return function(){var c=Array.prototype.slice.call(arguments);Array.prototype.unshift.apply(c,d);return a.apply(b,c)}}return function(){return a.apply(b,arguments)}}function q(a,b,c){q=Function.prototype.bind&&-1!=Function.prototype.bind.toString().indexOf("native code")?ja:ka;return q.apply(null,arguments)}
-function la(a,b){var c=Array.prototype.slice.call(arguments,1);return function(){var b=c.slice();b.push.apply(b,arguments);return a.apply(this,b)}}var ma=Date.now||function(){return+new Date};function na(a,b){function c(){}c.prototype=b.prototype;a.oc=b.prototype;a.prototype=new c;a.Ag=function(a,c,f){return b.prototype[c].apply(a,Array.prototype.slice.call(arguments,2))}};function oa(a){a=String(a);if(/^\s*$/.test(a)?0:/^[\],:{}\s\u2028\u2029]*$/.test(a.replace(/\\["\\\/bfnrtu]/g,"@").replace(/"[^"\\\n\r\u2028\u2029\x00-\x08\x0a-\x1f]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,"]").replace(/(?:^|:|,)(?:[\s\u2028\u2029]*\[)+/g,"")))try{return eval("("+a+")")}catch(b){}throw Error("Invalid JSON string: "+a);}function pa(){this.Id=void 0}
-function qa(a,b,c){switch(typeof b){case "string":ra(b,c);break;case "number":c.push(isFinite(b)&&!isNaN(b)?b:"null");break;case "boolean":c.push(b);break;case "undefined":c.push("null");break;case "object":if(null==b){c.push("null");break}if(ea(b)){var d=b.length;c.push("[");for(var e="",f=0;f<d;f++)c.push(e),e=b[f],qa(a,a.Id?a.Id.call(b,String(f),e):e,c),e=",";c.push("]");break}c.push("{");d="";for(f in b)Object.prototype.hasOwnProperty.call(b,f)&&(e=b[f],"function"!=typeof e&&(c.push(d),ra(f,c),
-c.push(":"),qa(a,a.Id?a.Id.call(b,f,e):e,c),d=","));c.push("}");break;case "function":break;default:throw Error("Unknown type: "+typeof b);}}var sa={'"':'\\"',"\\":"\\\\","/":"\\/","\b":"\\b","\f":"\\f","\n":"\\n","\r":"\\r","\t":"\\t","\x0B":"\\u000b"},ta=/\uffff/.test("\uffff")?/[\\\"\x00-\x1f\x7f-\uffff]/g:/[\\\"\x00-\x1f\x7f-\xff]/g;
-function ra(a,b){b.push('"',a.replace(ta,function(a){if(a in sa)return sa[a];var b=a.charCodeAt(0),e="\\u";16>b?e+="000":256>b?e+="00":4096>b&&(e+="0");return sa[a]=e+b.toString(16)}),'"')};function ua(a){return"undefined"!==typeof JSON&&n(JSON.parse)?JSON.parse(a):oa(a)}function t(a){if("undefined"!==typeof JSON&&n(JSON.stringify))a=JSON.stringify(a);else{var b=[];qa(new pa,a,b);a=b.join("")}return a};function u(a,b){return Object.prototype.hasOwnProperty.call(a,b)}function v(a,b){if(Object.prototype.hasOwnProperty.call(a,b))return a[b]}function va(a,b){for(var c in a)Object.prototype.hasOwnProperty.call(a,c)&&b(c,a[c])}function wa(a){var b={};va(a,function(a,d){b[a]=d});return b};function xa(a){this.xc=a;this.Hd="firebase:"}h=xa.prototype;h.set=function(a,b){null==b?this.xc.removeItem(this.Hd+a):this.xc.setItem(this.Hd+a,t(b))};h.get=function(a){a=this.xc.getItem(this.Hd+a);return null==a?null:ua(a)};h.remove=function(a){this.xc.removeItem(this.Hd+a)};h.ff=!1;h.toString=function(){return this.xc.toString()};function ya(){this.ha={}}ya.prototype.set=function(a,b){null==b?delete this.ha[a]:this.ha[a]=b};ya.prototype.get=function(a){return u(this.ha,a)?this.ha[a]:null};ya.prototype.remove=function(a){delete this.ha[a]};ya.prototype.ff=!0;function za(a){try{if("undefined"!==typeof window&&"undefined"!==typeof window[a]){var b=window[a];b.setItem("firebase:sentinel","cache");b.removeItem("firebase:sentinel");return new xa(b)}}catch(c){}return new ya}var Aa=za("localStorage"),Ba=za("sessionStorage");function Ca(a,b,c,d,e){this.host=a.toLowerCase();this.domain=this.host.substr(this.host.indexOf(".")+1);this.Cb=b;this.yb=c;this.yg=d;this.Gd=e||"";this.Ka=Aa.get("host:"+a)||this.host}function Da(a,b){b!==a.Ka&&(a.Ka=b,"s-"===a.Ka.substr(0,2)&&Aa.set("host:"+a.host,a.Ka))}Ca.prototype.toString=function(){var a=(this.Cb?"https://":"http://")+this.host;this.Gd&&(a+="<"+this.Gd+">");return a};function Ea(){this.Ta=-1};function Fa(){this.Ta=-1;this.Ta=64;this.R=[];this.be=[];this.Af=[];this.Dd=[];this.Dd[0]=128;for(var a=1;a<this.Ta;++a)this.Dd[a]=0;this.Rd=this.Tb=0;this.reset()}na(Fa,Ea);Fa.prototype.reset=function(){this.R[0]=1732584193;this.R[1]=4023233417;this.R[2]=2562383102;this.R[3]=271733878;this.R[4]=3285377520;this.Rd=this.Tb=0};
-function Ga(a,b,c){c||(c=0);var d=a.Af;if(p(b))for(var e=0;16>e;e++)d[e]=b.charCodeAt(c)<<24|b.charCodeAt(c+1)<<16|b.charCodeAt(c+2)<<8|b.charCodeAt(c+3),c+=4;else for(e=0;16>e;e++)d[e]=b[c]<<24|b[c+1]<<16|b[c+2]<<8|b[c+3],c+=4;for(e=16;80>e;e++){var f=d[e-3]^d[e-8]^d[e-14]^d[e-16];d[e]=(f<<1|f>>>31)&4294967295}b=a.R[0];c=a.R[1];for(var g=a.R[2],k=a.R[3],l=a.R[4],m,e=0;80>e;e++)40>e?20>e?(f=k^c&(g^k),m=1518500249):(f=c^g^k,m=1859775393):60>e?(f=c&g|k&(c|g),m=2400959708):(f=c^g^k,m=3395469782),f=(b<<
-5|b>>>27)+f+l+m+d[e]&4294967295,l=k,k=g,g=(c<<30|c>>>2)&4294967295,c=b,b=f;a.R[0]=a.R[0]+b&4294967295;a.R[1]=a.R[1]+c&4294967295;a.R[2]=a.R[2]+g&4294967295;a.R[3]=a.R[3]+k&4294967295;a.R[4]=a.R[4]+l&4294967295}
-Fa.prototype.update=function(a,b){n(b)||(b=a.length);for(var c=b-this.Ta,d=0,e=this.be,f=this.Tb;d<b;){if(0==f)for(;d<=c;)Ga(this,a,d),d+=this.Ta;if(p(a))for(;d<b;){if(e[f]=a.charCodeAt(d),++f,++d,f==this.Ta){Ga(this,e);f=0;break}}else for(;d<b;)if(e[f]=a[d],++f,++d,f==this.Ta){Ga(this,e);f=0;break}}this.Tb=f;this.Rd+=b};function Ha(){return Math.floor(2147483648*Math.random()).toString(36)+Math.abs(Math.floor(2147483648*Math.random())^ma()).toString(36)};var w=Array.prototype,Ia=w.indexOf?function(a,b,c){return w.indexOf.call(a,b,c)}:function(a,b,c){c=null==c?0:0>c?Math.max(0,a.length+c):c;if(p(a))return p(b)&&1==b.length?a.indexOf(b,c):-1;for(;c<a.length;c++)if(c in a&&a[c]===b)return c;return-1},Ja=w.forEach?function(a,b,c){w.forEach.call(a,b,c)}:function(a,b,c){for(var d=a.length,e=p(a)?a.split(""):a,f=0;f<d;f++)f in e&&b.call(c,e[f],f,a)},Ka=w.filter?function(a,b,c){return w.filter.call(a,b,c)}:function(a,b,c){for(var d=a.length,e=[],f=0,g=p(a)?
-a.split(""):a,k=0;k<d;k++)if(k in g){var l=g[k];b.call(c,l,k,a)&&(e[f++]=l)}return e},La=w.map?function(a,b,c){return w.map.call(a,b,c)}:function(a,b,c){for(var d=a.length,e=Array(d),f=p(a)?a.split(""):a,g=0;g<d;g++)g in f&&(e[g]=b.call(c,f[g],g,a));return e},Ma=w.reduce?function(a,b,c,d){d&&(b=q(b,d));return w.reduce.call(a,b,c)}:function(a,b,c,d){var e=c;Ja(a,function(c,g){e=b.call(d,e,c,g,a)});return e},Na=w.every?function(a,b,c){return w.every.call(a,b,c)}:function(a,b,c){for(var d=a.length,e=
-p(a)?a.split(""):a,f=0;f<d;f++)if(f in e&&!b.call(c,e[f],f,a))return!1;return!0};function Oa(a,b){var c=Pa(a,b,void 0);return 0>c?null:p(a)?a.charAt(c):a[c]}function Pa(a,b,c){for(var d=a.length,e=p(a)?a.split(""):a,f=0;f<d;f++)if(f in e&&b.call(c,e[f],f,a))return f;return-1}function Qa(a,b){var c=Ia(a,b);0<=c&&w.splice.call(a,c,1)}function Ra(a,b,c,d){return w.splice.apply(a,Sa(arguments,1))}function Sa(a,b,c){return 2>=arguments.length?w.slice.call(a,b):w.slice.call(a,b,c)}
-function Ta(a,b){a.sort(b||Ua)}function Ua(a,b){return a>b?1:a<b?-1:0};var Va;a:{var Wa=aa.navigator;if(Wa){var Xa=Wa.userAgent;if(Xa){Va=Xa;break a}}Va=""}function Ya(a){return-1!=Va.indexOf(a)};var Za=Ya("Opera")||Ya("OPR"),$a=Ya("Trident")||Ya("MSIE"),ab=Ya("Gecko")&&-1==Va.toLowerCase().indexOf("webkit")&&!(Ya("Trident")||Ya("MSIE")),bb=-1!=Va.toLowerCase().indexOf("webkit");(function(){var a="",b;if(Za&&aa.opera)return a=aa.opera.version,ha(a)?a():a;ab?b=/rv\:([^\);]+)(\)|;)/:$a?b=/\b(?:MSIE|rv)[: ]([^\);]+)(\)|;)/:bb&&(b=/WebKit\/(\S+)/);b&&(a=(a=b.exec(Va))?a[1]:"");return $a&&(b=(b=aa.document)?b.documentMode:void 0,b>parseFloat(a))?String(b):a})();var cb=null,db=null,eb=null;function fb(a,b){if(!fa(a))throw Error("encodeByteArray takes an array as a parameter");gb();for(var c=b?db:cb,d=[],e=0;e<a.length;e+=3){var f=a[e],g=e+1<a.length,k=g?a[e+1]:0,l=e+2<a.length,m=l?a[e+2]:0,r=f>>2,f=(f&3)<<4|k>>4,k=(k&15)<<2|m>>6,m=m&63;l||(m=64,g||(k=64));d.push(c[r],c[f],c[k],c[m])}return d.join("")}
-function gb(){if(!cb){cb={};db={};eb={};for(var a=0;65>a;a++)cb[a]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".charAt(a),db[a]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.".charAt(a),eb[db[a]]=a}};var hb=function(){var a=1;return function(){return a++}}();function x(a,b){if(!a)throw ib(b);}function ib(a){return Error("Firebase INTERNAL ASSERT FAILED:"+a)}
-function jb(a){try{var b;if("undefined"!==typeof atob)b=atob(a);else{gb();for(var c=eb,d=[],e=0;e<a.length;){var f=c[a.charAt(e++)],g=e<a.length?c[a.charAt(e)]:0;++e;var k=e<a.length?c[a.charAt(e)]:64;++e;var l=e<a.length?c[a.charAt(e)]:64;++e;if(null==f||null==g||null==k||null==l)throw Error();d.push(f<<2|g>>4);64!=k&&(d.push(g<<4&240|k>>2),64!=l&&d.push(k<<6&192|l))}if(8192>d.length)b=String.fromCharCode.apply(null,d);else{a="";for(c=0;c<d.length;c+=8192)a+=String.fromCharCode.apply(null,Sa(d,c,
-c+8192));b=a}}return b}catch(m){kb("base64Decode failed: ",m)}return null}function lb(a){var b=mb(a);a=new Fa;a.update(b);var b=[],c=8*a.Rd;56>a.Tb?a.update(a.Dd,56-a.Tb):a.update(a.Dd,a.Ta-(a.Tb-56));for(var d=a.Ta-1;56<=d;d--)a.be[d]=c&255,c/=256;Ga(a,a.be);for(d=c=0;5>d;d++)for(var e=24;0<=e;e-=8)b[c]=a.R[d]>>e&255,++c;return fb(b)}
-function nb(a){for(var b="",c=0;c<arguments.length;c++)b=fa(arguments[c])?b+nb.apply(null,arguments[c]):"object"===typeof arguments[c]?b+t(arguments[c]):b+arguments[c],b+=" ";return b}var ob=null,pb=!0;function kb(a){!0===pb&&(pb=!1,null===ob&&!0===Ba.get("logging_enabled")&&qb(!0));if(ob){var b=nb.apply(null,arguments);ob(b)}}function rb(a){return function(){kb(a,arguments)}}
-function sb(a){if("undefined"!==typeof console){var b="FIREBASE INTERNAL ERROR: "+nb.apply(null,arguments);"undefined"!==typeof console.error?console.error(b):console.log(b)}}function tb(a){var b=nb.apply(null,arguments);throw Error("FIREBASE FATAL ERROR: "+b);}function z(a){if("undefined"!==typeof console){var b="FIREBASE WARNING: "+nb.apply(null,arguments);"undefined"!==typeof console.warn?console.warn(b):console.log(b)}}
-function ub(a){var b="",c="",d="",e=!0,f="https",g="";if(p(a)){var k=a.indexOf("//");0<=k&&(f=a.substring(0,k-1),a=a.substring(k+2));k=a.indexOf("/");-1===k&&(k=a.length);b=a.substring(0,k);a=a.substring(k+1);var l=b.split(".");if(3===l.length){k=l[2].indexOf(":");e=0<=k?"https"===f||"wss"===f:!0;c=l[1];d=l[0];g="";a=("/"+a).split("/");for(k=0;k<a.length;k++)if(0<a[k].length){l=a[k];try{l=decodeURIComponent(l.replace(/\+/g," "))}catch(m){}g+="/"+l}d=d.toLowerCase()}else 2===l.length&&(c=l[0])}return{host:b,
-domain:c,vg:d,Cb:e,scheme:f,Pc:g}}function vb(a){return ga(a)&&(a!=a||a==Number.POSITIVE_INFINITY||a==Number.NEGATIVE_INFINITY)}
-function wb(a){if("complete"===document.readyState)a();else{var b=!1,c=function(){document.body?b||(b=!0,a()):setTimeout(c,Math.floor(10))};document.addEventListener?(document.addEventListener("DOMContentLoaded",c,!1),window.addEventListener("load",c,!1)):document.attachEvent&&(document.attachEvent("onreadystatechange",function(){"complete"===document.readyState&&c()}),window.attachEvent("onload",c))}}
-function xb(a,b){if(a===b)return 0;if("[MIN_NAME]"===a||"[MAX_NAME]"===b)return-1;if("[MIN_NAME]"===b||"[MAX_NAME]"===a)return 1;var c=yb(a),d=yb(b);return null!==c?null!==d?0==c-d?a.length-b.length:c-d:-1:null!==d?1:a<b?-1:1}function zb(a,b){if(b&&a in b)return b[a];throw Error("Missing required key ("+a+") in object: "+t(b));}
-function Ab(a){if("object"!==typeof a||null===a)return t(a);var b=[],c;for(c in a)b.push(c);b.sort();c="{";for(var d=0;d<b.length;d++)0!==d&&(c+=","),c+=t(b[d]),c+=":",c+=Ab(a[b[d]]);return c+"}"}function Bb(a,b){if(a.length<=b)return[a];for(var c=[],d=0;d<a.length;d+=b)d+b>a?c.push(a.substring(d,a.length)):c.push(a.substring(d,d+b));return c}function Cb(a,b){if(ea(a))for(var c=0;c<a.length;++c)b(c,a[c]);else A(a,b)}
-function Db(a){x(!vb(a),"Invalid JSON number");var b,c,d,e;0===a?(d=c=0,b=-Infinity===1/a?1:0):(b=0>a,a=Math.abs(a),a>=Math.pow(2,-1022)?(d=Math.min(Math.floor(Math.log(a)/Math.LN2),1023),c=d+1023,d=Math.round(a*Math.pow(2,52-d)-Math.pow(2,52))):(c=0,d=Math.round(a/Math.pow(2,-1074))));e=[];for(a=52;a;a-=1)e.push(d%2?1:0),d=Math.floor(d/2);for(a=11;a;a-=1)e.push(c%2?1:0),c=Math.floor(c/2);e.push(b?1:0);e.reverse();b=e.join("");c="";for(a=0;64>a;a+=8)d=parseInt(b.substr(a,8),2).toString(16),1===d.length&&
-(d="0"+d),c+=d;return c.toLowerCase()}var Eb=/^-?\d{1,10}$/;function yb(a){return Eb.test(a)&&(a=Number(a),-2147483648<=a&&2147483647>=a)?a:null}function Fb(a){try{a()}catch(b){setTimeout(function(){throw b;},Math.floor(0))}}function B(a,b){if(ha(a)){var c=Array.prototype.slice.call(arguments,1).slice();Fb(function(){a.apply(null,c)})}};function Gb(a,b,c,d){this.me=b;this.Ld=c;this.Rc=d;this.nd=a}Gb.prototype.Rb=function(){var a=this.Ld.hc();return"value"===this.nd?a.path:a.parent().path};Gb.prototype.oe=function(){return this.nd};Gb.prototype.Pb=function(){return this.me.Pb(this)};Gb.prototype.toString=function(){return this.Rb().toString()+":"+this.nd+":"+t(this.Ld.Xe())};function Hb(a,b,c){this.me=a;this.error=b;this.path=c}Hb.prototype.Rb=function(){return this.path};Hb.prototype.oe=function(){return"cancel"};
-Hb.prototype.Pb=function(){return this.me.Pb(this)};Hb.prototype.toString=function(){return this.path.toString()+":cancel"};function Ib(a,b,c){this.Kb=a;this.mb=b;this.vc=c||null}h=Ib.prototype;h.pf=function(a){return"value"===a};h.createEvent=function(a,b){var c=b.w.m;return new Gb("value",this,new C(a.Wa,b.hc(),c))};h.Pb=function(a){var b=this.vc;if("cancel"===a.oe()){x(this.mb,"Raising a cancel event on a listener with no cancel callback");var c=this.mb;return function(){c.call(b,a.error)}}var d=this.Kb;return function(){d.call(b,a.Ld)}};h.Te=function(a,b){return this.mb?new Hb(this,a,b):null};
-h.matches=function(a){return a instanceof Ib&&(!a.Kb||!this.Kb||a.Kb===this.Kb)&&a.vc===this.vc};h.cf=function(){return null!==this.Kb};function Jb(a,b,c){this.ba=a;this.mb=b;this.vc=c}h=Jb.prototype;h.pf=function(a){a="children_added"===a?"child_added":a;return("children_removed"===a?"child_removed":a)in this.ba};h.Te=function(a,b){return this.mb?new Hb(this,a,b):null};h.createEvent=function(a,b){var c=b.hc().k(a.nb);return new Gb(a.type,this,new C(a.Wa,c,b.w.m),a.Rc)};
-h.Pb=function(a){var b=this.vc;if("cancel"===a.oe()){x(this.mb,"Raising a cancel event on a listener with no cancel callback");var c=this.mb;return function(){c.call(b,a.error)}}var d=this.ba[a.nd];return function(){d.call(b,a.Ld,a.Rc)}};h.matches=function(a){if(a instanceof Jb){if(this.ba&&a.ba){var b=Kb(a.ba);if(b===Kb(this.ba)){if(1===b){var b=Lb(a.ba),c=Lb(this.ba);return c===b&&(!a.ba[b]||!this.ba[c]||a.ba[b]===this.ba[c])}return Mb(this.ba,function(b,c){return a.ba[c]===b})}return!1}return!0}return!1};
-h.cf=function(){return null!==this.ba};function mb(a){for(var b=[],c=0,d=0;d<a.length;d++){var e=a.charCodeAt(d);55296<=e&&56319>=e&&(e-=55296,d++,x(d<a.length,"Surrogate pair missing trail surrogate."),e=65536+(e<<10)+(a.charCodeAt(d)-56320));128>e?b[c++]=e:(2048>e?b[c++]=e>>6|192:(65536>e?b[c++]=e>>12|224:(b[c++]=e>>18|240,b[c++]=e>>12&63|128),b[c++]=e>>6&63|128),b[c++]=e&63|128)}return b};function D(a,b,c,d){var e;d<b?e="at least "+b:d>c&&(e=0===c?"none":"no more than "+c);if(e)throw Error(a+" failed: Was called with "+d+(1===d?" argument.":" arguments.")+" Expects "+e+".");}function E(a,b,c){var d="";switch(b){case 1:d=c?"first":"First";break;case 2:d=c?"second":"Second";break;case 3:d=c?"third":"Third";break;case 4:d=c?"fourth":"Fourth";break;default:throw Error("errorPrefix called with argumentNumber > 4.  Need to update it?");}return a=a+" failed: "+(d+" argument ")}
-function F(a,b,c,d){if((!d||n(c))&&!ha(c))throw Error(E(a,b,d)+"must be a valid function.");}function Nb(a,b,c){if(n(c)&&(!ia(c)||null===c))throw Error(E(a,b,!0)+"must be a valid context object.");};var Ob=/[\[\].#$\/\u0000-\u001F\u007F]/,Pb=/[\[\].#$\u0000-\u001F\u007F]/;function Qb(a){return p(a)&&0!==a.length&&!Ob.test(a)}function Rb(a){return null===a||p(a)||ga(a)&&!vb(a)||ia(a)&&u(a,".sv")}function Sb(a,b,c){c&&!n(b)||Tb(E(a,1,c),b)}
-function Tb(a,b,c,d){c||(c=0);d=d||[];if(!n(b))throw Error(a+"contains undefined"+Ub(d));if(ha(b))throw Error(a+"contains a function"+Ub(d)+" with contents: "+b.toString());if(vb(b))throw Error(a+"contains "+b.toString()+Ub(d));if(1E3<c)throw new TypeError(a+"contains a cyclic object value ("+d.slice(0,100).join(".")+"...)");if(p(b)&&b.length>10485760/3&&10485760<mb(b).length)throw Error(a+"contains a string greater than 10485760 utf8 bytes"+Ub(d)+" ('"+b.substring(0,50)+"...')");if(ia(b))for(var e in b)if(u(b,
-e)){var f=b[e];if(".priority"!==e&&".value"!==e&&".sv"!==e&&!Qb(e))throw Error(a+" contains an invalid key ("+e+")"+Ub(d)+'.  Keys must be non-empty strings and can\'t contain ".", "#", "$", "/", "[", or "]"');d.push(e);Tb(a,f,c+1,d);d.pop()}}function Ub(a){return 0==a.length?"":" in property '"+a.join(".")+"'"}function Vb(a,b){if(!ia(b)||ea(b))throw Error(E(a,1,!1)+" must be an Object containing the children to replace.");Sb(a,b,!1)}
-function Wb(a,b,c){if(vb(c))throw Error(E(a,b,!1)+"is "+c.toString()+", but must be a valid Firebase priority (a string, finite number, server value, or null).");if(!Rb(c))throw Error(E(a,b,!1)+"must be a valid Firebase priority (a string, finite number, server value, or null).");}
-function Xb(a,b,c){if(!c||n(b))switch(b){case "value":case "child_added":case "child_removed":case "child_changed":case "child_moved":break;default:throw Error(E(a,1,c)+'must be a valid event type: "value", "child_added", "child_removed", "child_changed", or "child_moved".');}}function Yb(a,b,c,d){if((!d||n(c))&&!Qb(c))throw Error(E(a,b,d)+'was an invalid key: "'+c+'".  Firebase keys must be non-empty strings and can\'t contain ".", "#", "$", "/", "[", or "]").');}
-function Zb(a,b){if(!p(b)||0===b.length||Pb.test(b))throw Error(E(a,1,!1)+'was an invalid path: "'+b+'". Paths must be non-empty strings and can\'t contain ".", "#", "$", "[", or "]"');}function $b(a,b){if(".info"===G(b))throw Error(a+" failed: Can't modify data under /.info/");}function ac(a,b){if(!p(b))throw Error(E(a,1,!1)+"must be a valid credential (a string).");}function bc(a,b,c){if(!p(c))throw Error(E(a,b,!1)+"must be a valid string.");}
-function cc(a,b,c,d){if(!d||n(c))if(!ia(c)||null===c)throw Error(E(a,b,d)+"must be a valid object.");}function dc(a,b,c){if(!ia(b)||null===b||!u(b,c))throw Error(E(a,1,!1)+'must contain the key "'+c+'"');if(!p(v(b,c)))throw Error(E(a,1,!1)+'must contain the key "'+c+'" with type "string"');};function ec(a,b){return xb(a.name,b.name)}function fc(a,b){return xb(a,b)};function gc(){}var hc={};function H(a){return q(a.compare,a)}gc.prototype.df=function(a,b){return 0!==this.compare(new I("[MIN_NAME]",a),new I("[MIN_NAME]",b))};gc.prototype.Ae=function(){return ic};function jc(a){this.Vb=a}na(jc,gc);h=jc.prototype;h.se=function(a){return!a.B(this.Vb).e()};h.compare=function(a,b){var c=a.K.B(this.Vb),d=b.K.B(this.Vb),c=c.he(d);return 0===c?xb(a.name,b.name):c};h.ye=function(a,b){var c=J(a),c=K.I(this.Vb,c);return new I(b,c)};
-h.ze=function(){var a=K.I(this.Vb,kc);return new I("[MAX_NAME]",a)};h.toString=function(){return this.Vb};var L=new jc(".priority");function lc(){}na(lc,gc);h=lc.prototype;h.compare=function(a,b){return xb(a.name,b.name)};h.se=function(){throw ib("KeyIndex.isDefinedOn not expected to be called.");};h.df=function(){return!1};h.Ae=function(){return ic};h.ze=function(){return new I("[MAX_NAME]",K)};h.ye=function(a){x(p(a),"KeyIndex indexValue must always be a string.");return new I(a,K)};
-h.toString=function(){return".key"};var mc=new lc;function nc(){this.yc=this.na=this.nc=this.ga=this.ka=!1;this.xb=0;this.Hb="";this.Bc=null;this.Xb="";this.Ac=null;this.Ub="";this.m=L}var oc=new nc;function pc(a){x(a.ga,"Only valid if start has been set");return a.Bc}function qc(a){x(a.ga,"Only valid if start has been set");return a.nc?a.Xb:"[MIN_NAME]"}function rc(a){x(a.na,"Only valid if end has been set");return a.Ac}function sc(a){x(a.na,"Only valid if end has been set");return a.yc?a.Ub:"[MAX_NAME]"}
-function tc(a){x(a.ka,"Only valid if limit has been set");return a.xb}function uc(a){var b=new nc;b.ka=a.ka;b.xb=a.xb;b.ga=a.ga;b.Bc=a.Bc;b.nc=a.nc;b.Xb=a.Xb;b.na=a.na;b.Ac=a.Ac;b.yc=a.yc;b.Ub=a.Ub;b.m=a.m;return b}h=nc.prototype;h.ve=function(a){var b=uc(this);b.ka=!0;b.xb=a;b.Hb="";return b};h.we=function(a){var b=uc(this);b.ka=!0;b.xb=a;b.Hb="l";return b};h.xe=function(a){var b=uc(this);b.ka=!0;b.xb=a;b.Hb="r";return b};
-h.Md=function(a,b){var c=uc(this);c.ga=!0;c.Bc=a;null!=b?(c.nc=!0,c.Xb=b):(c.nc=!1,c.Xb="");return c};h.md=function(a,b){var c=uc(this);c.na=!0;c.Ac=a;n(b)?(c.yc=!0,c.Ub=b):(c.Dg=!1,c.Ub="");return c};function vc(a,b){var c=uc(a);c.m=b;return c}function wc(a){return!(a.ga||a.na||a.ka)};function M(a,b,c,d){this.g=a;this.path=b;this.w=c;this.dc=d}
-function xc(a){var b=null,c=null;a.ga&&(b=pc(a));a.na&&(c=rc(a));if(a.m===mc){if(a.ga){if("[MIN_NAME]"!=qc(a))throw Error("Query: When ordering by key, you may only pass one argument to startAt(), endAt(), or equalTo().");if(null!=b&&"string"!==typeof b)throw Error("Query: When ordering by key, the argument passed to startAt(), endAt(),or equalTo() must be a string.");}if(a.na){if("[MAX_NAME]"!=sc(a))throw Error("Query: When ordering by key, you may only pass one argument to startAt(), endAt(), or equalTo().");if(null!=
-c&&"string"!==typeof c)throw Error("Query: When ordering by key, the argument passed to startAt(), endAt(),or equalTo() must be a string.");}}else if(a.m===L){if(null!=b&&!Rb(b)||null!=c&&!Rb(c))throw Error("Query: When ordering by priority, the first argument passed to startAt(), endAt(), or equalTo() must be a valid priority value (null, a number, or a string).");}else if(x(a.m instanceof jc,"unknown index type."),null!=b&&"object"===typeof b||null!=c&&"object"===typeof c)throw Error("Query: First argument passed to startAt(), endAt(), or equalTo() cannot be an object.");
-}function yc(a){if(a.ga&&a.na&&a.ka&&(!a.ka||""===a.Hb))throw Error("Query: Can't combine startAt(), endAt(), and limit(). Use limitToFirst() or limitToLast() instead.");}function zc(a,b){if(!0===a.dc)throw Error(b+": You can't combine multiple orderBy calls.");}M.prototype.hc=function(){D("Query.ref",0,0,arguments.length);return new O(this.g,this.path)};M.prototype.ref=M.prototype.hc;
-M.prototype.zb=function(a,b,c,d){D("Query.on",2,4,arguments.length);Xb("Query.on",a,!1);F("Query.on",2,b,!1);var e=Ac("Query.on",c,d);if("value"===a)Bc(this.g,this,new Ib(b,e.cancel||null,e.Ha||null));else{var f={};f[a]=b;Bc(this.g,this,new Jb(f,e.cancel,e.Ha))}return b};M.prototype.on=M.prototype.zb;
-M.prototype.bc=function(a,b,c){D("Query.off",0,3,arguments.length);Xb("Query.off",a,!0);F("Query.off",2,b,!0);Nb("Query.off",3,c);var d=null,e=null;"value"===a?d=new Ib(b||null,null,c||null):a&&(b&&(e={},e[a]=b),d=new Jb(e,null,c||null));e=this.g;d=".info"===G(this.path)?e.ud.hb(this,d):e.M.hb(this,d);Cc(e.Z,this.path,d)};M.prototype.off=M.prototype.bc;
-M.prototype.gg=function(a,b){function c(g){f&&(f=!1,e.bc(a,c),b.call(d.Ha,g))}D("Query.once",2,4,arguments.length);Xb("Query.once",a,!1);F("Query.once",2,b,!1);var d=Ac("Query.once",arguments[2],arguments[3]),e=this,f=!0;this.zb(a,c,function(b){e.bc(a,c);d.cancel&&d.cancel.call(d.Ha,b)})};M.prototype.once=M.prototype.gg;
-M.prototype.ve=function(a){z("Query.limit() being deprecated. Please use Query.limitToFirst() or Query.limitToLast() instead.");D("Query.limit",1,1,arguments.length);if(!ga(a)||Math.floor(a)!==a||0>=a)throw Error("Query.limit: First argument must be a positive integer.");if(this.w.ka)throw Error("Query.limit: Limit was already set (by another call to limit, limitToFirst, orlimitToLast.");var b=this.w.ve(a);yc(b);return new M(this.g,this.path,b,this.dc)};M.prototype.limit=M.prototype.ve;
-M.prototype.we=function(a){D("Query.limitToFirst",1,1,arguments.length);if(!ga(a)||Math.floor(a)!==a||0>=a)throw Error("Query.limitToFirst: First argument must be a positive integer.");if(this.w.ka)throw Error("Query.limitToFirst: Limit was already set (by another call to limit, limitToFirst, or limitToLast).");return new M(this.g,this.path,this.w.we(a),this.dc)};M.prototype.limitToFirst=M.prototype.we;
-M.prototype.xe=function(a){D("Query.limitToLast",1,1,arguments.length);if(!ga(a)||Math.floor(a)!==a||0>=a)throw Error("Query.limitToLast: First argument must be a positive integer.");if(this.w.ka)throw Error("Query.limitToLast: Limit was already set (by another call to limit, limitToFirst, or limitToLast).");return new M(this.g,this.path,this.w.xe(a),this.dc)};M.prototype.limitToLast=M.prototype.xe;
-M.prototype.hg=function(a){D("Query.orderByChild",1,1,arguments.length);if("$key"===a)throw Error('Query.orderByChild: "$key" is invalid.  Use Query.orderByKey() instead.');if("$priority"===a)throw Error('Query.orderByChild: "$priority" is invalid.  Use Query.orderByPriority() instead.');Yb("Query.orderByChild",1,a,!1);zc(this,"Query.orderByChild");var b=vc(this.w,new jc(a));xc(b);return new M(this.g,this.path,b,!0)};M.prototype.orderByChild=M.prototype.hg;
-M.prototype.ig=function(){D("Query.orderByKey",0,0,arguments.length);zc(this,"Query.orderByKey");var a=vc(this.w,mc);xc(a);return new M(this.g,this.path,a,!0)};M.prototype.orderByKey=M.prototype.ig;M.prototype.jg=function(){D("Query.orderByPriority",0,0,arguments.length);zc(this,"Query.orderByPriority");var a=vc(this.w,L);xc(a);return new M(this.g,this.path,a,!0)};M.prototype.orderByPriority=M.prototype.jg;
-M.prototype.Md=function(a,b){D("Query.startAt",0,2,arguments.length);Sb("Query.startAt",a,!0);Yb("Query.startAt",2,b,!0);var c=this.w.Md(a,b);yc(c);xc(c);if(this.w.ga)throw Error("Query.startAt: Starting point was already set (by another call to startAt or equalTo).");n(a)||(b=a=null);return new M(this.g,this.path,c,this.dc)};M.prototype.startAt=M.prototype.Md;
-M.prototype.md=function(a,b){D("Query.endAt",0,2,arguments.length);Sb("Query.endAt",a,!0);Yb("Query.endAt",2,b,!0);var c=this.w.md(a,b);yc(c);xc(c);if(this.w.na)throw Error("Query.endAt: Ending point was already set (by another call to endAt or equalTo).");return new M(this.g,this.path,c,this.dc)};M.prototype.endAt=M.prototype.md;
-M.prototype.Of=function(a,b){D("Query.equalTo",1,2,arguments.length);Sb("Query.equalTo",a,!1);Yb("Query.equalTo",2,b,!0);if(this.w.ga)throw Error("Query.equalTo: Starting point was already set (by another call to endAt or equalTo).");if(this.w.na)throw Error("Query.equalTo: Ending point was already set (by another call to endAt or equalTo).");return this.Md(a,b).md(a,b)};M.prototype.equalTo=M.prototype.Of;
-function Dc(a){a=a.w;var b={};a.ga&&(b.sp=a.Bc,a.nc&&(b.sn=a.Xb));a.na&&(b.ep=a.Ac,a.yc&&(b.en=a.Ub));if(a.ka){b.l=a.xb;var c=a.Hb;""===c&&(c=a.ga?"l":"r");b.vf=c}a.m!==L&&(b.i=a.m.toString());return b}M.prototype.Da=function(){var a=Ab(Dc(this));return"{}"===a?"default":a};
-function Ac(a,b,c){var d={cancel:null,Ha:null};if(b&&c)d.cancel=b,F(a,3,d.cancel,!0),d.Ha=c,Nb(a,4,d.Ha);else if(b)if("object"===typeof b&&null!==b)d.Ha=b;else if("function"===typeof b)d.cancel=b;else throw Error(E(a,3,!0)+" must either be a cancel callback or a context object.");return d};function P(a,b){if(1==arguments.length){this.n=a.split("/");for(var c=0,d=0;d<this.n.length;d++)0<this.n[d].length&&(this.n[c]=this.n[d],c++);this.n.length=c;this.aa=0}else this.n=a,this.aa=b}function G(a){return a.aa>=a.n.length?null:a.n[a.aa]}function Q(a){return a.n.length-a.aa}function R(a){var b=a.aa;b<a.n.length&&b++;return new P(a.n,b)}P.prototype.toString=function(){for(var a="",b=this.aa;b<this.n.length;b++)""!==this.n[b]&&(a+="/"+this.n[b]);return a||"/"};
-P.prototype.parent=function(){if(this.aa>=this.n.length)return null;for(var a=[],b=this.aa;b<this.n.length-1;b++)a.push(this.n[b]);return new P(a,0)};P.prototype.k=function(a){for(var b=[],c=this.aa;c<this.n.length;c++)b.push(this.n[c]);if(a instanceof P)for(c=a.aa;c<a.n.length;c++)b.push(a.n[c]);else for(a=a.split("/"),c=0;c<a.length;c++)0<a[c].length&&b.push(a[c]);return new P(b,0)};P.prototype.e=function(){return this.aa>=this.n.length};var S=new P("");
-function T(a,b){var c=G(a);if(null===c)return b;if(c===G(b))return T(R(a),R(b));throw Error("INTERNAL ERROR: innerPath ("+b+") is not within outerPath ("+a+")");}P.prototype.ja=function(a){if(Q(this)!==Q(a))return!1;for(var b=this.aa,c=a.aa;b<=this.n.length;b++,c++)if(this.n[b]!==a.n[c])return!1;return!0};P.prototype.contains=function(a){var b=this.aa,c=a.aa;if(Q(this)>Q(a))return!1;for(;b<this.n.length;){if(this.n[b]!==a.n[c])return!1;++b;++c}return!0};function Ec(){this.children={};this.dd=0;this.value=null}function Fc(a,b,c){this.yd=a?a:"";this.Oc=b?b:null;this.D=c?c:new Ec}function Gc(a,b){for(var c=b instanceof P?b:new P(b),d=a,e;null!==(e=G(c));)d=new Fc(e,d,v(d.D.children,e)||new Ec),c=R(c);return d}h=Fc.prototype;h.ta=function(){return this.D.value};function Hc(a,b){x("undefined"!==typeof b,"Cannot set value to undefined");a.D.value=b;Ic(a)}h.clear=function(){this.D.value=null;this.D.children={};this.D.dd=0;Ic(this)};
-h.pd=function(){return 0<this.D.dd};h.e=function(){return null===this.ta()&&!this.pd()};h.ca=function(a){var b=this;A(this.D.children,function(c,d){a(new Fc(d,b,c))})};function Jc(a,b,c,d){c&&!d&&b(a);a.ca(function(a){Jc(a,b,!0,d)});c&&d&&b(a)}function Kc(a,b){for(var c=a.parent();null!==c&&!b(c);)c=c.parent()}h.path=function(){return new P(null===this.Oc?this.yd:this.Oc.path()+"/"+this.yd)};h.name=function(){return this.yd};h.parent=function(){return this.Oc};
-function Ic(a){if(null!==a.Oc){var b=a.Oc,c=a.yd,d=a.e(),e=u(b.D.children,c);d&&e?(delete b.D.children[c],b.D.dd--,Ic(b)):d||e||(b.D.children[c]=a.D,b.D.dd++,Ic(b))}};function Lc(a,b){this.Ga=a;this.pa=b?b:Mc}h=Lc.prototype;h.Ja=function(a,b){return new Lc(this.Ga,this.pa.Ja(a,b,this.Ga).W(null,null,!1,null,null))};h.remove=function(a){return new Lc(this.Ga,this.pa.remove(a,this.Ga).W(null,null,!1,null,null))};h.get=function(a){for(var b,c=this.pa;!c.e();){b=this.Ga(a,c.key);if(0===b)return c.value;0>b?c=c.left:0<b&&(c=c.right)}return null};
-function Nc(a,b){for(var c,d=a.pa,e=null;!d.e();){c=a.Ga(b,d.key);if(0===c){if(d.left.e())return e?e.key:null;for(d=d.left;!d.right.e();)d=d.right;return d.key}0>c?d=d.left:0<c&&(e=d,d=d.right)}throw Error("Attempted to find predecessor key for a nonexistent key.  What gives?");}h.e=function(){return this.pa.e()};h.count=function(){return this.pa.count()};h.Ic=function(){return this.pa.Ic()};h.Zb=function(){return this.pa.Zb()};h.Ba=function(a){return this.pa.Ba(a)};
-h.Aa=function(a){return new Oc(this.pa,null,this.Ga,!1,a)};h.rb=function(a,b){return new Oc(this.pa,a,this.Ga,!1,b)};h.Sb=function(a,b){return new Oc(this.pa,a,this.Ga,!0,b)};h.bf=function(a){return new Oc(this.pa,null,this.Ga,!0,a)};function Oc(a,b,c,d,e){this.qf=e||null;this.te=d;this.ac=[];for(e=1;!a.e();)if(e=b?c(a.key,b):1,d&&(e*=-1),0>e)a=this.te?a.left:a.right;else if(0===e){this.ac.push(a);break}else this.ac.push(a),a=this.te?a.right:a.left}
-function U(a){if(0===a.ac.length)return null;var b=a.ac.pop(),c;c=a.qf?a.qf(b.key,b.value):{key:b.key,value:b.value};if(a.te)for(b=b.left;!b.e();)a.ac.push(b),b=b.right;else for(b=b.right;!b.e();)a.ac.push(b),b=b.left;return c}function Pc(a,b,c,d,e){this.key=a;this.value=b;this.color=null!=c?c:!0;this.left=null!=d?d:Mc;this.right=null!=e?e:Mc}h=Pc.prototype;h.W=function(a,b,c,d,e){return new Pc(null!=a?a:this.key,null!=b?b:this.value,null!=c?c:this.color,null!=d?d:this.left,null!=e?e:this.right)};
-h.count=function(){return this.left.count()+1+this.right.count()};h.e=function(){return!1};h.Ba=function(a){return this.left.Ba(a)||a(this.key,this.value)||this.right.Ba(a)};function Qc(a){return a.left.e()?a:Qc(a.left)}h.Ic=function(){return Qc(this).key};h.Zb=function(){return this.right.e()?this.key:this.right.Zb()};h.Ja=function(a,b,c){var d,e;e=this;d=c(a,e.key);e=0>d?e.W(null,null,null,e.left.Ja(a,b,c),null):0===d?e.W(null,b,null,null,null):e.W(null,null,null,null,e.right.Ja(a,b,c));return Rc(e)};
-function Sc(a){if(a.left.e())return Mc;a.left.$()||a.left.left.$()||(a=Tc(a));a=a.W(null,null,null,Sc(a.left),null);return Rc(a)}
-h.remove=function(a,b){var c,d;c=this;if(0>b(a,c.key))c.left.e()||c.left.$()||c.left.left.$()||(c=Tc(c)),c=c.W(null,null,null,c.left.remove(a,b),null);else{c.left.$()&&(c=Uc(c));c.right.e()||c.right.$()||c.right.left.$()||(c=Vc(c),c.left.left.$()&&(c=Uc(c),c=Vc(c)));if(0===b(a,c.key)){if(c.right.e())return Mc;d=Qc(c.right);c=c.W(d.key,d.value,null,null,Sc(c.right))}c=c.W(null,null,null,null,c.right.remove(a,b))}return Rc(c)};h.$=function(){return this.color};
-function Rc(a){a.right.$()&&!a.left.$()&&(a=Wc(a));a.left.$()&&a.left.left.$()&&(a=Uc(a));a.left.$()&&a.right.$()&&(a=Vc(a));return a}function Tc(a){a=Vc(a);a.right.left.$()&&(a=a.W(null,null,null,null,Uc(a.right)),a=Wc(a),a=Vc(a));return a}function Wc(a){return a.right.W(null,null,a.color,a.W(null,null,!0,null,a.right.left),null)}function Uc(a){return a.left.W(null,null,a.color,null,a.W(null,null,!0,a.left.right,null))}
-function Vc(a){return a.W(null,null,!a.color,a.left.W(null,null,!a.left.color,null,null),a.right.W(null,null,!a.right.color,null,null))}function Xc(){}h=Xc.prototype;h.W=function(){return this};h.Ja=function(a,b){return new Pc(a,b,null)};h.remove=function(){return this};h.count=function(){return 0};h.e=function(){return!0};h.Ba=function(){return!1};h.Ic=function(){return null};h.Zb=function(){return null};h.$=function(){return!1};var Mc=new Xc;function I(a,b){this.name=a;this.K=b}function Yc(a,b){return new I(a,b)};function Zc(a,b){this.A=a;x(null!==this.A,"LeafNode shouldn't be created with null value.");this.fa=b||K;$c(this.fa);this.wb=null}h=Zc.prototype;h.P=function(){return!0};h.O=function(){return this.fa};h.ib=function(a){return new Zc(this.A,a)};h.B=function(a){return".priority"===a?this.fa:K};h.da=function(a){return a.e()?this:".priority"===G(a)?this.fa:K};h.Y=function(){return!1};h.af=function(){return null};h.I=function(a,b){return".priority"===a?this.ib(b):K.I(a,b).ib(this.fa)};
-h.L=function(a,b){var c=G(a);if(null===c)return b;x(".priority"!==c||1===Q(a),".priority must be the last token in a path");return this.I(c,K.L(R(a),b))};h.e=function(){return!1};h.Ua=function(){return 0};h.N=function(a){return a&&!this.O().e()?{".value":this.ta(),".priority":this.O().N()}:this.ta()};h.hash=function(){if(null===this.wb){var a="";this.fa.e()||(a+="priority:"+ad(this.fa.N())+":");var b=typeof this.A,a=a+(b+":"),a="number"===b?a+Db(this.A):a+this.A;this.wb=lb(a)}return this.wb};
-h.ta=function(){return this.A};h.he=function(a){if(a===K)return 1;if(a instanceof bd)return-1;x(a.P(),"Unknown node type");var b=typeof a.A,c=typeof this.A,d=Ia(cd,b),e=Ia(cd,c);x(0<=d,"Unknown leaf type: "+b);x(0<=e,"Unknown leaf type: "+c);return d===e?"object"===c?0:this.A<a.A?-1:this.A===a.A?0:1:e-d};var cd=["object","boolean","number","string"];Zc.prototype.Wd=function(){return this};Zc.prototype.Yb=function(){return!0};
-Zc.prototype.ja=function(a){return a===this?!0:a.P()?this.A===a.A&&this.fa.ja(a.fa):!1};Zc.prototype.toString=function(){return"string"===typeof this.A?this.A:'"'+this.A+'"'};function dd(a,b){this.td=a;this.Wb=b}dd.prototype.get=function(a){var b=v(this.td,a);if(!b)throw Error("No index defined for "+a);return b===hc?null:b};function ed(a,b,c){var d=fd(a.td,function(d,f){var g=v(a.Wb,f);x(g,"Missing index implementation for "+f);if(d===hc){if(g.se(b.K)){for(var k=[],l=c.Aa(Yc),m=U(l);m;)m.name!=b.name&&k.push(m),m=U(l);k.push(b);return gd(k,H(g))}return hc}g=c.get(b.name);k=d;g&&(k=k.remove(new I(b.name,g)));return k.Ja(b,b.K)});return new dd(d,a.Wb)}
-function hd(a,b,c){var d=fd(a.td,function(a){if(a===hc)return a;var d=c.get(b.name);return d?a.remove(new I(b.name,d)):a});return new dd(d,a.Wb)}var id=new dd({".priority":hc},{".priority":L});function bd(a,b,c){this.j=a;(this.fa=b)&&$c(this.fa);this.sb=c;this.wb=null}h=bd.prototype;h.P=function(){return!1};h.O=function(){return this.fa||K};h.ib=function(a){return new bd(this.j,a,this.sb)};h.B=function(a){if(".priority"===a)return this.O();a=this.j.get(a);return null===a?K:a};h.da=function(a){var b=G(a);return null===b?this:this.B(b).da(R(a))};h.Y=function(a){return null!==this.j.get(a)};
-h.I=function(a,b){x(b,"We should always be passing snapshot nodes");if(".priority"===a)return this.ib(b);var c=new I(a,b),d;b.e()?(d=this.j.remove(a),c=hd(this.sb,c,this.j)):(d=this.j.Ja(a,b),c=ed(this.sb,c,this.j));return new bd(d,this.fa,c)};h.L=function(a,b){var c=G(a);if(null===c)return b;x(".priority"!==G(a)||1===Q(a),".priority must be the last token in a path");var d=this.B(c).L(R(a),b);return this.I(c,d)};h.e=function(){return this.j.e()};h.Ua=function(){return this.j.count()};var jd=/^(0|[1-9]\d*)$/;
-h=bd.prototype;h.N=function(a){if(this.e())return null;var b={},c=0,d=0,e=!0;this.ca(L,function(f,g){b[f]=g.N(a);c++;e&&jd.test(f)?d=Math.max(d,Number(f)):e=!1});if(!a&&e&&d<2*c){var f=[],g;for(g in b)f[g]=b[g];return f}a&&!this.O().e()&&(b[".priority"]=this.O().N());return b};h.hash=function(){if(null===this.wb){var a="";this.O().e()||(a+="priority:"+ad(this.O().N())+":");this.ca(L,function(b,c){var d=c.hash();""!==d&&(a+=":"+b+":"+d)});this.wb=""===a?"":lb(a)}return this.wb};
-h.af=function(a,b,c){return(c=kd(this,c))?(a=Nc(c,new I(a,b)))?a.name:null:Nc(this.j,a)};function ld(a,b){var c;c=(c=kd(a,b))?(c=c.Ic())&&c.name:a.j.Ic();return c?new I(c,a.j.get(c)):null}function md(a,b){var c;c=(c=kd(a,b))?(c=c.Zb())&&c.name:a.j.Zb();return c?new I(c,a.j.get(c)):null}h.ca=function(a,b){var c=kd(this,a);return c?c.Ba(function(a){return b(a.name,a.K)}):this.j.Ba(b)};h.Aa=function(a){return this.rb(a.Ae(),a)};
-h.rb=function(a,b){var c=kd(this,b);return c?c.rb(a,function(a){return a}):this.j.rb(a.name,Yc)};h.bf=function(a){return this.Sb(a.ze(),a)};h.Sb=function(a,b){var c=kd(this,b);return c?c.Sb(a,function(a){return a}):this.j.Sb(a.name,Yc)};h.he=function(a){return this.e()?a.e()?0:-1:a.P()||a.e()?1:a===kc?-1:0};
-h.Wd=function(a){if(a===mc||nd(this.sb.Wb,a.toString()))return this;var b=this.sb,c=this.j;x(a!==mc,"KeyIndex always exists and isn't meant to be added to the IndexMap.");for(var d=[],e=!1,c=c.Aa(Yc),f=U(c);f;)e=e||a.se(f.K),d.push(f),f=U(c);d=e?gd(d,H(a)):hc;e=a.toString();c=od(b.Wb);c[e]=a;a=od(b.td);a[e]=d;return new bd(this.j,this.fa,new dd(a,c))};h.Yb=function(a){return a===mc||nd(this.sb.Wb,a.toString())};
-h.ja=function(a){if(a===this)return!0;if(a.P())return!1;if(this.O().ja(a.O())&&this.j.count()===a.j.count()){var b=this.Aa(L);a=a.Aa(L);for(var c=U(b),d=U(a);c&&d;){if(c.name!==d.name||!c.K.ja(d.K))return!1;c=U(b);d=U(a)}return null===c&&null===d}return!1};function kd(a,b){return b===mc?null:a.sb.get(b.toString())}h.toString=function(){var a="{",b=!0;this.ca(L,function(c,d){b?b=!1:a+=", ";a+='"'+c+'" : '+d.toString()});return a+="}"};function J(a,b){if(null===a)return K;var c=null;"object"===typeof a&&".priority"in a?c=a[".priority"]:"undefined"!==typeof b&&(c=b);x(null===c||"string"===typeof c||"number"===typeof c||"object"===typeof c&&".sv"in c,"Invalid priority type found: "+typeof c);"object"===typeof a&&".value"in a&&null!==a[".value"]&&(a=a[".value"]);if("object"!==typeof a||".sv"in a)return new Zc(a,J(c));if(a instanceof Array){var d=K,e=a;A(e,function(a,b){if(u(e,b)&&"."!==b.substring(0,1)){var c=J(a);if(c.P()||!c.e())d=
-d.I(b,c)}});return d.ib(J(c))}var f=[],g=!1,k=a;va(k,function(a){if("string"!==typeof a||"."!==a.substring(0,1)){var b=J(k[a]);b.e()||(g=g||!b.O().e(),f.push(new I(a,b)))}});var l=gd(f,ec,function(a){return a.name},fc);if(g){var m=gd(f,H(L));return new bd(l,J(c),new dd({".priority":m},{".priority":L}))}return new bd(l,J(c),id)}var pd=Math.log(2);function qd(a){this.count=parseInt(Math.log(a+1)/pd,10);this.Ve=this.count-1;this.Jf=a+1&parseInt(Array(this.count+1).join("1"),2)}
-function rd(a){var b=!(a.Jf&1<<a.Ve);a.Ve--;return b}
-function gd(a,b,c,d){function e(b,d){var f=d-b;if(0==f)return null;if(1==f){var m=a[b],r=c?c(m):m;return new Pc(r,m.K,!1,null,null)}var m=parseInt(f/2,10)+b,f=e(b,m),s=e(m+1,d),m=a[m],r=c?c(m):m;return new Pc(r,m.K,!1,f,s)}a.sort(b);var f=function(b){function d(b,g){var k=r-b,s=r;r-=b;var s=e(k+1,s),k=a[k],y=c?c(k):k,s=new Pc(y,k.K,g,null,s);f?f.left=s:m=s;f=s}for(var f=null,m=null,r=a.length,s=0;s<b.count;++s){var y=rd(b),N=Math.pow(2,b.count-(s+1));y?d(N,!1):(d(N,!1),d(N,!0))}return m}(new qd(a.length));
-return null!==f?new Lc(d||b,f):new Lc(d||b)}function ad(a){return"number"===typeof a?"number:"+Db(a):"string:"+a}function $c(a){if(a.P()){var b=a.N();x("string"===typeof b||"number"===typeof b||"object"===typeof b&&u(b,".sv"),"Priority must be a string or number.")}else x(a===kc||a.e(),"priority of unexpected type.");x(a===kc||a.O().e(),"Priority nodes can't have a priority of their own.")}var K=new bd(new Lc(fc),null,id);function sd(){bd.call(this,new Lc(fc),K,id)}na(sd,bd);h=sd.prototype;
-h.he=function(a){return a===this?0:1};h.ja=function(a){return a===this};h.O=function(){throw ib("Why is this called?");};h.B=function(){return K};h.e=function(){return!1};var kc=new sd,ic=new I("[MIN_NAME]",K);function C(a,b,c){this.D=a;this.U=b;this.m=c}C.prototype.N=function(){D("Firebase.DataSnapshot.val",0,0,arguments.length);return this.D.N()};C.prototype.val=C.prototype.N;C.prototype.Xe=function(){D("Firebase.DataSnapshot.exportVal",0,0,arguments.length);return this.D.N(!0)};C.prototype.exportVal=C.prototype.Xe;C.prototype.Qf=function(){D("Firebase.DataSnapshot.exists",0,0,arguments.length);return!this.D.e()};C.prototype.exists=C.prototype.Qf;
-C.prototype.k=function(a){D("Firebase.DataSnapshot.child",0,1,arguments.length);ga(a)&&(a=String(a));Zb("Firebase.DataSnapshot.child",a);var b=new P(a),c=this.U.k(b);return new C(this.D.da(b),c,L)};C.prototype.child=C.prototype.k;C.prototype.Y=function(a){D("Firebase.DataSnapshot.hasChild",1,1,arguments.length);Zb("Firebase.DataSnapshot.hasChild",a);var b=new P(a);return!this.D.da(b).e()};C.prototype.hasChild=C.prototype.Y;
-C.prototype.O=function(){D("Firebase.DataSnapshot.getPriority",0,0,arguments.length);return this.D.O().N()};C.prototype.getPriority=C.prototype.O;C.prototype.forEach=function(a){D("Firebase.DataSnapshot.forEach",1,1,arguments.length);F("Firebase.DataSnapshot.forEach",1,a,!1);if(this.D.P())return!1;var b=this;return!!this.D.ca(this.m,function(c,d){return a(new C(d,b.U.k(c),L))})};C.prototype.forEach=C.prototype.forEach;
-C.prototype.pd=function(){D("Firebase.DataSnapshot.hasChildren",0,0,arguments.length);return this.D.P()?!1:!this.D.e()};C.prototype.hasChildren=C.prototype.pd;C.prototype.name=function(){z("Firebase.DataSnapshot.name() being deprecated. Please use Firebase.DataSnapshot.key() instead.");D("Firebase.DataSnapshot.name",0,0,arguments.length);return this.key()};C.prototype.name=C.prototype.name;C.prototype.key=function(){D("Firebase.DataSnapshot.key",0,0,arguments.length);return this.U.key()};
-C.prototype.key=C.prototype.key;C.prototype.Ua=function(){D("Firebase.DataSnapshot.numChildren",0,0,arguments.length);return this.D.Ua()};C.prototype.numChildren=C.prototype.Ua;C.prototype.hc=function(){D("Firebase.DataSnapshot.ref",0,0,arguments.length);return this.U};C.prototype.ref=C.prototype.hc;function td(a){x(ea(a)&&0<a.length,"Requires a non-empty array");this.Bf=a;this.Gc={}}td.prototype.Td=function(a,b){for(var c=this.Gc[a]||[],d=0;d<c.length;d++)c[d].sc.apply(c[d].Ha,Array.prototype.slice.call(arguments,1))};td.prototype.zb=function(a,b,c){ud(this,a);this.Gc[a]=this.Gc[a]||[];this.Gc[a].push({sc:b,Ha:c});(a=this.pe(a))&&b.apply(c,a)};td.prototype.bc=function(a,b,c){ud(this,a);a=this.Gc[a]||[];for(var d=0;d<a.length;d++)if(a[d].sc===b&&(!c||c===a[d].Ha)){a.splice(d,1);break}};
-function ud(a,b){x(Oa(a.Bf,function(a){return a===b}),"Unknown event: "+b)};function vd(){td.call(this,["visible"]);var a,b;"undefined"!==typeof document&&"undefined"!==typeof document.addEventListener&&("undefined"!==typeof document.hidden?(b="visibilitychange",a="hidden"):"undefined"!==typeof document.mozHidden?(b="mozvisibilitychange",a="mozHidden"):"undefined"!==typeof document.msHidden?(b="msvisibilitychange",a="msHidden"):"undefined"!==typeof document.webkitHidden&&(b="webkitvisibilitychange",a="webkitHidden"));this.qc=!0;if(b){var c=this;document.addEventListener(b,
-function(){var b=!document[a];b!==c.qc&&(c.qc=b,c.Td("visible",b))},!1)}}na(vd,td);ca(vd);vd.prototype.pe=function(a){x("visible"===a,"Unknown event type: "+a);return[this.qc]};function wd(){td.call(this,["online"]);this.Lc=!0;if("undefined"!==typeof window&&"undefined"!==typeof window.addEventListener){var a=this;window.addEventListener("online",function(){a.Lc||a.Td("online",!0);a.Lc=!0},!1);window.addEventListener("offline",function(){a.Lc&&a.Td("online",!1);a.Lc=!1},!1)}}na(wd,td);ca(wd);wd.prototype.pe=function(a){x("online"===a,"Unknown event type: "+a);return[this.Lc]};function A(a,b){for(var c in a)b.call(void 0,a[c],c,a)}function fd(a,b){var c={},d;for(d in a)c[d]=b.call(void 0,a[d],d,a);return c}function Mb(a,b){for(var c in a)if(!b.call(void 0,a[c],c,a))return!1;return!0}function Kb(a){var b=0,c;for(c in a)b++;return b}function Lb(a){for(var b in a)return b}function xd(a){var b=[],c=0,d;for(d in a)b[c++]=a[d];return b}function yd(a){var b=[],c=0,d;for(d in a)b[c++]=d;return b}function nd(a,b){for(var c in a)if(a[c]==b)return!0;return!1}
-function zd(a,b,c){for(var d in a)if(b.call(c,a[d],d,a))return d}function Ad(a,b){var c=zd(a,b,void 0);return c&&a[c]}function Bd(a){for(var b in a)return!1;return!0}function Cd(a,b){return b in a?a[b]:void 0}function od(a){var b={},c;for(c in a)b[c]=a[c];return b}var Dd="constructor hasOwnProperty isPrototypeOf propertyIsEnumerable toLocaleString toString valueOf".split(" ");
-function Ed(a,b){for(var c,d,e=1;e<arguments.length;e++){d=arguments[e];for(c in d)a[c]=d[c];for(var f=0;f<Dd.length;f++)c=Dd[f],Object.prototype.hasOwnProperty.call(d,c)&&(a[c]=d[c])}};function Fd(){this.wc={}}function Gd(a,b,c){n(c)||(c=1);u(a.wc,b)||(a.wc[b]=0);a.wc[b]+=c}Fd.prototype.get=function(){return od(this.wc)};function Hd(a){this.Kf=a;this.vd=null}Hd.prototype.get=function(){var a=this.Kf.get(),b=od(a);if(this.vd)for(var c in this.vd)b[c]-=this.vd[c];this.vd=a;return b};function Id(a,b){this.uf={};this.Nd=new Hd(a);this.S=b;var c=1E4+2E4*Math.random();setTimeout(q(this.nf,this),Math.floor(c))}Id.prototype.nf=function(){var a=this.Nd.get(),b={},c=!1,d;for(d in a)0<a[d]&&u(this.uf,d)&&(b[d]=a[d],c=!0);c&&(a=this.S,a.ia&&(b={c:b},a.f("reportStats",b),a.wa("s",b)));setTimeout(q(this.nf,this),Math.floor(6E5*Math.random()))};var Jd={},Kd={};function Ld(a){a=a.toString();Jd[a]||(Jd[a]=new Fd);return Jd[a]}function Md(a,b){var c=a.toString();Kd[c]||(Kd[c]=b());return Kd[c]};var Nd=null;"undefined"!==typeof MozWebSocket?Nd=MozWebSocket:"undefined"!==typeof WebSocket&&(Nd=WebSocket);function Od(a,b,c){this.ie=a;this.f=rb(this.ie);this.frames=this.Cc=null;this.kb=this.lb=this.Oe=0;this.Qa=Ld(b);this.Za=(b.Cb?"wss://":"ws://")+b.Ka+"/.ws?v=5";"undefined"!==typeof location&&location.href&&-1!==location.href.indexOf("firebaseio.com")&&(this.Za+="&r=f");b.host!==b.Ka&&(this.Za=this.Za+"&ns="+b.yb);c&&(this.Za=this.Za+"&s="+c)}var Pd;
-Od.prototype.open=function(a,b){this.fb=b;this.cg=a;this.f("Websocket connecting to "+this.Za);this.zc=!1;Aa.set("previous_websocket_failure",!0);try{this.oa=new Nd(this.Za)}catch(c){this.f("Error instantiating WebSocket.");var d=c.message||c.data;d&&this.f(d);this.eb();return}var e=this;this.oa.onopen=function(){e.f("Websocket connected.");e.zc=!0};this.oa.onclose=function(){e.f("Websocket connection was disconnected.");e.oa=null;e.eb()};this.oa.onmessage=function(a){if(null!==e.oa)if(a=a.data,e.kb+=
-a.length,Gd(e.Qa,"bytes_received",a.length),Qd(e),null!==e.frames)Rd(e,a);else{a:{x(null===e.frames,"We already have a frame buffer");if(6>=a.length){var b=Number(a);if(!isNaN(b)){e.Oe=b;e.frames=[];a=null;break a}}e.Oe=1;e.frames=[]}null!==a&&Rd(e,a)}};this.oa.onerror=function(a){e.f("WebSocket error.  Closing connection.");(a=a.message||a.data)&&e.f(a);e.eb()}};Od.prototype.start=function(){};
-Od.isAvailable=function(){var a=!1;if("undefined"!==typeof navigator&&navigator.userAgent){var b=navigator.userAgent.match(/Android ([0-9]{0,}\.[0-9]{0,})/);b&&1<b.length&&4.4>parseFloat(b[1])&&(a=!0)}return!a&&null!==Nd&&!Pd};Od.responsesRequiredToBeHealthy=2;Od.healthyTimeout=3E4;h=Od.prototype;h.wd=function(){Aa.remove("previous_websocket_failure")};function Rd(a,b){a.frames.push(b);if(a.frames.length==a.Oe){var c=a.frames.join("");a.frames=null;c=ua(c);a.cg(c)}}
-h.send=function(a){Qd(this);a=t(a);this.lb+=a.length;Gd(this.Qa,"bytes_sent",a.length);a=Bb(a,16384);1<a.length&&this.oa.send(String(a.length));for(var b=0;b<a.length;b++)this.oa.send(a[b])};h.Yc=function(){this.ub=!0;this.Cc&&(clearInterval(this.Cc),this.Cc=null);this.oa&&(this.oa.close(),this.oa=null)};h.eb=function(){this.ub||(this.f("WebSocket is closing itself"),this.Yc(),this.fb&&(this.fb(this.zc),this.fb=null))};h.close=function(){this.ub||(this.f("WebSocket is being closed"),this.Yc())};
-function Qd(a){clearInterval(a.Cc);a.Cc=setInterval(function(){a.oa&&a.oa.send("0");Qd(a)},Math.floor(45E3))};function Sd(a){this.cc=a;this.Fd=[];this.Mb=0;this.ge=-1;this.Ab=null}function Td(a,b,c){a.ge=b;a.Ab=c;a.ge<a.Mb&&(a.Ab(),a.Ab=null)}function Ud(a,b,c){for(a.Fd[b]=c;a.Fd[a.Mb];){var d=a.Fd[a.Mb];delete a.Fd[a.Mb];for(var e=0;e<d.length;++e)if(d[e]){var f=a;Fb(function(){f.cc(d[e])})}if(a.Mb===a.ge){a.Ab&&(clearTimeout(a.Ab),a.Ab(),a.Ab=null);break}a.Mb++}};function Vd(){this.set={}}h=Vd.prototype;h.add=function(a,b){this.set[a]=null!==b?b:!0};h.contains=function(a){return u(this.set,a)};h.get=function(a){return this.contains(a)?this.set[a]:void 0};h.remove=function(a){delete this.set[a]};h.clear=function(){this.set={}};h.e=function(){return Bd(this.set)};h.count=function(){return Kb(this.set)};function Wd(a,b){A(a.set,function(a,d){b(d,a)})};function Xd(a,b,c){this.ie=a;this.f=rb(a);this.kb=this.lb=0;this.Qa=Ld(b);this.Kd=c;this.zc=!1;this.bd=function(a){b.host!==b.Ka&&(a.ns=b.yb);var c=[],f;for(f in a)a.hasOwnProperty(f)&&c.push(f+"="+a[f]);return(b.Cb?"https://":"http://")+b.Ka+"/.lp?"+c.join("&")}}var Yd,Zd;
-Xd.prototype.open=function(a,b){this.Ue=0;this.ea=b;this.gf=new Sd(a);this.ub=!1;var c=this;this.ob=setTimeout(function(){c.f("Timed out trying to connect.");c.eb();c.ob=null},Math.floor(3E4));wb(function(){if(!c.ub){c.Na=new $d(function(a,b,d,k,l){ae(c,arguments);if(c.Na)if(c.ob&&(clearTimeout(c.ob),c.ob=null),c.zc=!0,"start"==a)c.id=b,c.mf=d;else if("close"===a)b?(c.Na.Jd=!1,Td(c.gf,b,function(){c.eb()})):c.eb();else throw Error("Unrecognized command received: "+a);},function(a,b){ae(c,arguments);
-Ud(c.gf,a,b)},function(){c.eb()},c.bd);var a={start:"t"};a.ser=Math.floor(1E8*Math.random());c.Na.Ud&&(a.cb=c.Na.Ud);a.v="5";c.Kd&&(a.s=c.Kd);"undefined"!==typeof location&&location.href&&-1!==location.href.indexOf("firebaseio.com")&&(a.r="f");a=c.bd(a);c.f("Connecting via long-poll to "+a);be(c.Na,a,function(){})}})};
-Xd.prototype.start=function(){var a=this.Na,b=this.mf;a.Xf=this.id;a.Yf=b;for(a.Zd=!0;ce(a););a=this.id;b=this.mf;this.$b=document.createElement("iframe");var c={dframe:"t"};c.id=a;c.pw=b;this.$b.src=this.bd(c);this.$b.style.display="none";document.body.appendChild(this.$b)};Xd.isAvailable=function(){return!Zd&&!("object"===typeof window&&window.chrome&&window.chrome.extension&&!/^chrome/.test(window.location.href))&&!("object"===typeof Windows&&"object"===typeof Windows.zg)&&(Yd||!0)};h=Xd.prototype;
-h.wd=function(){};h.Yc=function(){this.ub=!0;this.Na&&(this.Na.close(),this.Na=null);this.$b&&(document.body.removeChild(this.$b),this.$b=null);this.ob&&(clearTimeout(this.ob),this.ob=null)};h.eb=function(){this.ub||(this.f("Longpoll is closing itself"),this.Yc(),this.ea&&(this.ea(this.zc),this.ea=null))};h.close=function(){this.ub||(this.f("Longpoll is being closed."),this.Yc())};
-h.send=function(a){a=t(a);this.lb+=a.length;Gd(this.Qa,"bytes_sent",a.length);a=mb(a);a=fb(a,!0);a=Bb(a,1840);for(var b=0;b<a.length;b++){var c=this.Na;c.Qc.push({og:this.Ue,wg:a.length,We:a[b]});c.Zd&&ce(c);this.Ue++}};function ae(a,b){var c=t(b).length;a.kb+=c;Gd(a.Qa,"bytes_received",c)}
-function $d(a,b,c,d){this.bd=d;this.fb=c;this.Fe=new Vd;this.Qc=[];this.ke=Math.floor(1E8*Math.random());this.Jd=!0;this.Ud=hb();window["pLPCommand"+this.Ud]=a;window["pRTLPCB"+this.Ud]=b;a=document.createElement("iframe");a.style.display="none";if(document.body){document.body.appendChild(a);try{a.contentWindow.document||kb("No IE domain setting required")}catch(e){a.src="javascript:void((function(){document.open();document.domain='"+document.domain+"';document.close();})())"}}else throw"Document body has not initialized. Wait to initialize Firebase until after the document is ready.";
-a.contentDocument?a.$a=a.contentDocument:a.contentWindow?a.$a=a.contentWindow.document:a.document&&(a.$a=a.document);this.va=a;a="";this.va.src&&"javascript:"===this.va.src.substr(0,11)&&(a='<script>document.domain="'+document.domain+'";\x3c/script>');a="<html><body>"+a+"</body></html>";try{this.va.$a.open(),this.va.$a.write(a),this.va.$a.close()}catch(f){kb("frame writing exception"),f.stack&&kb(f.stack),kb(f)}}
-$d.prototype.close=function(){this.Zd=!1;if(this.va){this.va.$a.body.innerHTML="";var a=this;setTimeout(function(){null!==a.va&&(document.body.removeChild(a.va),a.va=null)},Math.floor(0))}var b=this.fb;b&&(this.fb=null,b())};
-function ce(a){if(a.Zd&&a.Jd&&a.Fe.count()<(0<a.Qc.length?2:1)){a.ke++;var b={};b.id=a.Xf;b.pw=a.Yf;b.ser=a.ke;for(var b=a.bd(b),c="",d=0;0<a.Qc.length;)if(1870>=a.Qc[0].We.length+30+c.length){var e=a.Qc.shift(),c=c+"&seg"+d+"="+e.og+"&ts"+d+"="+e.wg+"&d"+d+"="+e.We;d++}else break;de(a,b+c,a.ke);return!0}return!1}function de(a,b,c){function d(){a.Fe.remove(c);ce(a)}a.Fe.add(c);var e=setTimeout(d,Math.floor(25E3));be(a,b,function(){clearTimeout(e);d()})}
-function be(a,b,c){setTimeout(function(){try{if(a.Jd){var d=a.va.$a.createElement("script");d.type="text/javascript";d.async=!0;d.src=b;d.onload=d.onreadystatechange=function(){var a=d.readyState;a&&"loaded"!==a&&"complete"!==a||(d.onload=d.onreadystatechange=null,d.parentNode&&d.parentNode.removeChild(d),c())};d.onerror=function(){kb("Long-poll script failed to load: "+b);a.Jd=!1;a.close()};a.va.$a.body.appendChild(d)}}catch(e){}},Math.floor(1))};function ee(a){fe(this,a)}var ge=[Xd,Od];function fe(a,b){var c=Od&&Od.isAvailable(),d=c&&!(Aa.ff||!0===Aa.get("previous_websocket_failure"));b.yg&&(c||z("wss:// URL used, but browser isn't known to support websockets.  Trying anyway."),d=!0);if(d)a.$c=[Od];else{var e=a.$c=[];Cb(ge,function(a,b){b&&b.isAvailable()&&e.push(b)})}}function he(a){if(0<a.$c.length)return a.$c[0];throw Error("No transports available");};function ie(a,b,c,d,e,f){this.id=a;this.f=rb("c:"+this.id+":");this.cc=c;this.Kc=d;this.ea=e;this.De=f;this.Q=b;this.Ed=[];this.Se=0;this.xf=new ee(b);this.Pa=0;this.f("Connection created");je(this)}
-function je(a){var b=he(a.xf);a.J=new b("c:"+a.id+":"+a.Se++,a.Q);a.He=b.responsesRequiredToBeHealthy||0;var c=ke(a,a.J),d=le(a,a.J);a.ad=a.J;a.Xc=a.J;a.C=null;a.vb=!1;setTimeout(function(){a.J&&a.J.open(c,d)},Math.floor(0));b=b.healthyTimeout||0;0<b&&(a.rd=setTimeout(function(){a.rd=null;a.vb||(a.J&&102400<a.J.kb?(a.f("Connection exceeded healthy timeout but has received "+a.J.kb+" bytes.  Marking connection healthy."),a.vb=!0,a.J.wd()):a.J&&10240<a.J.lb?a.f("Connection exceeded healthy timeout but has sent "+
-a.J.lb+" bytes.  Leaving connection alive."):(a.f("Closing unhealthy connection after timeout."),a.close()))},Math.floor(b)))}function le(a,b){return function(c){b===a.J?(a.J=null,c||0!==a.Pa?1===a.Pa&&a.f("Realtime connection lost."):(a.f("Realtime connection failed."),"s-"===a.Q.Ka.substr(0,2)&&(Aa.remove("host:"+a.Q.host),a.Q.Ka=a.Q.host)),a.close()):b===a.C?(a.f("Secondary connection lost."),c=a.C,a.C=null,a.ad!==c&&a.Xc!==c||a.close()):a.f("closing an old connection")}}
-function ke(a,b){return function(c){if(2!=a.Pa)if(b===a.Xc){var d=zb("t",c);c=zb("d",c);if("c"==d){if(d=zb("t",c),"d"in c)if(c=c.d,"h"===d){var d=c.ts,e=c.v,f=c.h;a.Kd=c.s;Da(a.Q,f);0==a.Pa&&(a.J.start(),me(a,a.J,d),"5"!==e&&z("Protocol version mismatch detected"),c=a.xf,(c=1<c.$c.length?c.$c[1]:null)&&ne(a,c))}else if("n"===d){a.f("recvd end transmission on primary");a.Xc=a.C;for(c=0;c<a.Ed.length;++c)a.Bd(a.Ed[c]);a.Ed=[];oe(a)}else"s"===d?(a.f("Connection shutdown command received. Shutting down..."),
-a.De&&(a.De(c),a.De=null),a.ea=null,a.close()):"r"===d?(a.f("Reset packet received.  New host: "+c),Da(a.Q,c),1===a.Pa?a.close():(pe(a),je(a))):"e"===d?sb("Server Error: "+c):"o"===d?(a.f("got pong on primary."),qe(a),re(a)):sb("Unknown control packet command: "+d)}else"d"==d&&a.Bd(c)}else if(b===a.C)if(d=zb("t",c),c=zb("d",c),"c"==d)"t"in c&&(c=c.t,"a"===c?se(a):"r"===c?(a.f("Got a reset on secondary, closing it"),a.C.close(),a.ad!==a.C&&a.Xc!==a.C||a.close()):"o"===c&&(a.f("got pong on secondary."),
-a.tf--,se(a)));else if("d"==d)a.Ed.push(c);else throw Error("Unknown protocol layer: "+d);else a.f("message on old connection")}}ie.prototype.wa=function(a){te(this,{t:"d",d:a})};function oe(a){a.ad===a.C&&a.Xc===a.C&&(a.f("cleaning up and promoting a connection: "+a.C.ie),a.J=a.C,a.C=null)}
-function se(a){0>=a.tf?(a.f("Secondary connection is healthy."),a.vb=!0,a.C.wd(),a.C.start(),a.f("sending client ack on secondary"),a.C.send({t:"c",d:{t:"a",d:{}}}),a.f("Ending transmission on primary"),a.J.send({t:"c",d:{t:"n",d:{}}}),a.ad=a.C,oe(a)):(a.f("sending ping on secondary."),a.C.send({t:"c",d:{t:"p",d:{}}}))}ie.prototype.Bd=function(a){qe(this);this.cc(a)};function qe(a){a.vb||(a.He--,0>=a.He&&(a.f("Primary connection is healthy."),a.vb=!0,a.J.wd()))}
-function ne(a,b){a.C=new b("c:"+a.id+":"+a.Se++,a.Q,a.Kd);a.tf=b.responsesRequiredToBeHealthy||0;a.C.open(ke(a,a.C),le(a,a.C));setTimeout(function(){a.C&&(a.f("Timed out trying to upgrade."),a.C.close())},Math.floor(6E4))}function me(a,b,c){a.f("Realtime connection established.");a.J=b;a.Pa=1;a.Kc&&(a.Kc(c),a.Kc=null);0===a.He?(a.f("Primary connection is healthy."),a.vb=!0):setTimeout(function(){re(a)},Math.floor(5E3))}
-function re(a){a.vb||1!==a.Pa||(a.f("sending ping on primary."),te(a,{t:"c",d:{t:"p",d:{}}}))}function te(a,b){if(1!==a.Pa)throw"Connection is not connected";a.ad.send(b)}ie.prototype.close=function(){2!==this.Pa&&(this.f("Closing realtime connection."),this.Pa=2,pe(this),this.ea&&(this.ea(),this.ea=null))};function pe(a){a.f("Shutting down all connections");a.J&&(a.J.close(),a.J=null);a.C&&(a.C.close(),a.C=null);a.rd&&(clearTimeout(a.rd),a.rd=null)};function ue(a){var b={},c={},d={},e="";try{var f=a.split("."),b=ua(jb(f[0])||""),c=ua(jb(f[1])||""),e=f[2],d=c.d||{};delete c.d}catch(g){}return{Bg:b,fe:c,data:d,sg:e}}function ve(a){a=ue(a).fe;return"object"===typeof a&&a.hasOwnProperty("iat")?v(a,"iat"):null}function we(a){a=ue(a);var b=a.fe;return!!a.sg&&!!b&&"object"===typeof b&&b.hasOwnProperty("iat")};function xe(a,b,c,d){this.id=ye++;this.f=rb("p:"+this.id+":");this.Eb=!0;this.ua={};this.la=[];this.Nc=0;this.Jc=[];this.ia=!1;this.Va=1E3;this.xd=3E5;this.Cd=b;this.Ad=c;this.Ee=d;this.Q=a;this.Ke=null;this.Tc={};this.ng=0;this.Dc=this.ue=null;ze(this,0);vd.Qb().zb("visible",this.fg,this);-1===a.host.indexOf("fblocal")&&wd.Qb().zb("online",this.dg,this)}var ye=0,Ae=0;h=xe.prototype;
-h.wa=function(a,b,c){var d=++this.ng;a={r:d,a:a,b:b};this.f(t(a));x(this.ia,"sendRequest call when we're not connected not allowed.");this.La.wa(a);c&&(this.Tc[d]=c)};function Be(a,b,c,d,e){var f=b.Da(),g=b.path.toString();a.f("Listen called for "+g+" "+f);a.ua[g]=a.ua[g]||{};x(!a.ua[g][f],"listen() called twice for same path/queryId.");b={H:e,qd:c,kg:Dc(b),tag:d};a.ua[g][f]=b;a.ia&&Ce(a,g,f,b)}
-function Ce(a,b,c,d){a.f("Listen on "+b+" for "+c);var e={p:b};d.tag&&(e.q=d.kg,e.t=d.tag);e.h=d.qd();a.wa("q",e,function(e){if((a.ua[b]&&a.ua[b][c])===d){a.f("listen response",e);var g=e.s;"ok"!==g&&De(a,b,c);e=e.d;d.H&&d.H(g,e)}})}h.T=function(a,b,c){this.Lb={Mf:a,Ye:!1,sc:b,cd:c};this.f("Authenticating using credential: "+a);Ee(this);(b=40==a.length)||(a=ue(a).fe,b="object"===typeof a&&!0===v(a,"admin"));b&&(this.f("Admin auth credential detected.  Reducing max reconnect time."),this.xd=3E4)};
-h.Pe=function(a){delete this.Lb;this.ia&&this.wa("unauth",{},function(b){a(b.s,b.d)})};function Ee(a){var b=a.Lb;a.ia&&b&&a.wa("auth",{cred:b.Mf},function(c){var d=c.s;c=c.d||"error";"ok"!==d&&a.Lb===b&&delete a.Lb;b.Ye?"ok"!==d&&b.cd&&b.cd(d,c):(b.Ye=!0,b.sc&&b.sc(d,c))})}function Fe(a,b,c,d){a.ia?Ge(a,"o",b,c,d):a.Jc.push({Pc:b,action:"o",data:c,H:d})}function He(a,b,c,d){a.ia?Ge(a,"om",b,c,d):a.Jc.push({Pc:b,action:"om",data:c,H:d})}
-h.Ce=function(a,b){this.ia?Ge(this,"oc",a,null,b):this.Jc.push({Pc:a,action:"oc",data:null,H:b})};function Ge(a,b,c,d,e){c={p:c,d:d};a.f("onDisconnect "+b,c);a.wa(b,c,function(a){e&&setTimeout(function(){e(a.s,a.d)},Math.floor(0))})}h.put=function(a,b,c,d){Ie(this,"p",a,b,c,d)};function Ke(a,b,c,d){Ie(a,"m",b,c,d,void 0)}function Ie(a,b,c,d,e,f){d={p:c,d:d};n(f)&&(d.h=f);a.la.push({action:b,of:d,H:e});a.Nc++;b=a.la.length-1;a.ia?Le(a,b):a.f("Buffering put: "+c)}
-function Le(a,b){var c=a.la[b].action,d=a.la[b].of,e=a.la[b].H;a.la[b].lg=a.ia;a.wa(c,d,function(d){a.f(c+" response",d);delete a.la[b];a.Nc--;0===a.Nc&&(a.la=[]);e&&e(d.s,d.d)})}
-h.Bd=function(a){if("r"in a){this.f("from server: "+t(a));var b=a.r,c=this.Tc[b];c&&(delete this.Tc[b],c(a.b))}else{if("error"in a)throw"A server-side error has occurred: "+a.error;"a"in a&&(b=a.a,c=a.b,this.f("handleServerMessage",b,c),"d"===b?this.Cd(c.p,c.d,!1,c.t):"m"===b?this.Cd(c.p,c.d,!0,c.t):"c"===b?Me(this,c.p,c.q):"ac"===b?(a=c.s,b=c.d,c=this.Lb,delete this.Lb,c&&c.cd&&c.cd(a,b)):"sd"===b?this.Ke?this.Ke(c):"msg"in c&&"undefined"!==typeof console&&console.log("FIREBASE: "+c.msg.replace("\n",
-"\nFIREBASE: ")):sb("Unrecognized action received from server: "+t(b)+"\nAre you using the latest client?"))}};h.Kc=function(a){this.f("connection ready");this.ia=!0;this.Dc=(new Date).getTime();this.Ee({serverTimeOffset:a-(new Date).getTime()});Ne(this);this.Ad(!0)};function ze(a,b){x(!a.La,"Scheduling a connect when we're already connected/ing?");a.Nb&&clearTimeout(a.Nb);a.Nb=setTimeout(function(){a.Nb=null;Oe(a)},Math.floor(b))}
-h.fg=function(a){a&&!this.qc&&this.Va===this.xd&&(this.f("Window became visible.  Reducing delay."),this.Va=1E3,this.La||ze(this,0));this.qc=a};h.dg=function(a){a?(this.f("Browser went online.  Reconnecting."),this.Va=1E3,this.Eb=!0,this.La||ze(this,0)):(this.f("Browser went offline.  Killing connection; don't reconnect."),this.Eb=!1,this.La&&this.La.close())};
-h.jf=function(){this.f("data client disconnected");this.ia=!1;this.La=null;for(var a=0;a<this.la.length;a++){var b=this.la[a];b&&"h"in b.of&&b.lg&&(b.H&&b.H("disconnect"),delete this.la[a],this.Nc--)}0===this.Nc&&(this.la=[]);if(this.Eb)this.qc?this.Dc&&(3E4<(new Date).getTime()-this.Dc&&(this.Va=1E3),this.Dc=null):(this.f("Window isn't visible.  Delaying reconnect."),this.Va=this.xd,this.ue=(new Date).getTime()),a=Math.max(0,this.Va-((new Date).getTime()-this.ue)),a*=Math.random(),this.f("Trying to reconnect in "+
-a+"ms"),ze(this,a),this.Va=Math.min(this.xd,1.3*this.Va);else for(var c in this.Tc)delete this.Tc[c];this.Ad(!1)};function Oe(a){if(a.Eb){a.f("Making a connection attempt");a.ue=(new Date).getTime();a.Dc=null;var b=q(a.Bd,a),c=q(a.Kc,a),d=q(a.jf,a),e=a.id+":"+Ae++;a.La=new ie(e,a.Q,b,c,d,function(b){z(b+" ("+a.Q.toString()+")");a.Eb=!1})}}h.tb=function(){this.Eb=!1;this.La?this.La.close():(this.Nb&&(clearTimeout(this.Nb),this.Nb=null),this.ia&&this.jf())};
-h.kc=function(){this.Eb=!0;this.Va=1E3;this.La||ze(this,0)};function Me(a,b,c){c=c?La(c,function(a){return Ab(a)}).join("$"):"default";(a=De(a,b,c))&&a.H&&a.H("permission_denied")}function De(a,b,c){b=(new P(b)).toString();var d=a.ua[b][c];delete a.ua[b][c];0===Kb(a.ua[b])&&delete a.ua[b];return d}function Ne(a){Ee(a);A(a.ua,function(b,d){A(b,function(b,c){Ce(a,d,c,b)})});for(var b=0;b<a.la.length;b++)a.la[b]&&Le(a,b);for(;a.Jc.length;)b=a.Jc.shift(),Ge(a,b.action,b.Pc,b.data,b.H)};function Pe(){this.j=this.A=null}Pe.prototype.ic=function(a,b){if(a.e())this.A=b,this.j=null;else if(null!==this.A)this.A=this.A.L(a,b);else{null==this.j&&(this.j=new Vd);var c=G(a);this.j.contains(c)||this.j.add(c,new Pe);c=this.j.get(c);a=R(a);c.ic(a,b)}};
-function Qe(a,b){if(b.e())return a.A=null,a.j=null,!0;if(null!==a.A){if(a.A.P())return!1;var c=a.A;a.A=null;c.ca(L,function(b,c){a.ic(new P(b),c)});return Qe(a,b)}return null!==a.j?(c=G(b),b=R(b),a.j.contains(c)&&Qe(a.j.get(c),b)&&a.j.remove(c),a.j.e()?(a.j=null,!0):!1):!0}function Re(a,b,c){null!==a.A?c(b,a.A):a.ca(function(a,e){var f=new P(b.toString()+"/"+a);Re(e,f,c)})}Pe.prototype.ca=function(a){null!==this.j&&Wd(this.j,function(b,c){a(b,c)})};function Se(){this.Wc=K}Se.prototype.toString=function(){return this.Wc.toString()};function Te(){this.qb=[]}function Ue(a,b){for(var c=null,d=0;d<b.length;d++){var e=b[d],f=e.Rb();null===c||f.ja(c.Rb())||(a.qb.push(c),c=null);null===c&&(c=new Ve(f));c.add(e)}c&&a.qb.push(c)}function Cc(a,b,c){Ue(a,c);We(a,function(a){return a.ja(b)})}function Xe(a,b,c){Ue(a,c);We(a,function(a){return a.contains(b)||b.contains(a)})}
-function We(a,b){for(var c=!0,d=0;d<a.qb.length;d++){var e=a.qb[d];if(e)if(e=e.Rb(),b(e)){for(var e=a.qb[d],f=0;f<e.od.length;f++){var g=e.od[f];if(null!==g){e.od[f]=null;var k=g.Pb();ob&&kb("event: "+g.toString());Fb(k)}}a.qb[d]=null}else c=!1}c&&(a.qb=[])}function Ve(a){this.Ca=a;this.od=[]}Ve.prototype.add=function(a){this.od.push(a)};Ve.prototype.Rb=function(){return this.Ca};var Ye="auth.firebase.com";function Ze(a,b,c){this.ed=a||{};this.Sd=b||{};this.lc=c||{};this.ed.remember||(this.ed.remember="default")}var $e=["remember","redirectTo"];function af(a){var b={},c={};va(a||{},function(a,e){0<=Ia($e,a)?b[a]=e:c[a]=e});return new Ze(b,{},c)};var bf={NETWORK_ERROR:"Unable to contact the Firebase server.",SERVER_ERROR:"An unknown server error occurred.",TRANSPORT_UNAVAILABLE:"There are no login transports available for the requested method.",REQUEST_INTERRUPTED:"The browser redirected the page before the login request could complete.",USER_CANCELLED:"The user cancelled authentication."};function V(a){var b=Error(v(bf,a),a);b.code=a;return b};function cf(){var a=window.opener.frames,b;for(b=a.length-1;0<=b;b--)try{if(a[b].location.protocol===window.location.protocol&&a[b].location.host===window.location.host&&"__winchan_relay_frame"===a[b].name)return a[b]}catch(c){}return null}function df(a,b,c){a.attachEvent?a.attachEvent("on"+b,c):a.addEventListener&&a.addEventListener(b,c,!1)}function ef(a,b,c){a.detachEvent?a.detachEvent("on"+b,c):a.removeEventListener&&a.removeEventListener(b,c,!1)}
-function ff(a){/^https?:\/\//.test(a)||(a=window.location.href);var b=/^(https?:\/\/[\-_a-zA-Z\.0-9:]+)/.exec(a);return b?b[1]:a}function gf(a){var b="";try{a=a.replace("#","");var c={},d=a.replace(/^\?/,"").split("&");for(a=0;a<d.length;a++)if(d[a]){var e=d[a].split("=");c[e[0]]=e[1]}c&&u(c,"__firebase_request_key")&&(b=v(c,"__firebase_request_key"))}catch(f){}return b}
-function hf(a){var b=[],c;for(c in a)if(u(a,c)){var d=v(a,c);if(ea(d))for(var e=0;e<d.length;e++)b.push(encodeURIComponent(c)+"="+encodeURIComponent(d[e]));else b.push(encodeURIComponent(c)+"="+encodeURIComponent(v(a,c)))}return b.join("&")}function jf(){var a=ub(Ye);return a.scheme+"://"+a.host+"/v2"};function kf(){return!!(window.cordova||window.phonegap||window.PhoneGap)&&/ios|iphone|ipod|ipad|android|blackberry|iemobile/i.test(navigator.userAgent)}function lf(){var a=navigator.userAgent;if("Microsoft Internet Explorer"===navigator.appName){if((a=a.match(/MSIE ([0-9]{1,}[\.0-9]{0,})/))&&1<a.length)return 8<=parseFloat(a[1])}else if(-1<a.indexOf("Trident")&&(a=a.match(/rv:([0-9]{2,2}[\.0-9]{0,})/))&&1<a.length)return 8<=parseFloat(a[1]);return!1};function mf(a){a=a||{};a.method||(a.method="GET");a.headers||(a.headers={});a.headers.content_type||(a.headers.content_type="application/json");a.headers.content_type=a.headers.content_type.toLowerCase();this.options=a}
-mf.prototype.open=function(a,b,c){function d(){c&&(c(V("REQUEST_INTERRUPTED")),c=null)}var e=new XMLHttpRequest,f=this.options.method.toUpperCase(),g;df(window,"beforeunload",d);e.onreadystatechange=function(){if(c&&4===e.readyState){var a;if(200<=e.status&&300>e.status){try{a=ua(e.responseText)}catch(b){}c(null,a)}else 500<=e.status&&600>e.status?c(V("SERVER_ERROR")):c(V("NETWORK_ERROR"));c=null;ef(window,"beforeunload",d)}};if("GET"===f)a+=(/\?/.test(a)?"":"?")+hf(b),g=null;else{var k=this.options.headers.content_type;
-"application/json"===k&&(g=t(b));"application/x-www-form-urlencoded"===k&&(g=hf(b))}e.open(f,a,!0);a={"X-Requested-With":"XMLHttpRequest",Accept:"application/json;text/plain"};Ed(a,this.options.headers);for(var l in a)e.setRequestHeader(l,a[l]);e.send(g)};mf.isAvailable=function(){return!!window.XMLHttpRequest&&"string"===typeof(new XMLHttpRequest).responseType&&(!(navigator.userAgent.match(/MSIE/)||navigator.userAgent.match(/Trident/))||lf())};mf.prototype.uc=function(){return"json"};function nf(a){a=a||{};this.Uc=Ha()+Ha()+Ha();this.kf=a||{}}
-nf.prototype.open=function(a,b,c){function d(){c&&(c(V("USER_CANCELLED")),c=null)}var e=this,f=ub(Ye),g;b.requestId=this.Uc;b.redirectTo=f.scheme+"://"+f.host+"/blank/page.html";a+=/\?/.test(a)?"":"?";a+=hf(b);(g=window.open(a,"_blank","location=no"))&&ha(g.addEventListener)?(g.addEventListener("loadstart",function(a){var b;if(b=a&&a.url)a:{var f=a.url;try{var r=document.createElement("a");r.href=f;b=r.host===ub(Ye).host&&"/blank/page.html"===r.pathname;break a}catch(s){}b=!1}b&&(a=gf(a.url),g.removeEventListener("exit",
-d),g.close(),a=new Ze(null,null,{requestId:e.Uc,requestKey:a}),e.kf.requestWithCredential("/auth/session",a,c),c=null)}),g.addEventListener("exit",d)):c(V("TRANSPORT_UNAVAILABLE"))};nf.isAvailable=function(){return kf()};nf.prototype.uc=function(){return"redirect"};function of(a){a=a||{};if(!a.window_features||-1!==navigator.userAgent.indexOf("Fennec/")||-1!==navigator.userAgent.indexOf("Firefox/")&&-1!==navigator.userAgent.indexOf("Android"))a.window_features=void 0;a.window_name||(a.window_name="_blank");a.relay_url||(a.relay_url=jf()+"/auth/channel");this.options=a}
-of.prototype.open=function(a,b,c){function d(a){g&&(document.body.removeChild(g),g=void 0);r&&(r=clearInterval(r));ef(window,"message",e);ef(window,"unload",d);if(m&&!a)try{m.close()}catch(b){k.postMessage("die",l)}m=k=void 0}function e(a){if(a.origin===l)try{var b=ua(a.data);"ready"===b.a?k.postMessage(s,l):"error"===b.a?(d(!1),c&&(c(b.d),c=null)):"response"===b.a&&(d(b.forceKeepWindowOpen),c&&(c(null,b.d),c=null))}catch(e){}}var f=lf(),g,k,l=ff(a);if(l!==ff(this.options.relay_url))c&&setTimeout(function(){c(Error("invalid arguments: origin of url and relay_url must match"))},
-0);else{f&&(g=document.createElement("iframe"),g.setAttribute("src",this.options.relay_url),g.style.display="none",g.setAttribute("name","__winchan_relay_frame"),document.body.appendChild(g),k=g.contentWindow);a+=(/\?/.test(a)?"":"?")+hf(b);var m=window.open(a,this.options.window_name,this.options.window_features);k||(k=m);var r=setInterval(function(){m&&m.closed&&(d(!1),c&&(c(V("USER_CANCELLED")),c=null))},500),s=t({a:"request",d:b});df(window,"unload",d);df(window,"message",e)}};
-of.isAvailable=function(){return"postMessage"in window&&!/^file:\//.test(location.href)&&!(kf()||navigator.userAgent.match(/Windows Phone/)||window.Windows&&/^ms-appx:/.test(location.href)||navigator.userAgent.match(/(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i)||navigator.userAgent.match(/CriOS/)||navigator.userAgent.match(/Twitter for iPhone/)||navigator.userAgent.match(/FBAN\/FBIOS/)||window.navigator.standalone)&&!navigator.userAgent.match(/PhantomJS/)};of.prototype.uc=function(){return"popup"};function pf(a){a=a||{};a.callback_parameter||(a.callback_parameter="callback");this.options=a;window.__firebase_auth_jsonp=window.__firebase_auth_jsonp||{}}
-pf.prototype.open=function(a,b,c){function d(){c&&(c(V("REQUEST_INTERRUPTED")),c=null)}function e(){setTimeout(function(){window.__firebase_auth_jsonp[f]=void 0;Bd(window.__firebase_auth_jsonp)&&(window.__firebase_auth_jsonp=void 0);try{var a=document.getElementById(f);a&&a.parentNode.removeChild(a)}catch(b){}},1);ef(window,"beforeunload",d)}var f="fn"+(new Date).getTime()+Math.floor(99999*Math.random());b[this.options.callback_parameter]="__firebase_auth_jsonp."+f;a+=(/\?/.test(a)?"":"?")+hf(b);
-df(window,"beforeunload",d);window.__firebase_auth_jsonp[f]=function(a){c&&(c(null,a),c=null);e()};qf(f,a,c)};
-function qf(a,b,c){setTimeout(function(){try{var d=document.createElement("script");d.type="text/javascript";d.id=a;d.async=!0;d.src=b;d.onerror=function(){var b=document.getElementById(a);null!==b&&b.parentNode.removeChild(b);c&&c(V("NETWORK_ERROR"))};var e=document.getElementsByTagName("head");(e&&0!=e.length?e[0]:document.documentElement).appendChild(d)}catch(f){c&&c(V("NETWORK_ERROR"))}},0)}pf.isAvailable=function(){return!kf()};pf.prototype.uc=function(){return"json"};function rf(a,b){this.Ge=["session",a.Gd,a.yb].join(":");this.Pd=b}rf.prototype.set=function(a,b){if(!b)if(this.Pd.length)b=this.Pd[0];else throw Error("fb.login.SessionManager : No storage options available!");b.set(this.Ge,a)};rf.prototype.get=function(){var a=La(this.Pd,q(this.Tf,this)),a=Ka(a,function(a){return null!==a});Ta(a,function(a,c){return ve(c.token)-ve(a.token)});return 0<a.length?a.shift():null};rf.prototype.Tf=function(a){try{var b=a.get(this.Ge);if(b&&b.token)return b}catch(c){}return null};
-rf.prototype.clear=function(){var a=this;Ja(this.Pd,function(b){b.remove(a.Ge)})};function sf(a){a=a||{};this.Uc=Ha()+Ha()+Ha();this.kf=a||{}}sf.prototype.open=function(a,b){Ba.set("redirect_request_id",this.Uc);b.requestId=this.Uc;b.redirectTo=b.redirectTo||window.location.href;a+=(/\?/.test(a)?"":"?")+hf(b);window.location=a};sf.isAvailable=function(){return!/^file:\//.test(location.href)&&!kf()};sf.prototype.uc=function(){return"redirect"};function tf(a,b,c,d){td.call(this,["auth_status"]);this.Q=a;this.Re=b;this.xg=c;this.Be=d;this.mc=new rf(a,[Aa,Ba]);this.jb=null;uf(this)}na(tf,td);h=tf.prototype;h.ne=function(){return this.jb||null};function uf(a){Ba.get("redirect_request_id")&&vf(a);var b=a.mc.get();b&&b.token?(wf(a,b),a.Re(b.token,function(c,d){xf(a,c,d,!1,b.token,b)},function(b,d){yf(a,"resumeSession()",b,d)})):wf(a,null)}
-function zf(a,b,c,d,e,f){"firebaseio-demo.com"===a.Q.domain&&z("Firebase authentication is not supported on demo Firebases (*.firebaseio-demo.com). To secure your Firebase, create a production Firebase at https://www.firebase.com.");a.Re(b,function(f,k){xf(a,f,k,!0,b,c,d||{},e)},function(b,c){yf(a,"auth()",b,c,f)})}function Af(a,b){a.mc.clear();wf(a,null);a.xg(function(a,d){if("ok"===a)B(b,null);else{var e=(a||"error").toUpperCase(),f=e;d&&(f+=": "+d);f=Error(f);f.code=e;B(b,f)}})}
-function xf(a,b,c,d,e,f,g,k){"ok"===b?(d&&(b=c.auth,f.auth=b,f.expires=c.expires,f.token=we(e)?e:"",c=null,b&&u(b,"uid")?c=v(b,"uid"):u(f,"uid")&&(c=v(f,"uid")),f.uid=c,c="custom",b&&u(b,"provider")?c=v(b,"provider"):u(f,"provider")&&(c=v(f,"provider")),f.provider=c,a.mc.clear(),we(e)&&(g=g||{},c=Aa,"sessionOnly"===g.remember&&(c=Ba),"none"!==g.remember&&a.mc.set(f,c)),wf(a,f)),B(k,null,f)):(a.mc.clear(),wf(a,null),f=a=(b||"error").toUpperCase(),c&&(f+=": "+c),f=Error(f),f.code=a,B(k,f))}
-function yf(a,b,c,d,e){z(b+" was canceled: "+d);a.mc.clear();wf(a,null);a=Error(d);a.code=c.toUpperCase();B(e,a)}function Bf(a,b,c,d,e){Cf(a);var f=[mf,pf];c=new Ze(d||{},{},c||{});Df(a,f,"/auth/"+b,c,e)}
-function Ef(a,b,c,d){Cf(a);var e=[of,nf];c=af(c);"anonymous"===b||"password"===b?setTimeout(function(){B(d,V("TRANSPORT_UNAVAILABLE"))},0):(c.Sd.window_features="menubar=yes,modal=yes,alwaysRaised=yeslocation=yes,resizable=yes,scrollbars=yes,status=yes,height=625,width=625,top="+("object"===typeof screen?.5*(screen.height-625):0)+",left="+("object"===typeof screen?.5*(screen.width-625):0),c.Sd.relay_url=jf()+"/"+a.Q.yb+"/auth/channel",c.Sd.requestWithCredential=q(a.Vc,a),Df(a,e,"/auth/"+b,c,d))}
-function vf(a){var b=Ba.get("redirect_request_id");if(b){var c=Ba.get("redirect_client_options");Ba.remove("redirect_request_id");Ba.remove("redirect_client_options");var d=[mf,pf],b={requestId:b,requestKey:gf(document.location.hash)},c=new Ze(c,{},b);try{document.location.hash=document.location.hash.replace(/&__firebase_request_key=([a-zA-z0-9]*)/,"")}catch(e){}Df(a,d,"/auth/session",c)}}h.je=function(a,b){Cf(this);var c=af(a);c.lc._method="POST";this.Vc("/users",c,function(a,c){a?B(b,a):B(b,a,c)})};
-h.Ie=function(a,b){var c=this;Cf(this);var d="/users/"+encodeURIComponent(a.email),e=af(a);e.lc._method="DELETE";this.Vc(d,e,function(a,d){!a&&d&&d.uid&&c.jb&&c.jb.uid&&c.jb.uid===d.uid&&Af(c);B(b,a)})};h.ee=function(a,b){Cf(this);var c="/users/"+encodeURIComponent(a.email)+"/password",d=af(a);d.lc._method="PUT";d.lc.password=a.newPassword;this.Vc(c,d,function(a){B(b,a)})};
-h.Je=function(a,b){Cf(this);var c="/users/"+encodeURIComponent(a.email)+"/password",d=af(a);d.lc._method="POST";this.Vc(c,d,function(a){B(b,a)})};h.Vc=function(a,b,c){Ff(this,[mf,pf],a,b,c)};function Df(a,b,c,d,e){Ff(a,b,c,d,function(b,c){!b&&c&&c.token&&c.uid?zf(a,c.token,c,d.ed,function(a,b){a?B(e,a):B(e,null,b)}):B(e,b||V("UNKNOWN_ERROR"))})}
-function Ff(a,b,c,d,e){b=Ka(b,function(a){return"function"===typeof a.isAvailable&&a.isAvailable()});0===b.length?setTimeout(function(){B(e,V("TRANSPORT_UNAVAILABLE"))},0):(b=new (b.shift())(d.Sd),d=wa(d.lc),d.v="js-2.0.6",d.transport=b.uc(),d.suppress_status_codes=!0,a=jf()+"/"+a.Q.yb+c,b.open(a,d,function(a,b){if(a)B(e,a);else if(b&&b.error){var c=Error(b.error.message);c.code=b.error.code;c.details=b.error.details;B(e,c)}else B(e,null,b)}))}
-function wf(a,b){var c=null!==a.jb||null!==b;a.jb=b;c&&a.Td("auth_status",b);a.Be(null!==b)}h.pe=function(a){x("auth_status"===a,'initial event must be of type "auth_status"');return[this.jb]};function Cf(a){var b=a.Q;if("firebaseio.com"!==b.domain&&"firebaseio-demo.com"!==b.domain&&"auth.firebase.com"===Ye)throw Error("This custom Firebase server ('"+a.Q.domain+"') does not support delegated login.");};function Gf(a,b){return a&&"object"===typeof a?(x(".sv"in a,"Unexpected leaf node or priority contents"),b[a[".sv"]]):a}function Hf(a,b){var c=new Pe;Re(a,new P(""),function(a,e){c.ic(a,If(e,b))});return c}function If(a,b){var c=a.O().N(),c=Gf(c,b),d;if(a.P()){var e=Gf(a.ta(),b);return e!==a.ta()||c!==a.O().N()?new Zc(e,J(c)):a}d=a;c!==a.O().N()&&(d=d.ib(new Zc(c)));a.ca(L,function(a,c){var e=If(c,b);e!==c&&(d=d.I(a,e))});return d};function W(a,b,c,d){this.type=a;this.Wa=b;this.nb=c;this.Rc=null;this.$f=d};function Jf(){}var Kf=new Jf;function Lf(a,b,c,d){var e,f;f=X(c);e=X(b);if(d.e())return c.u?(a=[],e?e.ja(f)||(e.P()?a=Mf(f):f.P()?(a=[],e.P()||e.e()||a.push(new W("children_removed",e))):a=Nf(e,f),a.push(new W("value",f))):(a=Mf(f),a.push(new W("value",f))),0!==a.length||b.u||a.push(new W("value",f)),a):e?Nf(e,f):Mf(f);if(".priority"===G(d))return!c.u||e&&e.ja(f)?[]:[new W("value",f)];if(c.u||1===Q(d))return e=G(d),f=f.B(e),a.kd(b,c,e,f);e=G(d);return f.Y(e)?(f=f.B(e),a.kd(b,c,e,f)):[]}
-Jf.prototype.kd=function(a,b,c,d){(a=X(a))?a.Y(c)?(a=a.B(c),c=a.ja(d)?[]:d.e()?[new W("child_removed",a,c)]:[new W("child_changed",d,c,a)]):c=d.e()?[]:[new W("child_added",d,c)]:c=d.e()?[]:[new W("child_added",d,c)];0<c.length&&b.u&&c.push(new W("value",X(b)));return c};function Mf(a){var b=[];a.P()||a.e()||b.push(new W("children_added",a));return b}
-function Nf(a,b){var c=[],d=[],e=[],f=[],g={},k={},l,m,r,s;l=a.Aa(L);r=U(l);m=b.Aa(L);s=U(m);for(var y=H(L);null!==r||null!==s;){var N;N=r?s?y(r,s):-1:1;0>N?(N=v(g,r.name),n(N)?(f.push(d[N]),d[N]=null):(k[r.name]=e.length,e.push(r)),r=U(l)):(0<N?(N=v(k,s.name),n(N)?(f.push(s),e[N]=null):(g[s.name]=d.length,d.push(s))):((r=r.K.hash()!==s.K.hash())&&f.push(s),r=U(l)),s=U(m))}for(g=0;g<e.length;g++)(k=e[g])&&c.push(new W("child_removed",k.K,k.name));for(g=0;g<d.length;g++)(e=d[g])&&c.push(new W("child_added",
-e.K,e.name));for(g=0;g<f.length;g++)d=f[g],c.push(new W("child_changed",d.K,d.name,a.B(d.name)));return c}function Of(a,b,c){this.bb=a;this.Ma=c;this.m=b}na(Of,Jf);
-Of.prototype.kd=function(a,b,c,d){var e=X(a)||K,f=X(b)||K;if(e.Ua()<this.bb||f.Ua()<this.bb)return Of.oc.kd.call(this,a,b,c,d);x(!e.P()&&!f.P(),"If it's a leaf node, we should have hit the above case.");a=[];var g=e.B(c);g.e()?f.Y(c)&&(e=this.Ma?ld(e,this.m):md(e,this.m),a.push(new W("child_removed",e.K,e.name)),a.push(new W("child_added",d,c))):f.Y(c)?d.ja(g)||a.push(new W("child_changed",d,c,e.B(c))):(a.push(new W("child_removed",g,c)),e=this.Ma?ld(f,this.m):md(f,this.m),a.push(new W("child_added",
-e.K,e.name)));0<a.length&&b.u&&a.push(new W("value",f));return a};function Pf(){}h=Pf.prototype;
-h.Xa=function(a,b,c,d){var e;if(b.type===Qf){if(b.source.$e)return this.Fa(a,b.path,b.Oa,c,d);x(b.source.Ze,"Unknown source.");e=b.source.wf;return this.Sa(a,b.path,b.Oa,c,d,e)}if(b.type===Rf){if(b.source.$e)return this.ae(a,b.path,b.children,c,d);x(b.source.Ze,"Unknown source.");e=b.source.wf;return this.$d(a,b.path,b.children,c,d,e)}if(b.type===Sf){if(b.sf)a:{var f=b.path;Tf(this,a);b=a.u;e=a.X;if(a.F){x(a.u,"Must have event snap if we have server snap");var g=c.Ya(f,a.u,a.F);if(g)if(b=a.u.L(f,
-g),f.e())b=this.G(b);else{e=G(f);b=b.B(e);a=this.Ra(a,e,b,a.F,a.o,c,d);break a}}else if(a.o)if(a.u)(d=c.Ob())?b=this.G(d):(c=c.Ya(f,a.u,a.o))&&(b=this.G(b.L(f,c)));else{if(x(a.X,"We must at least have complete children"),x(!f.e(),"If the path were empty, we would have an event snap from the set"),c=c.Ya(f,a.X,a.o))e=a.X.L(f,c),e=this.G(e)}else if(a.u)(c=c.Ob())&&(b=this.G(c));else if(a.X){x(!f.e(),"If the path was empty, we would have an event snap");g=G(f);if(a.X.Y(g)){a=(b=c.Ib.Ob(c.Gb.k(g)))?this.Ra(a,
-g,b,a.F,a.o,c,d):this.Ra(a,g,K,a.F,a.o,c,null);break a}x(1<Q(f),"Must be a deep set being reverted")}a=new Uf(a.F,a.o,b,e)}else a=this.Ea(a,b.path,c,d);return a}if(b.type===Vf)return b=b.path,Tf(this,a),this.Sa(a,b,(a.ab()||K).da(b),c,d,!1);throw ib("Unknown operation type: "+b.type);};function Tf(a,b){Wf(a,b.F);Wf(a,b.o);Wf(a,b.u);Wf(a,b.X)}function Wf(a,b){x(!b||a.Yb(b),"Expected an indexed snap")}
-h.Fa=function(a,b,c,d,e){Tf(this,a);if(b.e())return b=this.G(c),new Uf(a.F,a.o,b,null);var f=X(a)||K,g=G(b);return 1===Q(b)||a.u||f.Y(g)?(c=f.B(G(b)).L(R(b),c),this.Ra(a,G(b),c,a.F,a.o,d,e)):a};h.ae=function(a,b,c,d,e){Tf(this,a);var f=this,g=a;Xf(c,function(c,l){var m=b.k(c);Yf(a,G(m))&&(g=f.Fa(g,m,l,d,e))});Xf(c,function(c,l){var m=b.k(c);Yf(a,G(m))||(g=f.Fa(g,m,l,d,e))});return g};
-h.Ea=function(a,b,c,d){var e=a.u,f=a.X,g;Tf(this,a);if(a.F){x(e,"If we have a server snap, we must have an event snap");var k=c.Ya(b,a.u,a.F);if(k)if(b.e())e=this.G(k);else return g=G(b),b=e.L(b,k).B(g),this.Ra(a,g,b,a.F,a.o,c,d)}else if(a.o)if(e){var l=!1;a.o.ca(L,function(a,b){l||e.B(a).ja(b)||(l=!0);l&&(e=e.I(a,b))});l&&(e=this.G(e))}else if(f&&(x(0<Q(b),"If it were an empty path, we would have an event snap"),g=G(b),1===Q(b)||f.Y(g))&&(k=c.Ya(b,f,a.o)))return b=f.L(b,k).B(g),this.Ra(a,g,b,a.F,
-a.o,c,d);return new Uf(a.F,a.o,e,f)};
-h.Sa=function(a,b,c,d,e,f){var g;Tf(this,a);var k=a.F,l=a.o;if(a.F)k=b.e()?this.G(c,f):this.G(a.F.L(b,c),f);else if(b.e())k=this.G(c,f),l=null;else if(1===Q(b)&&(a.o||!c.e()))l=a.o||this.Ia(K),l=this.G(l.L(b,c),f);else if(a.o&&(g=G(b),a.o.Y(g)))var m=a.o.B(g).L(R(b),c),l=this.G(a.o.I(g,m),f);g=!1;f=a.u;m=a.X;if(k!==a.F||l!==a.o)if(k&&!f)f=this.G(d.xa(k)),m=null;else if(k&&f&&!c.e()&&k.da(b).ja(f.da(b)))g=!0;else if(c=d.Ya(b,f,k||l))if(b.e())f=this.G(c),m=null;else{g=G(b);b=R(b);a:{f=g;if(a.u)m=a.u.B(f);
-else if(a.X)a.X.Y(f)?m=a.X.B(f):(x(b.e(),"According to precondition, this must be true"),m=K);else{if(b.e()){m=c;break a}x(a.F||a.o,"If we do not have event data, we must have server data");m=(a.F||a.o).B(f)}m=m.e()&&a.ab()?a.ab().B(f).L(b,c):m.L(b,c)}return this.Ra(a,g,m,k,l,d,e)}else g=!0;x(!g||f===a.u&&m===a.X,"We thought we could skip diffing, but we changed the eventCache.");return new Uf(k,l,f,m)};
-h.$d=function(a,b,c,d,e,f){if(!a.F&&!a.o&&b.e())return a;Tf(this,a);var g=this,k=a;Xf(c,function(c,m){var r=b.k(c);Yf(a,G(r))&&(k=g.Sa(k,r,m,d,e,f))});Xf(c,function(c,m){var r=b.k(c);Yf(a,G(r))||(k=g.Sa(k,r,m,d,e,f))});return k};h.Ra=function(a,b,c,d,e){var f=a.u;a=a.X;f?f=this.G(f.I(b,c)):(a||(a=this.Ia(K)),a=this.G(a.I(b,c)));return new Uf(d,e,f,a)};h.G=function(a){return this.Ia(a)};function Yf(a,b){var c=X(a),d=a.ab();return!!(c&&c.Y(b)||d&&d.Y(b))};function Zf(a){this.gb=a;this.index=a.m;this.gb.ga&&n(pc(this.gb))?(a=qc(this.gb),a=this.index.ye(pc(this.gb),a)):a=this.index.Ae();this.Fb=a;this.gb.na&&n(rc(this.gb))?(a=sc(this.gb),a=this.index.ye(rc(this.gb),a)):a=this.index.ze();this.pb=a}na(Zf,Pf);Zf.prototype.Ia=function(a){return a.Wd(this.index)};Zf.prototype.Yb=function(a){return a.Yb(this.index)};
-Zf.prototype.G=function(a,b){if(!1===b)return Zf.oc.G.call(this,a,!1);if(a.P())return this.Ia(K);for(var c=this.Ia(a),d=this.Fb,e=this.pb,f=H(this.index),g=c.Aa(this.index),k=U(g);k&&0<f(d,k);)c=c.I(k.name,K),k=U(g);g=c.rb(e,this.index);for((k=U(g))&&0>=f(k,e)&&(k=U(g));k;)c=c.I(k.name,K),k=U(g);return c};
-Zf.prototype.Fa=function(a,b,c,d,e){Tf(this,a);if(1<Q(b)){var f=G(b);if((null!==X(a)?X(a):K).Y(f))return Zf.oc.Fa.call(this,a,b,c,d,e);var g=null!==e?e:a.ab(),g=null!==g&&g.Y(f)?g.B(f):null,g=d.k(f).xa(g);return null!==g?(b=g.L(R(b),c),this.Ra(a,f,b,a.F,a.o,d,e)):a}return Zf.oc.Fa.call(this,a,b,c,d,e)};function $f(a){Zf.call(this,a);this.Ma=!(""===a.Hb?a.ga:"l"===a.Hb);this.bb=tc(a)}na($f,Zf);
-$f.prototype.G=function(a,b){if(!1===b)return $f.oc.G.call(this,a,!1);if(a.P())return this.Ia(K);var c=this.Ia(a),d,e,f,g;if(2*this.bb<a.Ua())for(d=this.Ia(K.ib(a.O())),c=this.Ma?c.Sb(this.pb,this.index):c.rb(this.Fb,this.index),e=U(c),f=0;e&&f<this.bb;)if(g=this.Ma?0>=H(this.index)(this.Fb,e):0>=H(this.index)(e,this.pb))d=d.I(e.name,e.K),f++,e=U(c);else break;else{d=this.Ia(a);var k,l,m=H(this.index);if(this.Ma){c=c.bf(this.index);k=this.pb;l=this.Fb;var r=m,m=function(a,b){return-1*r(a,b)}}else c=
-c.Aa(this.index),k=this.Fb,l=this.pb;f=0;var s=!1;for(e=U(c);e;)!s&&0>=m(k,e)&&(s=!0),(g=s&&f<this.bb&&0>=m(e,l))?f++:d=d.I(e.name,K),e=U(c)}return d};$f.prototype.Ra=function(a,b,c,d,e,f,g){var k=X(a);return!k||k.Ua()<this.bb?$f.oc.Ra.call(this,a,b,c,d,e,f,g):(b=ag(this,a,b,c,f,g||d))?a.u?new Uf(d,e,b,null):new Uf(d,e,null,b):new Uf(d,e,a.u,a.X)};
-function ag(a,b,c,d,e,f){var g=H(a.index),k;k=a.Ma?function(a,b){return-1*g(a,b)}:g;b=X(b);x(b.Ua()===a.bb,"Limit should be full.");var l=new I(c,d),m=a.Ma?ld(b,a.index):md(b,a.index);x(null!=m,"Shouldn't be null, since oldEventCache shouldn't be empty.");var r=0>=H(a.index)(a.Fb,l)&&0>=H(a.index)(l,a.pb);if(b.Y(c)){f=e.de(f,m,1,a.Ma,a.index);e=null;0<f.length&&(e=f[0],e.name===c&&(e=2<=f.length?f[1]:null));k=null==e?1:k(e,l);if(r&&!d.e()&&0<=k)return b.I(c,d);c=b.I(c,K);return null!=e&&0>=H(a.index)(a.Fb,
-e)&&0>=H(a.index)(e,a.pb)?c.I(e.name,e.K):c}return d.e()?null:r?0<=k(m,l)?b.I(c,d).I(m.name,K):null:null};function bg(a){this.m=a}na(bg,Pf);bg.prototype.Ia=function(a){return a.Wd(this.m)};bg.prototype.Yb=function(a){return a.Yb(this.m)};function cg(a){this.U=a;this.m=a.w.m}
-function dg(a,b,c,d){var e=[],f=a.m,g=La(Ka(b,function(a){return"child_changed"===a.type&&f.df(a.$f,a.Wa)}),function(a){return new W("child_moved",a.Wa,a.nb)}),k=Pa(b,function(a){return"child_removed"!==a.type&&"child_added"!==a.type});for(la(Ra,b,k,0).apply(null,g);0<b.length;){var g=b[0].type,k=eg(b,g),l=b.slice(0,k);b=b.slice(k);"value"===g||"children_added"===g||"children_removed"===g?x(1===l.length,"We should not have more than one of these at a view"):Ta(l,q(a.Lf,a));e=e.concat(fg(a,d,l,c))}return e}
-function eg(a,b){var c=Pa(a,function(a){return a.type!==b});return-1===c?a.length:c}
-function fg(a,b,c,d){for(var e=[],f=0;f<c.length;++f)for(var g=c[f],k=null,l=null,m=0;m<b.length;++m){var r=b[m];if(r.pf(g.type)){if(!k&&!l)if("children_added"===g.type){var s=a,y=g.Wa,l=[];if(!y.P()&&!y.e())for(var s=y.Aa(s.m),y=null,N=U(s);N;){var Je=new W("child_added",N.K,N.name);Je.Rc=y;l.push(Je);y=N.name;N=U(s)}}else if("children_removed"===g.type){if(s=a,y=g.Wa,l=[],!y.P()&&!y.e())for(s=y.Aa(s.m),y=U(s);y;)l.push(new W("child_removed",y.K,y.name)),y=U(s)}else k=g,"value"!==k.type&&"child_removed"!==
-k.type&&(k.Rc=d.af(k.nb,k.Wa,a.m));if(k)e.push(r.createEvent(k,a.U));else for(s=0;s<l.length;++s)e.push(r.createEvent(l[s],a.U))}}return e}cg.prototype.Lf=function(a,b){if(null==a.nb||null==b.nb)throw ib("Should only compare child_ events.");return this.m.compare(new I(a.nb,a.Wa),new I(b.nb,b.Wa))};function gg(a,b){this.U=a;var c=a.w;wc(c)?(this.ec=new bg(c.m),this.ld=Kf):c.ka?(this.ec=new $f(c),this.ld=new Of(tc(c),c.m,this.ec.Ma)):(this.ec=new Zf(c),this.ld=Kf);c=this.ec;this.ha=new Uf(b.F&&c.G(b.F,!1),b.o&&c.G(b.o,!1),b.u&&c.G(b.u),b.X&&c.G(b.X));this.ya=[];this.le=new cg(a)}function hg(a){return a.U}h=gg.prototype;h.ab=function(){return this.ha.ab()};h.za=function(a){var b=this.ha.za();return b&&(wc(this.U.w)||!a.e()&&!b.B(G(a)).e())?b.da(a):null};h.e=function(){return 0===this.ya.length};
-h.Jb=function(a){this.ya.push(a)};h.hb=function(a,b){var c=[];if(b){x(null==a,"A cancel should cancel all event registrations.");var d=this.U.path;Ja(this.ya,function(a){(a=a.Te(b,d))&&c.push(a)})}if(a){for(var e=[],f=0;f<this.ya.length;++f){var g=this.ya[f];if(!g.matches(a))e.push(g);else if(a.cf()){e=e.concat(this.ya.slice(f+1));break}}this.ya=e}else this.ya=[];return c};
-h.Xa=function(a,b,c){a.type===Rf&&null!==a.source.fc&&(x(this.ha.za(),"We should always have a full cache before handling merges"),x(!!this.ha.u,"Missing event cache, even though we have a server cache"));var d=this.ha;b=this.ec.Xa(d,a,b,c);Tf(this.ec,b);this.ha=b;return X(b)!==X(d)?(a=Lf(this.ld,d,b,a.path),d=X(b),dg(this.le,a,d,this.ya)):b.u&&!d.u?(x(X(b)===X(d),"Caches should be the same."),d=X(b),dg(this.le,[new W("value",d)],d,this.ya)):[]};function Uf(a,b,c,d){this.F=a;this.o=b;this.u=c;this.X=d;x(null==a||null==b,"Only one of serverSnap / serverChildren can be non-null.");x(null==c||null==d,"Only one of eventSnap / eventChildren can be non-null.")}function X(a){return a.u||a.X}Uf.prototype.ab=function(){return this.F||this.o};Uf.prototype.za=function(){return this.F};var ig=new Uf(null,null,null,null);function jg(a,b){this.value=a;this.children=b||kg}var kg=new Lc(function(a,b){return a===b?0:a<b?-1:1}),lg=new jg(null);function mg(a){var b=lg;A(a,function(a,d){b=b.set(new P(d),a)});return b}h=jg.prototype;h.e=function(){return null===this.value&&this.children.e()};function ng(a,b,c){if(null!=a.value&&c(a.value))return{path:S,value:a.value};if(b.e())return null;var d=G(b);a=a.children.get(d);return null!==a?(b=ng(a,R(b),c),null!=b?{path:(new P(d)).k(b.path),value:b.value}:null):null}
-function og(a,b){return ng(a,b,function(){return!0})}h.subtree=function(a){if(a.e())return this;var b=this.children.get(G(a));return null!==b?b.subtree(R(a)):lg};h.set=function(a,b){if(a.e())return new jg(b,this.children);var c=G(a),d=(this.children.get(c)||lg).set(R(a),b),c=this.children.Ja(c,d);return new jg(this.value,c)};
-h.remove=function(a){if(a.e())return this.children.e()?lg:new jg(null,this.children);var b=G(a),c=this.children.get(b);return c?(a=c.remove(R(a)),b=a.e()?this.children.remove(b):this.children.Ja(b,a),null===this.value&&b.e()?lg:new jg(this.value,b)):this};h.get=function(a){if(a.e())return this.value;var b=this.children.get(G(a));return b?b.get(R(a)):null};
-function pg(a,b,c){if(b.e())return c;var d=G(b);b=pg(a.children.get(d)||lg,R(b),c);d=b.e()?a.children.remove(d):a.children.Ja(d,b);return new jg(a.value,d)}function qg(a,b){return rg(a,S,b)}function rg(a,b,c){var d={};a.children.Ba(function(a,f){d[a]=rg(f,b.k(a),c)});return c(b,a.value,d)}function sg(a,b,c){return tg(a,b,S,c)}function tg(a,b,c,d){var e=a.value?d(c,a.value):!1;if(e)return e;if(b.e())return null;e=G(b);return(a=a.children.get(e))?tg(a,R(b),c.k(e),d):null}
-function ug(a,b,c){if(!b.e()){var d=!0;a.value&&(d=c(S,a.value));!0===d&&(d=G(b),(a=a.children.get(d))&&vg(a,R(b),S.k(d),c))}}function vg(a,b,c,d){if(b.e())return a;a.value&&d(c,a.value);var e=G(b);return(a=a.children.get(e))?vg(a,R(b),c.k(e),d):lg}function Xf(a,b){wg(a,S,b)}function wg(a,b,c){a.children.Ba(function(a,e){wg(e,b.k(a),c)});a.value&&c(b,a.value)}function xg(a,b){a.children.Ba(function(a,d){d.value&&b(a,d.value)})};function yg(){this.qa={}}h=yg.prototype;h.e=function(){return Bd(this.qa)};h.Xa=function(a,b,c){var d=a.source.fc;if(null!==d)return d=v(this.qa,d),x(null!=d,"SyncTree gave us an op for an invalid query."),d.Xa(a,b,c);var e=[];A(this.qa,function(d){e=e.concat(d.Xa(a,b,c))});return e};h.Jb=function(a,b,c,d,e){var f=a.Da(),g=v(this.qa,f);g||(c=(g=c.xa(d))?null:c.ce(e),d=new Uf(d,e,g,c),g=new gg(a,d),this.qa[f]=g);g.Jb(b);a=g;(f=X(a.ha))?(d=Lf(a.ld,ig,a.ha,S),b=dg(a.le,d,f,b?[b]:a.ya)):b=[];return b};
-h.hb=function(a,b,c){var d=a.Da(),e=[],f=[],g=null!=zg(this);if("default"===d){var k=this;A(this.qa,function(a,d){f=f.concat(a.hb(b,c));a.e()&&(delete k.qa[d],wc(a.U.w)||e.push(a.U))})}else{var l=v(this.qa,d);l&&(f=f.concat(l.hb(b,c)),l.e()&&(delete this.qa[d],wc(l.U.w)||e.push(l.U)))}g&&null==zg(this)&&e.push(new O(a.g,a.path));return{mg:e,Pf:f}};function Ag(a){return Ka(xd(a.qa),function(a){return!wc(a.U.w)})}h.za=function(a){var b=null;A(this.qa,function(c){b=b||c.za(a)});return b};
-function Bg(a,b){if(wc(b.w))return zg(a);var c=b.Da();return v(a.qa,c)}function zg(a){return Ad(a.qa,function(a){return wc(a.U.w)})||null};function Cg(){this.V=lg;this.ra=[];this.Ec=-1}
-function Dg(a,b){var c=Pa(a.ra,function(a){return a.Xd===b});x(0<=c,"removeWrite called with nonexistent writeId.");var d=a.ra[c];a.ra.splice(c,1);for(var e=!1,f=!1,g=!1,k=a.ra.length-1;!e&&0<=k;){var l=a.ra[k];k>=c&&Eg(l,d.path)?e=!0:!f&&d.path.contains(l.path)&&(k>=c?f=!0:g=!0);k--}e||(f||g?Fg(a):d.Oa?a.V=a.V.remove(d.path):A(d.children,function(b,c){a.V=a.V.remove(d.path.k(c))}));c=d.path;if(og(a.V,c)){if(g)return c;x(e,"Must have found a shadow");return null}return c}h=Cg.prototype;
-h.Ob=function(a){var b=og(this.V,a);if(b){var c=b.value;a=T(b.path,a);return c.da(a)}return null};
-h.xa=function(a,b,c,d){var e,f;if(c||d)return e=this.V.subtree(a),!d&&e.e()?b:d||null!==b||null!==e.value?(e=Gg(this.ra,function(b){return(b.visible||d)&&(!c||!(0<=Ia(c,b.Xd)))&&(b.path.contains(a)||a.contains(b.path))},a),f=b||K,Xf(e,function(a,b){f=f.L(a,b)}),f):null;if(e=og(this.V,a))return b=T(e.path,a),e.value.da(b);e=this.V.subtree(a);return e.e()?b:b||e.value?(f=b||K,Xf(e,function(a,b){f=f.L(a,b)}),f):null};
-h.ce=function(a,b){var c=!1,d=K,e=this.Ob(a);if(e)return e.P()||e.ca(L,function(a,b){d=d.I(a,b)}),d;if(b)return d=b,xg(this.V.subtree(a),function(a,b){d=d.I(a,b)}),d;xg(this.V.subtree(a),function(a,b){c=!0;d=d.I(a,b)});return c?d:null};h.Ya=function(a,b,c,d){x(c||d,"Either existingEventSnap or existingServerSnap must exist");a=a.k(b);if(og(this.V,a))return null;a=this.V.subtree(a);if(a.e())return d.da(b);var e=d.da(b);Xf(a,function(a,b){e=e.L(a,b)});return e};
-h.de=function(a,b,c,d,e,f){var g;a=this.V.subtree(a);a.value?g=a.value:b&&(g=b,Xf(a,function(a,b){g=g.L(a,b)}));if(g){b=[];g=g.Wd(f);a=H(f);e=e?g.Sb(c,f):g.rb(c,f);for(f=U(e);f&&b.length<d;)0!==a(f,c)&&b.push(f),f=U(e);return b}return[]};function Eg(a,b){return a.Oa?a.path.contains(b):!!zd(a.children,function(c,d){return a.path.k(d).contains(b)})}function Fg(a){a.V=Gg(a.ra,Hg,S);a.Ec=0<a.ra.length?a.ra[a.ra.length-1].Xd:-1}function Hg(a){return a.visible}
-function Gg(a,b,c){for(var d=lg,e=0;e<a.length;++e){var f=a[e];if(b(f)){var g=f.path,k;f.Oa?(c.contains(g)?(k=T(c,g),f=f.Oa):(k=S,f=f.Oa.da(T(g,c))),d=Ig(d,k,f)):d=Jg(d,f.path,f.children)}}return d}function Ig(a,b,c){var d=og(a,b);if(d){var e=d.value,d=d.path;b=T(d,b);c=e.L(b,c);a=pg(a,d,new jg(c))}else a=pg(a,b,new jg(c));return a}
-function Jg(a,b,c){var d=og(a,b);if(d){var e=d.value,d=d.path,f=T(d,b),g=e;A(c,function(a,b){g=g.L(f.k(b),a)});a=pg(a,d,new jg(g))}else A(c,function(c,d){a=pg(a,b.k(d),new jg(c))});return a}function Kg(a,b){this.Gb=a;this.Ib=b}h=Kg.prototype;h.Ob=function(){return this.Ib.Ob(this.Gb)};h.xa=function(a,b,c){return this.Ib.xa(this.Gb,a,b,c)};h.ce=function(a){return this.Ib.ce(this.Gb,a)};h.Ya=function(a,b,c){return this.Ib.Ya(this.Gb,a,b,c)};
-h.de=function(a,b,c,d,e){return this.Ib.de(this.Gb,a,b,c,d,e)};h.k=function(a){return new Kg(this.Gb.k(a),this.Ib)};function Lg(a,b,c){this.type=Qf;this.source=a;this.path=b;this.Oa=c}Lg.prototype.Mc=function(a){return this.path.e()?new Lg(this.source,S,this.Oa.B(a)):new Lg(this.source,R(this.path),this.Oa)};function Mg(a,b){this.type=Sf;this.source=Ng;this.path=a;this.sf=b}Mg.prototype.Mc=function(){return this.path.e()?this:new Mg(R(this.path),this.sf)};function Og(a,b){this.type=Vf;this.source=a;this.path=b}Og.prototype.Mc=function(){return this.path.e()?new Og(this.source,S):new Og(this.source,R(this.path))};function Pg(a,b,c){this.type=Rf;this.source=a;this.path=b;this.children=c}Pg.prototype.Mc=function(a){if(this.path.e())return a=this.children.subtree(new P(a)),a.e()?null:a.value?new Lg(this.source,S,a.value):new Pg(this.source,S,a);x(G(this.path)===a,"Can't get a merge for a child not on the path of the operation");return new Pg(this.source,R(this.path),this.children)};var Qf=0,Rf=1,Sf=2,Vf=3;function Qg(a,b,c,d){this.$e=a;this.Ze=b;this.fc=c;this.wf=d;x(!d||b,"Tagged queries must be from server.")}var Ng=new Qg(!0,!1,null,!1),Rg=new Qg(!1,!0,null,!1);function Sg(a){this.ma=lg;this.Bb=new Cg;this.Zc={};this.gc={};this.Fc=a}h=Sg.prototype;h.Fa=function(a,b,c,d){var e=this.Bb,f=d;x(c>e.Ec,"Stacking an older write on top of newer ones");n(f)||(f=!0);e.ra.push({path:a,Oa:b,Xd:c,visible:f});f&&(e.V=Ig(e.V,a,b));e.Ec=c;return d?Tg(this,new Lg(Ng,a,b)):[]};
-h.ae=function(a,b,c){var d=this.Bb;x(c>d.Ec,"Stacking an older merge on top of newer ones");d.ra.push({path:a,children:b,Xd:c,visible:!0});d.V=Jg(d.V,a,b);d.Ec=c;b=mg(b);return Tg(this,new Pg(Ng,a,b))};h.Ea=function(a,b){b=b||!1;var c=Dg(this.Bb,a);return null==c?[]:Tg(this,new Mg(c,b))};h.Sa=function(a,b){return Tg(this,new Lg(Rg,a,b))};h.$d=function(a,b){var c=mg(b);return Tg(this,new Pg(Rg,a,c))};
-function Ug(a,b,c,d){d=Cd(a.Zc,"_"+d);if(null!=d){var e=Vg(d);d=e.path;e=e.fc;b=T(d,b);c=new Lg(new Qg(!1,!0,e,!0),b,c);return Wg(a,d,c)}return[]}function Xg(a,b,c,d){if(d=Cd(a.Zc,"_"+d)){var e=Vg(d);d=e.path;e=e.fc;b=T(d,b);c=mg(c);c=new Pg(new Qg(!1,!0,e,!0),b,c);return Wg(a,d,c)}return[]}
-h.Jb=function(a,b){var c=a.path,d=null,e=!1;ug(this.ma,c,function(a,b){var f=T(a,c);d=b.za(f);e=e||null!=zg(b);return!d});var f=this.ma.get(c);f?(e=e||null!=zg(f),d=d||f.za(S)):(f=new yg,this.ma=this.ma.set(c,f));var g=null;if(!d){var k=!1,g=K;xg(this.ma.subtree(c),function(a,b){var c=b.za(S);c&&(k=!0,g=g.I(a,c))});k||(g=null)}var l=null!=Bg(f,a);if(!l&&!wc(a.w)){var m=Yg(a);x(!(m in this.gc),"View does not exist, but we have a tag");var r=Zg++;this.gc[m]=r;this.Zc["_"+r]=m}m=f.Jb(a,b,new Kg(c,this.Bb),
-d,g);l||e||(f=Bg(f,a),m=m.concat($g(this,a,f)));return m};
-h.hb=function(a,b,c){var d=a.path,e=this.ma.get(d),f=[];if(e&&("default"===a.Da()||null!=Bg(e,a))){f=e.hb(a,b,c);e.e()&&(this.ma=this.ma.remove(d));e=f.mg;f=f.Pf;b=-1!==Pa(e,function(a){return wc(a.w)});var g=sg(this.ma,d,function(a,b){return null!=zg(b)});if(b&&!g&&(d=this.ma.subtree(d),!d.e()))for(var d=ah(d),k=0;k<d.length;++k){var l=d[k],m=l.U,l=bh(this,l);this.Fc.Le(m,ch(this,m),l.qd,l.H)}if(!g&&0<e.length&&!c)if(b)this.Fc.Od(a,null);else{var r=this;Ja(e,function(a){a.Da();var b=r.gc[Yg(a)];
-r.Fc.Od(a,b)})}dh(this,e)}return f};h.xa=function(a,b){var c=this.Bb,d=sg(this.ma,a,function(b,c){var d=T(b,a);if(d=c.za(d))return d});return c.xa(a,d,b,!0)};function ah(a){return qg(a,function(a,c,d){if(c&&null!=zg(c))return[zg(c)];var e=[];c&&(e=Ag(c));A(d,function(a){e=e.concat(a)});return e})}function dh(a,b){for(var c=0;c<b.length;++c){var d=b[c];if(!wc(d.w)){var d=Yg(d),e=a.gc[d];delete a.gc[d];delete a.Zc["_"+e]}}}
-function $g(a,b,c){var d=b.path,e=ch(a,b);c=bh(a,c);b=a.Fc.Le(b,e,c.qd,c.H);d=a.ma.subtree(d);if(e)x(null==zg(d.value),"If we're adding a query, it shouldn't be shadowed");else for(e=qg(d,function(a,b,c){if(!a.e()&&b&&null!=zg(b))return[hg(zg(b))];var d=[];b&&(d=d.concat(La(Ag(b),function(a){return a.U})));A(c,function(a){d=d.concat(a)});return d}),d=0;d<e.length;++d)c=e[d],a.Fc.Od(c,ch(a,c));return b}
-function bh(a,b){var c=b.U,d=ch(a,c);return{qd:function(){return(b.ab()||K).hash()},H:function(b,f){if("ok"===b){if(f&&"object"===typeof f&&u(f,"w")){var g=v(f,"w");ea(g)&&0<=Ia(g,"no_index")&&z("Using an unspecified index. Consider adding "+('".indexOn": "'+c.w.m.toString()+'"')+" at "+c.path.toString()+" to your security rules for better performance")}if(d){var k=c.path;if(g=Cd(a.Zc,"_"+d))var l=Vg(g),g=l.path,l=l.fc,k=T(g,k),k=new Og(new Qg(!1,!0,l,!0),k),g=Wg(a,g,k);else g=[]}else g=Tg(a,new Og(Rg,
-c.path));return g}g="Unknown Error";"too_big"===b?g="The data requested exceeds the maximum size that can be accessed with a single request.":"permission_denied"==b?g="Client doesn't have permission to access the desired data.":"unavailable"==b&&(g="The service is unavailable");g=Error(b+": "+g);g.code=b.toUpperCase();return a.hb(c,null,g)}}}function Yg(a){return a.path.toString()+"$"+a.Da()}
-function Vg(a){var b=a.indexOf("$");x(-1!==b&&b<a.length-1,"Bad queryKey.");return{fc:a.substr(b+1),path:new P(a.substr(0,b))}}function ch(a,b){var c=Yg(b);return v(a.gc,c)}var Zg=1;function Wg(a,b,c){var d=a.ma.get(b);x(d,"Missing sync point for query tag that we're tracking");return d.Xa(c,new Kg(b,a.Bb),null)}function Tg(a,b){return eh(a,b,a.ma,null,new Kg(S,a.Bb))}
-function eh(a,b,c,d,e){if(b.path.e())return fh(a,b,c,d,e);var f=c.get(S);null==d&&null!=f&&(d=f.za(S));var g=[],k=G(b.path),l=b.Mc(k);if((c=c.children.get(k))&&l)var m=d?d.B(k):null,k=e.k(k),g=g.concat(eh(a,l,c,m,k));f&&(g=g.concat(f.Xa(b,e,d)));return g}function fh(a,b,c,d,e){var f=c.get(S);null==d&&null!=f&&(d=f.za(S));var g=[];c.children.Ba(function(c,f){var m=d?d.B(c):null,r=e.k(c),s=b.Mc(c);s&&(g=g.concat(fh(a,s,f,m,r)))});f&&(g=g.concat(f.Xa(b,e,d)));return g};function gh(a){this.Q=a;this.Qa=Ld(a);this.Z=new Te;this.zd=1;this.S=new xe(this.Q,q(this.Cd,this),q(this.Ad,this),q(this.Ee,this));this.ug=Md(a,q(function(){return new Id(this.Qa,this.S)},this));this.pc=new Fc;this.qe=new Se;var b=this;this.ud=new Sg({Le:function(a,d,e,f){d=[];e=b.qe.Wc.da(a.path);e.e()||(d=b.ud.Sa(a.path,e),setTimeout(function(){f("ok")},0));return d},Od:ba});hh(this,"connected",!1);this.ea=new Pe;this.T=new tf(a,q(this.S.T,this.S),q(this.S.Pe,this.S),q(this.Be,this));this.jd=0;
-this.re=null;this.M=new Sg({Le:function(a,d,e,f){Be(b.S,a,e,d,function(d,e){var l=f(d,e);Xe(b.Z,a.path,l)});return[]},Od:function(a,d){var e=b.S,f=a.path.toString(),g=a.Da();e.f("Unlisten called for "+f+" "+g);if(De(e,f,g)&&e.ia){var k=Dc(a);e.f("Unlisten on "+f+" for "+g);f={p:f};d&&(f.q=k,f.t=d);e.wa("n",f)}}})}h=gh.prototype;h.toString=function(){return(this.Q.Cb?"https://":"http://")+this.Q.host};h.name=function(){return this.Q.yb};
-function ih(a){var b=new P(".info/serverTimeOffset");a=a.qe.Wc.da(b).N()||0;return(new Date).getTime()+a}function jh(a){a=a={timestamp:ih(a)};a.timestamp=a.timestamp||(new Date).getTime();return a}h.Cd=function(a,b,c,d){this.jd++;var e=new P(a);b=this.re?this.re(a,b):b;a=[];d?c?(b=fd(b,function(a){return J(a)}),a=Xg(this.M,e,b,d)):(b=J(b),a=Ug(this.M,e,b,d)):c?(d=fd(b,function(a){return J(a)}),a=this.M.$d(e,d)):(d=J(b),a=this.M.Sa(e,d));d=e;0<a.length&&(d=kh(this,e));Xe(this.Z,d,a)};
-h.Ad=function(a){hh(this,"connected",a);!1===a&&lh(this)};h.Ee=function(a){var b=this;Cb(a,function(a,d){hh(b,d,a)})};h.Be=function(a){hh(this,"authenticated",a)};function hh(a,b,c){b=new P("/.info/"+b);c=J(c);var d=a.qe;d.Wc=d.Wc.L(b,c);c=a.ud.Sa(b,c);Xe(a.Z,b,c)}
-h.Db=function(a,b,c,d){this.f("set",{path:a.toString(),value:b,Cg:c});var e=jh(this);b=J(b,c);var e=If(b,e),f=this.zd++,e=this.M.Fa(a,e,f,!0);Ue(this.Z,e);var g=this;this.S.put(a.toString(),b.N(!0),function(b,c){var e="ok"===b;e||z("set at "+a+" failed: "+b);e=g.M.Ea(f,!e);Xe(g.Z,a,e);mh(d,b,c)});e=nh(this,a);kh(this,e);Xe(this.Z,e,[])};
-h.update=function(a,b,c){this.f("update",{path:a.toString(),value:b});var d=!0,e=jh(this),f={};A(b,function(a,b){d=!1;var c=J(a);f[b]=If(c,e)});if(d)kb("update() called with empty data.  Don't do anything."),mh(c,"ok");else{var g=this.zd++,k=this.M.ae(a,f,g);Ue(this.Z,k);var l=this;Ke(this.S,a.toString(),b,function(b,d){x("ok"===b||"permission_denied"===b,"merge at "+a+" failed.");var e="ok"===b;e||z("update at "+a+" failed: "+b);var e=l.M.Ea(g,!e),f=a;0<e.length&&(f=kh(l,a));Xe(l.Z,f,e);mh(c,b,d)});
-b=nh(this,a);kh(this,b);Xe(this.Z,a,[])}};function lh(a){a.f("onDisconnectEvents");var b=jh(a),c=[];Re(Hf(a.ea,b),S,function(b,e){c=c.concat(a.M.Sa(b,e));var f=nh(a,b);kh(a,f)});a.ea=new Pe;Xe(a.Z,S,c)}h.Ce=function(a,b){var c=this;this.S.Ce(a.toString(),function(d,e){"ok"===d&&Qe(c.ea,a);mh(b,d,e)})};function oh(a,b,c,d){var e=J(c);Fe(a.S,b.toString(),e.N(!0),function(c,g){"ok"===c&&a.ea.ic(b,e);mh(d,c,g)})}
-function ph(a,b,c,d,e){var f=J(c,d);Fe(a.S,b.toString(),f.N(!0),function(c,d){"ok"===c&&a.ea.ic(b,f);mh(e,c,d)})}function qh(a,b,c,d){var e=!0,f;for(f in c)e=!1;e?(kb("onDisconnect().update() called with empty data.  Don't do anything."),mh(d,"ok")):He(a.S,b.toString(),c,function(e,f){if("ok"===e)for(var l in c){var m=J(c[l]);a.ea.ic(b.k(l),m)}mh(d,e,f)})}function Bc(a,b,c){c=".info"===G(b.path)?a.ud.Jb(b,c):a.M.Jb(b,c);Cc(a.Z,b.path,c)}h.tb=function(){this.S.tb()};h.kc=function(){this.S.kc()};
-h.Me=function(a){if("undefined"!==typeof console){a?(this.Nd||(this.Nd=new Hd(this.Qa)),a=this.Nd.get()):a=this.Qa.get();var b=Ma(yd(a),function(a,b){return Math.max(b.length,a)},0),c;for(c in a){for(var d=a[c],e=c.length;e<b+2;e++)c+=" ";console.log(c+d)}}};h.Ne=function(a){Gd(this.Qa,a);this.ug.uf[a]=!0};h.f=function(a){kb("r:"+this.S.id+":",arguments)};function mh(a,b,c){a&&Fb(function(){if("ok"==b)a(null);else{var d=(b||"error").toUpperCase(),e=d;c&&(e+=": "+c);e=Error(e);e.code=d;a(e)}})};function rh(a,b,c,d,e){function f(){}a.f("transaction on "+b);var g=new O(a,b);g.zb("value",f);c={path:b,update:c,H:d,status:null,lf:hb(),Qe:e,rf:0,Vd:function(){g.bc("value",f)},Yd:null,sa:null,fd:null,gd:null,hd:null};d=a.M.xa(b,void 0)||K;c.fd=d;d=c.update(d.N());if(n(d)){Tb("transaction failed: Data returned ",d);c.status=1;e=Gc(a.pc,b);var k=e.ta()||[];k.push(c);Hc(e,k);"object"===typeof d&&null!==d&&u(d,".priority")?(k=v(d,".priority"),x(Rb(k),"Invalid priority returned by transaction. Priority must be a valid string, finite number, server value, or null.")):
-k=(a.M.xa(b)||K).O().N();e=jh(a);d=J(d,k);e=If(d,e);c.gd=d;c.hd=e;c.sa=a.zd++;c=a.M.Fa(b,e,c.sa,c.Qe);Xe(a.Z,b,c);sh(a)}else c.Vd(),c.gd=null,c.hd=null,c.H&&(a=new C(c.fd,new O(a,c.path),L),c.H(null,!1,a))}function sh(a,b){var c=b||a.pc;b||th(a,c);if(null!==c.ta()){var d=uh(a,c);x(0<d.length,"Sending zero length transaction queue");Na(d,function(a){return 1===a.status})&&vh(a,c.path(),d)}else c.pd()&&c.ca(function(b){sh(a,b)})}
-function vh(a,b,c){for(var d=La(c,function(a){return a.sa}),e=a.M.xa(b,d)||K,d=e,e=e.hash(),f=0;f<c.length;f++){var g=c[f];x(1===g.status,"tryToSendTransactionQueue_: items in queue should all be run.");g.status=2;g.rf++;var k=T(b,g.path),d=d.L(k,g.gd)}d=d.N(!0);a.S.put(b.toString(),d,function(d){a.f("transaction put response",{path:b.toString(),status:d});var e=[];if("ok"===d){d=[];for(f=0;f<c.length;f++){c[f].status=3;e=e.concat(a.M.Ea(c[f].sa));if(c[f].H){var g=c[f].hd,k=new O(a,c[f].path);d.push(q(c[f].H,
-null,null,!0,new C(g,k,L)))}c[f].Vd()}th(a,Gc(a.pc,b));sh(a);Xe(a.Z,b,e);for(f=0;f<d.length;f++)Fb(d[f])}else{if("datastale"===d)for(f=0;f<c.length;f++)c[f].status=4===c[f].status?5:1;else for(z("transaction at "+b.toString()+" failed: "+d),f=0;f<c.length;f++)c[f].status=5,c[f].Yd=d;kh(a,b)}},e)}function kh(a,b){var c=wh(a,b),d=c.path(),c=uh(a,c);xh(a,c,d);return d}
-function xh(a,b,c){if(0!==b.length){for(var d=[],e=[],f=La(b,function(a){return a.sa}),g=0;g<b.length;g++){var k=b[g],l=T(c,k.path),m=!1,r;x(null!==l,"rerunTransactionsUnderNode_: relativePath should not be null.");if(5===k.status)m=!0,r=k.Yd,e=e.concat(a.M.Ea(k.sa,!0));else if(1===k.status)if(25<=k.rf)m=!0,r="maxretry",e=e.concat(a.M.Ea(k.sa,!0));else{var s=a.M.xa(k.path,f)||K;k.fd=s;var y=b[g].update(s.N());n(y)?(Tb("transaction failed: Data returned ",y),l=J(y),"object"===typeof y&&null!=y&&u(y,
-".priority")||(l=l.ib(s.O())),s=k.sa,y=jh(a),y=If(l,y),k.gd=l,k.hd=y,k.sa=a.zd++,Qa(f,s),e=e.concat(a.M.Fa(k.path,y,k.sa,k.Qe)),e=e.concat(a.M.Ea(s,!0))):(m=!0,r="nodata",e=e.concat(a.M.Ea(k.sa,!0)))}Xe(a.Z,c,e);e=[];m&&(b[g].status=3,setTimeout(b[g].Vd,Math.floor(0)),b[g].H&&("nodata"===r?(k=new O(a,b[g].path),d.push(q(b[g].H,null,null,!1,new C(b[g].fd,k,L)))):d.push(q(b[g].H,null,Error(r),!1,null))))}th(a,a.pc);for(g=0;g<d.length;g++)Fb(d[g]);sh(a)}}
-function wh(a,b){for(var c,d=a.pc;null!==(c=G(b))&&null===d.ta();)d=Gc(d,c),b=R(b);return d}function uh(a,b){var c=[];yh(a,b,c);c.sort(function(a,b){return a.lf-b.lf});return c}function yh(a,b,c){var d=b.ta();if(null!==d)for(var e=0;e<d.length;e++)c.push(d[e]);b.ca(function(b){yh(a,b,c)})}function th(a,b){var c=b.ta();if(c){for(var d=0,e=0;e<c.length;e++)3!==c[e].status&&(c[d]=c[e],d++);c.length=d;Hc(b,0<c.length?c:null)}b.ca(function(b){th(a,b)})}
-function nh(a,b){var c=wh(a,b).path(),d=Gc(a.pc,b);Kc(d,function(b){zh(a,b)});zh(a,d);Jc(d,function(b){zh(a,b)});return c}
-function zh(a,b){var c=b.ta();if(null!==c){for(var d=[],e=[],f=-1,g=0;g<c.length;g++)4!==c[g].status&&(2===c[g].status?(x(f===g-1,"All SENT items should be at beginning of queue."),f=g,c[g].status=4,c[g].Yd="set"):(x(1===c[g].status,"Unexpected transaction status in abort"),c[g].Vd(),e=e.concat(a.M.Ea(c[g].sa,!0)),c[g].H&&d.push(q(c[g].H,null,Error("set"),!1,null))));-1===f?Hc(b,null):c.length=f+1;Xe(a.Z,b.path(),e);for(g=0;g<d.length;g++)Fb(d[g])}};function Ah(){this.jc={}}ca(Ah);Ah.prototype.tb=function(){for(var a in this.jc)this.jc[a].tb()};Ah.prototype.interrupt=Ah.prototype.tb;Ah.prototype.kc=function(){for(var a in this.jc)this.jc[a].kc()};Ah.prototype.resume=Ah.prototype.kc;function Bh(a){var b=this;this.tc=a;this.Qd="*";lf()?this.Hc=this.sd=cf():(this.Hc=window.opener,this.sd=window);if(!b.Hc)throw"Unable to find relay frame";df(this.sd,"message",q(this.cc,this));df(this.sd,"message",q(this.hf,this));try{Ch(this,{a:"ready"})}catch(c){df(this.Hc,"load",function(){Ch(b,{a:"ready"})})}df(window,"unload",q(this.eg,this))}function Ch(a,b){b=t(b);lf()?a.Hc.doPost(b,a.Qd):a.Hc.postMessage(b,a.Qd)}
-Bh.prototype.cc=function(a){var b=this,c;try{c=ua(a.data)}catch(d){}c&&"request"===c.a&&(ef(window,"message",this.cc),this.Qd=a.origin,this.tc&&setTimeout(function(){b.tc(b.Qd,c.d,function(a,c){b.If=!c;b.tc=void 0;Ch(b,{a:"response",d:a,forceKeepWindowOpen:c})})},0))};Bh.prototype.eg=function(){try{ef(this.sd,"message",this.hf)}catch(a){}this.tc&&(Ch(this,{a:"error",d:"unknown closed window"}),this.tc=void 0);try{window.close()}catch(b){}};Bh.prototype.hf=function(a){if(this.If&&"die"===a.data)try{window.close()}catch(b){}};var Y={Rf:function(){Yd=Pd=!0}};Y.forceLongPolling=Y.Rf;Y.Sf=function(){Zd=!0};Y.forceWebSockets=Y.Sf;Y.rg=function(a,b){a.g.S.Ke=b};Y.setSecurityDebugCallback=Y.rg;Y.Me=function(a,b){a.g.Me(b)};Y.stats=Y.Me;Y.Ne=function(a,b){a.g.Ne(b)};Y.statsIncrementCounter=Y.Ne;Y.jd=function(a){return a.g.jd};Y.dataUpdateCount=Y.jd;Y.Vf=function(a,b){a.g.re=b};Y.interceptServerData=Y.Vf;Y.bg=function(a){new Bh(a)};Y.onPopupOpen=Y.bg;Y.pg=function(a){Ye=a};Y.setAuthenticationServer=Y.pg;function Z(a,b){this.Sc=a;this.Ca=b}Z.prototype.cancel=function(a){D("Firebase.onDisconnect().cancel",0,1,arguments.length);F("Firebase.onDisconnect().cancel",1,a,!0);this.Sc.Ce(this.Ca,a||null)};Z.prototype.cancel=Z.prototype.cancel;Z.prototype.remove=function(a){D("Firebase.onDisconnect().remove",0,1,arguments.length);$b("Firebase.onDisconnect().remove",this.Ca);F("Firebase.onDisconnect().remove",1,a,!0);oh(this.Sc,this.Ca,null,a)};Z.prototype.remove=Z.prototype.remove;
-Z.prototype.set=function(a,b){D("Firebase.onDisconnect().set",1,2,arguments.length);$b("Firebase.onDisconnect().set",this.Ca);Sb("Firebase.onDisconnect().set",a,!1);F("Firebase.onDisconnect().set",2,b,!0);oh(this.Sc,this.Ca,a,b)};Z.prototype.set=Z.prototype.set;
-Z.prototype.Db=function(a,b,c){D("Firebase.onDisconnect().setWithPriority",2,3,arguments.length);$b("Firebase.onDisconnect().setWithPriority",this.Ca);Sb("Firebase.onDisconnect().setWithPriority",a,!1);Wb("Firebase.onDisconnect().setWithPriority",2,b);F("Firebase.onDisconnect().setWithPriority",3,c,!0);ph(this.Sc,this.Ca,a,b,c)};Z.prototype.setWithPriority=Z.prototype.Db;
-Z.prototype.update=function(a,b){D("Firebase.onDisconnect().update",1,2,arguments.length);$b("Firebase.onDisconnect().update",this.Ca);if(ea(a)){for(var c={},d=0;d<a.length;++d)c[""+d]=a[d];a=c;z("Passing an Array to Firebase.onDisconnect().update() is deprecated. Use set() if you want to overwrite the existing data, or an Object with integer keys if you really do want to only update some of the children.")}Vb("Firebase.onDisconnect().update",a);F("Firebase.onDisconnect().update",2,b,!0);qh(this.Sc,
-this.Ca,a,b)};Z.prototype.update=Z.prototype.update;var $={};$.rc=xe;$.DataConnection=$.rc;xe.prototype.tg=function(a,b){this.wa("q",{p:a},b)};$.rc.prototype.simpleListen=$.rc.prototype.tg;xe.prototype.Nf=function(a,b){this.wa("echo",{d:a},b)};$.rc.prototype.echo=$.rc.prototype.Nf;xe.prototype.interrupt=xe.prototype.tb;$.zf=ie;$.RealTimeConnection=$.zf;ie.prototype.sendRequest=ie.prototype.wa;ie.prototype.close=ie.prototype.close;
-$.Uf=function(a){var b=xe.prototype.put;xe.prototype.put=function(c,d,e,f){n(f)&&(f=a());b.call(this,c,d,e,f)};return function(){xe.prototype.put=b}};$.hijackHash=$.Uf;$.yf=Ca;$.ConnectionTarget=$.yf;$.Da=function(a){return a.Da()};$.queryIdentifier=$.Da;$.Wf=function(a){return a.g.S.ua};$.listens=$.Wf;var Dh=function(){var a=0,b=[];return function(c){var d=c===a;a=c;for(var e=Array(8),f=7;0<=f;f--)e[f]="-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".charAt(c%64),c=Math.floor(c/64);x(0===c,"Cannot push at time == 0");c=e.join("");if(d){for(f=11;0<=f&&63===b[f];f--)b[f]=0;b[f]++}else for(f=0;12>f;f++)b[f]=Math.floor(64*Math.random());for(f=0;12>f;f++)c+="-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz".charAt(b[f]);x(20===c.length,"NextPushId: Length should be 20.");
-return c}}();function O(a,b){var c,d,e;if(a instanceof gh)c=a,d=b;else{D("new Firebase",1,2,arguments.length);d=ub(arguments[0]);c=d.vg;"firebase"===d.domain&&tb(d.host+" is no longer supported. Please use <YOUR FIREBASE>.firebaseio.com instead");c||tb("Cannot parse Firebase url. Please use https://<YOUR FIREBASE>.firebaseio.com");d.Cb||"undefined"!==typeof window&&window.location&&window.location.protocol&&-1!==window.location.protocol.indexOf("https:")&&z("Insecure Firebase access from a secure page. Please use https in calls to new Firebase().");
-c=new Ca(d.host,d.Cb,c,"ws"===d.scheme||"wss"===d.scheme);d=new P(d.Pc);e=d.toString();var f;!(f=!p(c.host)||0===c.host.length||!Qb(c.yb))&&(f=0!==e.length)&&(e&&(e=e.replace(/^\/*\.info(\/|$)/,"/")),f=!(p(e)&&0!==e.length&&!Pb.test(e)));if(f)throw Error(E("new Firebase",1,!1)+'must be a valid firebase URL and the path can\'t contain ".", "#", "$", "[", or "]".');if(b)if(b instanceof Ah)e=b;else if(p(b))e=Ah.Qb(),c.Gd=b;else throw Error("Expected a valid Firebase.Context for second argument to new Firebase()");
-else e=Ah.Qb();f=c.toString();var g=v(e.jc,f);g||(g=new gh(c),e.jc[f]=g);c=g}M.call(this,c,d,oc,!1)}na(O,M);var Eh=O,Fh=["Firebase"],Gh=aa;Fh[0]in Gh||!Gh.execScript||Gh.execScript("var "+Fh[0]);for(var Hh;Fh.length&&(Hh=Fh.shift());)!Fh.length&&n(Eh)?Gh[Hh]=Eh:Gh=Gh[Hh]?Gh[Hh]:Gh[Hh]={};O.prototype.name=function(){z("Firebase.name() being deprecated. Please use Firebase.key() instead.");D("Firebase.name",0,0,arguments.length);return this.key()};O.prototype.name=O.prototype.name;
-O.prototype.key=function(){D("Firebase.key",0,0,arguments.length);var a;this.path.e()?a=null:(a=this.path,a=a.aa<a.n.length?a.n[a.n.length-1]:null);return a};O.prototype.key=O.prototype.key;O.prototype.k=function(a){D("Firebase.child",1,1,arguments.length);if(ga(a))a=String(a);else if(!(a instanceof P))if(null===G(this.path)){var b=a;b&&(b=b.replace(/^\/*\.info(\/|$)/,"/"));Zb("Firebase.child",b)}else Zb("Firebase.child",a);return new O(this.g,this.path.k(a))};O.prototype.child=O.prototype.k;
-O.prototype.parent=function(){D("Firebase.parent",0,0,arguments.length);var a=this.path.parent();return null===a?null:new O(this.g,a)};O.prototype.parent=O.prototype.parent;O.prototype.root=function(){D("Firebase.ref",0,0,arguments.length);for(var a=this;null!==a.parent();)a=a.parent();return a};O.prototype.root=O.prototype.root;
-O.prototype.toString=function(){D("Firebase.toString",0,0,arguments.length);var a;if(null===this.parent())a=this.g.toString();else{a=this.parent().toString()+"/";var b=this.key();a+=encodeURIComponent(String(b))}return a};O.prototype.toString=O.prototype.toString;O.prototype.set=function(a,b){D("Firebase.set",1,2,arguments.length);$b("Firebase.set",this.path);Sb("Firebase.set",a,!1);F("Firebase.set",2,b,!0);this.g.Db(this.path,a,null,b||null)};O.prototype.set=O.prototype.set;
-O.prototype.update=function(a,b){D("Firebase.update",1,2,arguments.length);$b("Firebase.update",this.path);if(ea(a)){for(var c={},d=0;d<a.length;++d)c[""+d]=a[d];a=c;z("Passing an Array to Firebase.update() is deprecated. Use set() if you want to overwrite the existing data, or an Object with integer keys if you really do want to only update some of the children.")}Vb("Firebase.update",a);F("Firebase.update",2,b,!0);if(u(a,".priority"))throw Error("update() does not currently support updating .priority.");
-this.g.update(this.path,a,b||null)};O.prototype.update=O.prototype.update;O.prototype.Db=function(a,b,c){D("Firebase.setWithPriority",2,3,arguments.length);$b("Firebase.setWithPriority",this.path);Sb("Firebase.setWithPriority",a,!1);Wb("Firebase.setWithPriority",2,b);F("Firebase.setWithPriority",3,c,!0);if(".length"===this.key()||".keys"===this.key())throw"Firebase.setWithPriority failed: "+this.key()+" is a read-only object.";this.g.Db(this.path,a,b,c||null)};O.prototype.setWithPriority=O.prototype.Db;
-O.prototype.remove=function(a){D("Firebase.remove",0,1,arguments.length);$b("Firebase.remove",this.path);F("Firebase.remove",1,a,!0);this.set(null,a)};O.prototype.remove=O.prototype.remove;
-O.prototype.transaction=function(a,b,c){D("Firebase.transaction",1,3,arguments.length);$b("Firebase.transaction",this.path);F("Firebase.transaction",1,a,!1);F("Firebase.transaction",2,b,!0);if(n(c)&&"boolean"!=typeof c)throw Error(E("Firebase.transaction",3,!0)+"must be a boolean.");if(".length"===this.key()||".keys"===this.key())throw"Firebase.transaction failed: "+this.key()+" is a read-only object.";"undefined"===typeof c&&(c=!0);rh(this.g,this.path,a,b||null,c)};O.prototype.transaction=O.prototype.transaction;
-O.prototype.qg=function(a,b){D("Firebase.setPriority",1,2,arguments.length);$b("Firebase.setPriority",this.path);Wb("Firebase.setPriority",1,a);F("Firebase.setPriority",2,b,!0);this.g.Db(this.path.k(".priority"),a,null,b)};O.prototype.setPriority=O.prototype.qg;O.prototype.push=function(a,b){D("Firebase.push",0,2,arguments.length);$b("Firebase.push",this.path);Sb("Firebase.push",a,!0);F("Firebase.push",2,b,!0);var c=ih(this.g),c=Dh(c),c=this.k(c);"undefined"!==typeof a&&null!==a&&c.set(a,b);return c};
-O.prototype.push=O.prototype.push;O.prototype.fb=function(){$b("Firebase.onDisconnect",this.path);return new Z(this.g,this.path)};O.prototype.onDisconnect=O.prototype.fb;O.prototype.T=function(a,b,c){z("FirebaseRef.auth() being deprecated. Please use FirebaseRef.authWithCustomToken() instead.");D("Firebase.auth",1,3,arguments.length);ac("Firebase.auth",a);F("Firebase.auth",2,b,!0);F("Firebase.auth",3,b,!0);zf(this.g.T,a,{},{remember:"none"},b,c)};O.prototype.auth=O.prototype.T;
-O.prototype.Pe=function(a){D("Firebase.unauth",0,1,arguments.length);F("Firebase.unauth",1,a,!0);Af(this.g.T,a)};O.prototype.unauth=O.prototype.Pe;O.prototype.ne=function(){D("Firebase.getAuth",0,0,arguments.length);return this.g.T.ne()};O.prototype.getAuth=O.prototype.ne;O.prototype.ag=function(a,b){D("Firebase.onAuth",1,2,arguments.length);F("Firebase.onAuth",1,a,!1);Nb("Firebase.onAuth",2,b);this.g.T.zb("auth_status",a,b)};O.prototype.onAuth=O.prototype.ag;
-O.prototype.Zf=function(a,b){D("Firebase.offAuth",1,2,arguments.length);F("Firebase.offAuth",1,a,!1);Nb("Firebase.offAuth",2,b);this.g.T.bc("auth_status",a,b)};O.prototype.offAuth=O.prototype.Zf;O.prototype.Df=function(a,b,c){D("Firebase.authWithCustomToken",2,3,arguments.length);ac("Firebase.authWithCustomToken",a);F("Firebase.authWithCustomToken",2,b,!1);cc("Firebase.authWithCustomToken",3,c,!0);zf(this.g.T,a,{},c||{},b)};O.prototype.authWithCustomToken=O.prototype.Df;
-O.prototype.Ef=function(a,b,c){D("Firebase.authWithOAuthPopup",2,3,arguments.length);bc("Firebase.authWithOAuthPopup",1,a);F("Firebase.authWithOAuthPopup",2,b,!1);cc("Firebase.authWithOAuthPopup",3,c,!0);Ef(this.g.T,a,c,b)};O.prototype.authWithOAuthPopup=O.prototype.Ef;
-O.prototype.Ff=function(a,b,c){D("Firebase.authWithOAuthRedirect",2,3,arguments.length);bc("Firebase.authWithOAuthRedirect",1,a);F("Firebase.authWithOAuthRedirect",2,b,!1);cc("Firebase.authWithOAuthRedirect",3,c,!0);var d=this.g.T;Cf(d);var e=[sf],f=af(c);"anonymous"===a||"firebase"===a?B(b,V("TRANSPORT_UNAVAILABLE")):(Ba.set("redirect_client_options",f.ed),Df(d,e,"/auth/"+a,f,b))};O.prototype.authWithOAuthRedirect=O.prototype.Ff;
-O.prototype.Gf=function(a,b,c,d){D("Firebase.authWithOAuthToken",3,4,arguments.length);bc("Firebase.authWithOAuthToken",1,a);F("Firebase.authWithOAuthToken",3,c,!1);cc("Firebase.authWithOAuthToken",4,d,!0);p(b)?(bc("Firebase.authWithOAuthToken",2,b),Bf(this.g.T,a+"/token",{access_token:b},d,c)):(cc("Firebase.authWithOAuthToken",2,b,!1),Bf(this.g.T,a+"/token",b,d,c))};O.prototype.authWithOAuthToken=O.prototype.Gf;
-O.prototype.Cf=function(a,b){D("Firebase.authAnonymously",1,2,arguments.length);F("Firebase.authAnonymously",1,a,!1);cc("Firebase.authAnonymously",2,b,!0);Bf(this.g.T,"anonymous",{},b,a)};O.prototype.authAnonymously=O.prototype.Cf;
-O.prototype.Hf=function(a,b,c){D("Firebase.authWithPassword",2,3,arguments.length);cc("Firebase.authWithPassword",1,a,!1);dc("Firebase.authWithPassword",a,"email");dc("Firebase.authWithPassword",a,"password");F("Firebase.authAnonymously",2,b,!1);cc("Firebase.authAnonymously",3,c,!0);Bf(this.g.T,"password",a,c,b)};O.prototype.authWithPassword=O.prototype.Hf;
-O.prototype.je=function(a,b){D("Firebase.createUser",2,2,arguments.length);cc("Firebase.createUser",1,a,!1);dc("Firebase.createUser",a,"email");dc("Firebase.createUser",a,"password");F("Firebase.createUser",2,b,!1);this.g.T.je(a,b)};O.prototype.createUser=O.prototype.je;O.prototype.Ie=function(a,b){D("Firebase.removeUser",2,2,arguments.length);cc("Firebase.removeUser",1,a,!1);dc("Firebase.removeUser",a,"email");dc("Firebase.removeUser",a,"password");F("Firebase.removeUser",2,b,!1);this.g.T.Ie(a,b)};
-O.prototype.removeUser=O.prototype.Ie;O.prototype.ee=function(a,b){D("Firebase.changePassword",2,2,arguments.length);cc("Firebase.changePassword",1,a,!1);dc("Firebase.changePassword",a,"email");dc("Firebase.changePassword",a,"oldPassword");dc("Firebase.changePassword",a,"newPassword");F("Firebase.changePassword",2,b,!1);this.g.T.ee(a,b)};O.prototype.changePassword=O.prototype.ee;
-O.prototype.Je=function(a,b){D("Firebase.resetPassword",2,2,arguments.length);cc("Firebase.resetPassword",1,a,!1);dc("Firebase.resetPassword",a,"email");F("Firebase.resetPassword",2,b,!1);this.g.T.Je(a,b)};O.prototype.resetPassword=O.prototype.Je;O.goOffline=function(){D("Firebase.goOffline",0,0,arguments.length);Ah.Qb().tb()};O.goOnline=function(){D("Firebase.goOnline",0,0,arguments.length);Ah.Qb().kc()};
-function qb(a,b){x(!b||!0===a||!1===a,"Can't turn on custom loggers persistently.");!0===a?("undefined"!==typeof console&&("function"===typeof console.log?ob=q(console.log,console):"object"===typeof console.log&&(ob=function(a){console.log(a)})),b&&Ba.set("logging_enabled",!0)):a?ob=a:(ob=null,Ba.remove("logging_enabled"))}O.enableLogging=qb;O.ServerValue={TIMESTAMP:{".sv":"timestamp"}};O.SDK_VERSION="2.0.6";O.INTERNAL=Y;O.Context=Ah;O.TEST_ACCESS=$;})();
-module.exports = Firebase;
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/index.js":[function(require,module,exports){
-'use strict';
-
-var SingleEvent = require('geval/single');
-var MultipleEvent = require('geval/multiple');
-var extend = require('xtend');
-
-/*
-    Pro tip: Don't require `mercury` itself.
-      require and depend on all these modules directly!
+/**
+* Add query-string `val`.
+*
+* Examples:
+*
+*   request.get('/shoes')
+*     .query('size=10')
+*     .query({ color: 'blue' })
+*
+* @param {Object|String} val
+* @return {Request} for chaining
+* @api public
 */
-var mercury = module.exports = {
-    // Entry
-    main: require('main-loop'),
-    app: app,
 
-    // Base
-    BaseEvent: require('value-event/base-event'),
-
-    // Input
-    Delegator: require('dom-delegator'),
-    // deprecated: keep for back compat.
-    input: input,
-    handles: handles,
-    event: require('value-event/event'),
-    valueEvent: require('value-event/value'),
-    submitEvent: require('value-event/submit'),
-    changeEvent: require('value-event/change'),
-    keyEvent: require('value-event/key'),
-    clickEvent: require('value-event/click'),
-
-    // State
-    // deprecated: use observ-varhash instead.
-    array: require('observ-array'),
-    struct: require('observ-struct'),
-    // deprecated: alias struct as hash for back compat
-    hash: require('observ-struct'),
-    varhash: require('observ-varhash'),
-    value: require('observ'),
-    state: state,
-
-    // Render
-    diff: require('virtual-dom/vtree/diff'),
-    patch: require('virtual-dom/vdom/patch'),
-    partial: require('vdom-thunk'),
-    create: require('virtual-dom/vdom/create-element'),
-    h: require('virtual-dom/virtual-hyperscript'),
-    // deprecated: keep for back compat.
-    svg: require('virtual-dom/virtual-hyperscript/svg'),
-
-    // Utilities
-    // deprecated: keep for back compat.
-    computed: require('observ/computed'),
-    // deprecated: keep for back compat.
-    watch: require('observ/watch')
+Request.prototype.query = function(val){
+  if ('string' != typeof val) val = serialize(val);
+  if (val) this._query.push(val);
+  return this;
 };
 
-function input(names) {
-    if (!names) {
-        return SingleEvent();
-    }
+/**
+ * Write the field `name` and `val` for "multipart/form-data"
+ * request bodies.
+ *
+ * ``` js
+ * request.post('/upload')
+ *   .field('foo', 'bar')
+ *   .end(callback);
+ * ```
+ *
+ * @param {String} name
+ * @param {String|Blob|File} val
+ * @return {Request} for chaining
+ * @api public
+ */
 
-    return MultipleEvent(names);
+Request.prototype.field = function(name, val){
+  if (!this._formData) this._formData = new root.FormData();
+  this._formData.append(name, val);
+  return this;
+};
+
+/**
+ * Queue the given `file` as an attachment to the specified `field`,
+ * with optional `filename`.
+ *
+ * ``` js
+ * request.post('/upload')
+ *   .attach(new Blob(['<a id="a"><b id="b">hey!</b></a>'], { type: "text/html"}))
+ *   .end(callback);
+ * ```
+ *
+ * @param {String} field
+ * @param {Blob|File} file
+ * @param {String} filename
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.attach = function(field, file, filename){
+  if (!this._formData) this._formData = new root.FormData();
+  this._formData.append(field, file, filename);
+  return this;
+};
+
+/**
+ * Send `data`, defaulting the `.type()` to "json" when
+ * an object is given.
+ *
+ * Examples:
+ *
+ *       // querystring
+ *       request.get('/search')
+ *         .end(callback)
+ *
+ *       // multiple data "writes"
+ *       request.get('/search')
+ *         .send({ search: 'query' })
+ *         .send({ range: '1..5' })
+ *         .send({ order: 'desc' })
+ *         .end(callback)
+ *
+ *       // manual json
+ *       request.post('/user')
+ *         .type('json')
+ *         .send('{"name":"tj"})
+ *         .end(callback)
+ *
+ *       // auto json
+ *       request.post('/user')
+ *         .send({ name: 'tj' })
+ *         .end(callback)
+ *
+ *       // manual x-www-form-urlencoded
+ *       request.post('/user')
+ *         .type('form')
+ *         .send('name=tj')
+ *         .end(callback)
+ *
+ *       // auto x-www-form-urlencoded
+ *       request.post('/user')
+ *         .type('form')
+ *         .send({ name: 'tj' })
+ *         .end(callback)
+ *
+ *       // defaults to x-www-form-urlencoded
+  *      request.post('/user')
+  *        .send('name=tobi')
+  *        .send('species=ferret')
+  *        .end(callback)
+ *
+ * @param {String|Object} data
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.send = function(data){
+  var obj = isObject(data);
+  var type = this.getHeader('Content-Type');
+
+  // merge
+  if (obj && isObject(this._data)) {
+    for (var key in data) {
+      this._data[key] = data[key];
+    }
+  } else if ('string' == typeof data) {
+    if (!type) this.type('form');
+    type = this.getHeader('Content-Type');
+    if ('application/x-www-form-urlencoded' == type) {
+      this._data = this._data
+        ? this._data + '&' + data
+        : data;
+    } else {
+      this._data = (this._data || '') + data;
+    }
+  } else {
+    this._data = data;
+  }
+
+  if (!obj || isHost(data)) return this;
+  if (!type) this.type('json');
+  return this;
+};
+
+/**
+ * Invoke the callback with `err` and `res`
+ * and handle arity check.
+ *
+ * @param {Error} err
+ * @param {Response} res
+ * @api private
+ */
+
+Request.prototype.callback = function(err, res){
+  var fn = this._callback;
+  this.clearTimeout();
+  fn(err, res);
+};
+
+/**
+ * Invoke callback with x-domain error.
+ *
+ * @api private
+ */
+
+Request.prototype.crossDomainError = function(){
+  var err = new Error('Origin is not allowed by Access-Control-Allow-Origin');
+  err.crossDomain = true;
+  this.callback(err);
+};
+
+/**
+ * Invoke callback with timeout error.
+ *
+ * @api private
+ */
+
+Request.prototype.timeoutError = function(){
+  var timeout = this._timeout;
+  var err = new Error('timeout of ' + timeout + 'ms exceeded');
+  err.timeout = timeout;
+  this.callback(err);
+};
+
+/**
+ * Enable transmission of cookies with x-domain requests.
+ *
+ * Note that for this to work the origin must not be
+ * using "Access-Control-Allow-Origin" with a wildcard,
+ * and also must set "Access-Control-Allow-Credentials"
+ * to "true".
+ *
+ * @api public
+ */
+
+Request.prototype.withCredentials = function(){
+  this._withCredentials = true;
+  return this;
+};
+
+/**
+ * Initiate request, invoking callback `fn(res)`
+ * with an instanceof `Response`.
+ *
+ * @param {Function} fn
+ * @return {Request} for chaining
+ * @api public
+ */
+
+Request.prototype.end = function(fn){
+  var self = this;
+  var xhr = this.xhr = request.getXHR();
+  var query = this._query.join('&');
+  var timeout = this._timeout;
+  var data = this._formData || this._data;
+
+  // store callback
+  this._callback = fn || noop;
+
+  // state change
+  xhr.onreadystatechange = function(){
+    if (4 != xhr.readyState) return;
+
+    // In IE9, reads to any property (e.g. status) off of an aborted XHR will
+    // result in the error "Could not complete the operation due to error c00c023f"
+    var status;
+    try { status = xhr.status } catch(e) { status = 0; }
+
+    if (0 == status) {
+      if (self.timedout) return self.timeoutError();
+      if (self.aborted) return;
+      return self.crossDomainError();
+    }
+    self.emit('end');
+  };
+
+  // progress
+  var handleProgress = function(e){
+    if (e.total > 0) {
+      e.percent = e.loaded / e.total * 100;
+    }
+    self.emit('progress', e);
+  };
+  if (this.hasListeners('progress')) {
+    xhr.onprogress = handleProgress;
+  }
+  try {
+    if (xhr.upload && this.hasListeners('progress')) {
+      xhr.upload.onprogress = handleProgress;
+    }
+  } catch(e) {
+    // Accessing xhr.upload fails in IE from a web worker, so just pretend it doesn't exist.
+    // Reported here:
+    // https://connect.microsoft.com/IE/feedback/details/837245/xmlhttprequest-upload-throws-invalid-argument-when-used-from-web-worker-context
+  }
+
+  // timeout
+  if (timeout && !this._timer) {
+    this._timer = setTimeout(function(){
+      self.timedout = true;
+      self.abort();
+    }, timeout);
+  }
+
+  // querystring
+  if (query) {
+    query = request.serializeObject(query);
+    this.url += ~this.url.indexOf('?')
+      ? '&' + query
+      : '?' + query;
+  }
+
+  // initiate request
+  xhr.open(this.method, this.url, true);
+
+  // CORS
+  if (this._withCredentials) xhr.withCredentials = true;
+
+  // body
+  if ('GET' != this.method && 'HEAD' != this.method && 'string' != typeof data && !isHost(data)) {
+    // serialize stuff
+    var serialize = request.serialize[this.getHeader('Content-Type')];
+    if (serialize) data = serialize(data);
+  }
+
+  // set header fields
+  for (var field in this.header) {
+    if (null == this.header[field]) continue;
+    xhr.setRequestHeader(field, this.header[field]);
+  }
+
+  // send stuff
+  this.emit('request', this);
+  xhr.send(data);
+  return this;
+};
+
+/**
+ * Expose `Request`.
+ */
+
+request.Request = Request;
+
+/**
+ * Issue a request:
+ *
+ * Examples:
+ *
+ *    request('GET', '/users').end(callback)
+ *    request('/users').end(callback)
+ *    request('/users', callback)
+ *
+ * @param {String} method
+ * @param {String|Function} url or callback
+ * @return {Request}
+ * @api public
+ */
+
+function request(method, url) {
+  // callback
+  if ('function' == typeof url) {
+    return new Request('GET', method).end(url);
+  }
+
+  // url first
+  if (1 == arguments.length) {
+    return new Request('GET', method);
+  }
+
+  return new Request(method, url);
 }
 
-function state(obj) {
-    var copy = extend(obj);
-    var $handles = copy.handles;
+/**
+ * GET `url` with optional callback `fn(res)`.
+ *
+ * @param {String} url
+ * @param {Mixed|Function} data or fn
+ * @param {Function} fn
+ * @return {Request}
+ * @api public
+ */
 
-    if ($handles) {
-        copy.handles = mercury.value(null);
-    }
+request.get = function(url, data, fn){
+  var req = request('GET', url);
+  if ('function' == typeof data) fn = data, data = null;
+  if (data) req.query(data);
+  if (fn) req.end(fn);
+  return req;
+};
 
-    var observ = mercury.struct(copy);
-    if ($handles) {
-        observ.handles.set(mercury.handles($handles, observ));
-    }
-    return observ;
+/**
+ * HEAD `url` with optional callback `fn(res)`.
+ *
+ * @param {String} url
+ * @param {Mixed|Function} data or fn
+ * @param {Function} fn
+ * @return {Request}
+ * @api public
+ */
+
+request.head = function(url, data, fn){
+  var req = request('HEAD', url);
+  if ('function' == typeof data) fn = data, data = null;
+  if (data) req.send(data);
+  if (fn) req.end(fn);
+  return req;
+};
+
+/**
+ * DELETE `url` with optional callback `fn(res)`.
+ *
+ * @param {String} url
+ * @param {Function} fn
+ * @return {Request}
+ * @api public
+ */
+
+request.del = function(url, fn){
+  var req = request('DELETE', url);
+  if (fn) req.end(fn);
+  return req;
+};
+
+/**
+ * PATCH `url` with optional `data` and callback `fn(res)`.
+ *
+ * @param {String} url
+ * @param {Mixed} data
+ * @param {Function} fn
+ * @return {Request}
+ * @api public
+ */
+
+request.patch = function(url, data, fn){
+  var req = request('PATCH', url);
+  if ('function' == typeof data) fn = data, data = null;
+  if (data) req.send(data);
+  if (fn) req.end(fn);
+  return req;
+};
+
+/**
+ * POST `url` with optional `data` and callback `fn(res)`.
+ *
+ * @param {String} url
+ * @param {Mixed} data
+ * @param {Function} fn
+ * @return {Request}
+ * @api public
+ */
+
+request.post = function(url, data, fn){
+  var req = request('POST', url);
+  if ('function' == typeof data) fn = data, data = null;
+  if (data) req.send(data);
+  if (fn) req.end(fn);
+  return req;
+};
+
+/**
+ * PUT `url` with optional `data` and callback `fn(res)`.
+ *
+ * @param {String} url
+ * @param {Mixed|Function} data or fn
+ * @param {Function} fn
+ * @return {Request}
+ * @api public
+ */
+
+request.put = function(url, data, fn){
+  var req = request('PUT', url);
+  if ('function' == typeof data) fn = data, data = null;
+  if (data) req.send(data);
+  if (fn) req.end(fn);
+  return req;
+};
+
+/**
+ * Expose `request`.
+ */
+
+module.exports = request;
+
+},{"emitter":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/node_modules/component-emitter/index.js","reduce":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/node_modules/reduce-component/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/node_modules/component-emitter/index.js":[function(require,module,exports){
+
+/**
+ * Expose `Emitter`.
+ */
+
+module.exports = Emitter;
+
+/**
+ * Initialize a new `Emitter`.
+ *
+ * @api public
+ */
+
+function Emitter(obj) {
+  if (obj) return mixin(obj);
+};
+
+/**
+ * Mixin the emitter properties.
+ *
+ * @param {Object} obj
+ * @return {Object}
+ * @api private
+ */
+
+function mixin(obj) {
+  for (var key in Emitter.prototype) {
+    obj[key] = Emitter.prototype[key];
+  }
+  return obj;
 }
 
-function handles(funcs, context) {
-    return Object.keys(funcs).reduce(createHandle, {});
+/**
+ * Listen on the given `event` with `fn`.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
 
-    function createHandle(acc, name) {
-        var handle = mercury.Delegator.allocateHandle(
-            funcs[name].bind(null, context));
+Emitter.prototype.on =
+Emitter.prototype.addEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+  (this._callbacks[event] = this._callbacks[event] || [])
+    .push(fn);
+  return this;
+};
 
-        acc[name] = handle;
-        return acc;
+/**
+ * Adds an `event` listener that will be invoked a single
+ * time then automatically removed.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.once = function(event, fn){
+  var self = this;
+  this._callbacks = this._callbacks || {};
+
+  function on() {
+    self.off(event, on);
+    fn.apply(this, arguments);
+  }
+
+  on.fn = fn;
+  this.on(event, on);
+  return this;
+};
+
+/**
+ * Remove the given callback for `event` or all
+ * registered callbacks.
+ *
+ * @param {String} event
+ * @param {Function} fn
+ * @return {Emitter}
+ * @api public
+ */
+
+Emitter.prototype.off =
+Emitter.prototype.removeListener =
+Emitter.prototype.removeAllListeners =
+Emitter.prototype.removeEventListener = function(event, fn){
+  this._callbacks = this._callbacks || {};
+
+  // all
+  if (0 == arguments.length) {
+    this._callbacks = {};
+    return this;
+  }
+
+  // specific event
+  var callbacks = this._callbacks[event];
+  if (!callbacks) return this;
+
+  // remove all handlers
+  if (1 == arguments.length) {
+    delete this._callbacks[event];
+    return this;
+  }
+
+  // remove specific handler
+  var cb;
+  for (var i = 0; i < callbacks.length; i++) {
+    cb = callbacks[i];
+    if (cb === fn || cb.fn === fn) {
+      callbacks.splice(i, 1);
+      break;
     }
-}
+  }
+  return this;
+};
 
-function app(elem, observ, render, opts) {
-    mercury.Delegator(opts);
-    var loop = mercury.main(observ(), render, extend({
-        diff: mercury.diff,
-        create: mercury.create,
-        patch: mercury.patch
-    }, opts));
-    if (elem) {
-        elem.appendChild(loop.target);
+/**
+ * Emit `event` with the given args.
+ *
+ * @param {String} event
+ * @param {Mixed} ...
+ * @return {Emitter}
+ */
+
+Emitter.prototype.emit = function(event){
+  this._callbacks = this._callbacks || {};
+  var args = [].slice.call(arguments, 1)
+    , callbacks = this._callbacks[event];
+
+  if (callbacks) {
+    callbacks = callbacks.slice(0);
+    for (var i = 0, len = callbacks.length; i < len; ++i) {
+      callbacks[i].apply(this, args);
     }
-    return observ(loop.update);
-}
+  }
 
-},{"dom-delegator":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/index.js","geval/multiple":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/multiple.js","geval/single":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/single.js","main-loop":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/index.js","observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js","observ-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/index.js","observ-struct":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/index.js","observ-varhash":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/index.js","observ/computed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/computed.js","observ/watch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/watch.js","value-event/base-event":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","value-event/change":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/change.js","value-event/click":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/click.js","value-event/event":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/event.js","value-event/key":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/key.js","value-event/submit":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/submit.js","value-event/value":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/value.js","vdom-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/index.js","virtual-dom/vdom/create-element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/create-element.js","virtual-dom/vdom/patch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch.js","virtual-dom/virtual-hyperscript":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/index.js","virtual-dom/virtual-hyperscript/svg":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/svg.js","virtual-dom/vtree/diff":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vtree/diff.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/immutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/add-event.js":[function(require,module,exports){
-var DataSet = require("data-set")
+  return this;
+};
+
+/**
+ * Return array of callbacks for `event`.
+ *
+ * @param {String} event
+ * @return {Array}
+ * @api public
+ */
+
+Emitter.prototype.listeners = function(event){
+  this._callbacks = this._callbacks || {};
+  return this._callbacks[event] || [];
+};
+
+/**
+ * Check if this emitter has `event` handlers.
+ *
+ * @param {String} event
+ * @return {Boolean}
+ * @api public
+ */
+
+Emitter.prototype.hasListeners = function(event){
+  return !! this.listeners(event).length;
+};
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/node_modules/reduce-component/index.js":[function(require,module,exports){
+
+/**
+ * Reduce `arr` with `fn`.
+ *
+ * @param {Array} arr
+ * @param {Function} fn
+ * @param {Mixed} initial
+ *
+ * TODO: combatible error handling?
+ */
+
+module.exports = function(arr, fn, initial){  
+  var idx = 0;
+  var len = arr.length;
+  var curr = arguments.length == 3
+    ? initial
+    : arr[idx++];
+
+  while (idx < len) {
+    curr = fn.call(null, curr, arr[idx], ++idx, arr);
+  }
+  
+  return curr;
+};
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/add-event.js":[function(require,module,exports){
+var EvStore = require("ev-store")
 
 module.exports = addEvent
 
 function addEvent(target, type, handler) {
-    var ds = DataSet(target)
-    var events = ds[type]
+    var events = EvStore(target)
+    var event = events[type]
 
-    if (!events) {
-        ds[type] = handler
-    } else if (Array.isArray(events)) {
-        if (events.indexOf(handler) === -1) {
-            events.push(handler)
+    if (!event) {
+        events[type] = handler
+    } else if (Array.isArray(event)) {
+        if (event.indexOf(handler) === -1) {
+            event.push(handler)
         }
-    } else if (events !== handler) {
-        ds[type] = [events, handler]
+    } else if (event !== handler) {
+        events[type] = [event, handler]
     }
 }
 
-},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/dom-delegator.js":[function(require,module,exports){
+},{"ev-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/dom-delegator.js":[function(require,module,exports){
 var globalDocument = require("global/document")
-var DataSet = require("data-set")
+var EvStore = require("ev-store")
 var createStore = require("weakmap-shim/create-store")
 
 var addEvent = require("./add-event.js")
@@ -3886,14 +7880,14 @@ function findAndInvokeListeners(elem, ev, eventName) {
 
 function getListener(target, type) {
     // terminate recursion if parent is `null`
-    if (target === null) {
+    if (target === null || typeof target === "undefined") {
         return null
     }
 
-    var ds = DataSet(target)
+    var events = EvStore(target)
     // fetch list of handler fns for this event
-    var handler = ds[type]
-    var allHandler = ds.event
+    var handler = events[type]
+    var allHandler = events.event
 
     if (!handler && !allHandler) {
         return getListener(target.parentNode, type)
@@ -3927,14 +7921,14 @@ function Handle() {
     this.type = "dom-delegator-handle"
 }
 
-},{"./add-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/add-event.js","./proxy-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/proxy-event.js","./remove-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/remove-event.js","data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/index.js":[function(require,module,exports){
+},{"./add-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/add-event.js","./proxy-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/proxy-event.js","./remove-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/remove-event.js","ev-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/index.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/global/document.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/index.js":[function(require,module,exports){
 var Individual = require("individual")
 var cuid = require("cuid")
 var globalDocument = require("global/document")
 
 var DOMDelegator = require("./dom-delegator.js")
 
-var versionKey = "12"
+var versionKey = "13"
 var cacheKey = "__DOM_DELEGATOR_CACHE@" + versionKey
 var cacheTokenKey = "__DOM_DELEGATOR_CACHE_TOKEN@" + versionKey
 var delegatorCache = Individual(cacheKey, {
@@ -3989,88 +7983,188 @@ function Delegator(opts) {
 Delegator.allocateHandle = DOMDelegator.allocateHandle;
 Delegator.transformHandle = DOMDelegator.transformHandle;
 
-},{"./dom-delegator.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/dom-delegator.js","cuid":"/home/fiatjaf/comp/alquimiaorganica/node_modules/cuid/dist/browser-cuid.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js":[function(require,module,exports){
-module.exports = createHash
+},{"./dom-delegator.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/dom-delegator.js","cuid":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/cuid/dist/browser-cuid.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/global/document.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/individual/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/cuid/dist/browser-cuid.js":[function(require,module,exports){
+/**
+ * cuid.js
+ * Collision-resistant UID generator for browsers and node.
+ * Sequential for fast db lookups and recency sorting.
+ * Safe for element IDs and server-side lookups.
+ *
+ * Extracted from CLCTR
+ * 
+ * Copyright (c) Eric Elliott 2012
+ * MIT License
+ */
 
-function createHash(elem) {
-    var attributes = elem.attributes
-    var hash = {}
+/*global window, navigator, document, require, process, module */
+(function (app) {
+  'use strict';
+  var namespace = 'cuid',
+    c = 0,
+    blockSize = 4,
+    base = 36,
+    discreteValues = Math.pow(base, blockSize),
 
-    if (attributes === null || attributes === undefined) {
-        return hash
-    }
+    pad = function pad(num, size) {
+      var s = "000000000" + num;
+      return s.substr(s.length-size);
+    },
 
-    for (var i = 0; i < attributes.length; i++) {
-        var attr = attributes[i]
+    randomBlock = function randomBlock() {
+      return pad((Math.random() *
+            discreteValues << 0)
+            .toString(base), blockSize);
+    },
 
-        if (attr.name.substr(0,5) !== "data-") {
-            continue
-        }
+    safeCounter = function () {
+      c = (c < discreteValues) ? c : 0;
+      c++; // this is not subliminal
+      return c - 1;
+    },
 
-        hash[attr.name.substr(5)] = attr.value
-    }
+    api = function cuid() {
+      // Starting with a lowercase letter makes
+      // it HTML element ID friendly.
+      var letter = 'c', // hard-coded allows for sequential access
 
-    return hash
-}
+        // timestamp
+        // warning: this exposes the exact date and time
+        // that the uid was created.
+        timestamp = (new Date().getTime()).toString(base),
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js":[function(require,module,exports){
-var createStore = require("weakmap-shim/create-store")
-var Individual = require("individual")
+        // Prevent same-machine collisions.
+        counter,
 
-var createHash = require("./create-hash.js")
+        // A few chars to generate distinct ids for different
+        // clients (so different computers are far less
+        // likely to generate the same id)
+        fingerprint = api.fingerprint(),
 
-var hashStore = Individual("__DATA_SET_WEAKMAP@3", createStore())
+        // Grab some more chars from Math.random()
+        random = randomBlock() + randomBlock();
 
-module.exports = DataSet
+        counter = pad(safeCounter().toString(base), blockSize);
 
-function DataSet(elem) {
-    var store = hashStore(elem)
-
-    if (!store.hash) {
-        store.hash = createHash(elem)
-    }
-
-    return store.hash
-}
-
-},{"./create-hash.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
-var hiddenStore = require('./hidden-store.js');
-
-module.exports = createStore;
-
-function createStore() {
-    var key = {};
-
-    return function (obj) {
-        if (typeof obj !== 'object' || obj === null) {
-            throw new Error('Weakmap-shim: Key must be object')
-        }
-
-        var store = obj.valueOf(key);
-        return store && store.identity === key ?
-            store : hiddenStore(obj, key);
+      return  (letter + timestamp + counter + fingerprint + random);
     };
+
+  api.slug = function slug() {
+    var date = new Date().getTime().toString(36),
+      counter,
+      print = api.fingerprint().slice(0,1) +
+        api.fingerprint().slice(-1),
+      random = randomBlock().slice(-2);
+
+      counter = safeCounter().toString(36).slice(-4);
+
+    return date.slice(-2) + 
+      counter + print + random;
+  };
+
+  api.globalCount = function globalCount() {
+    // We want to cache the results of this
+    var cache = (function calc() {
+        var i,
+          count = 0;
+
+        for (i in window) {
+          count++;
+        }
+
+        return count;
+      }());
+
+    api.globalCount = function () { return cache; };
+    return cache;
+  };
+
+  api.fingerprint = function browserPrint() {
+    return pad((navigator.mimeTypes.length +
+      navigator.userAgent.length).toString(36) +
+      api.globalCount().toString(36), 4);
+  };
+
+  // don't change anything from here down.
+  if (app.register) {
+    app.register(namespace, api);
+  } else if (typeof module !== 'undefined') {
+    module.exports = api;
+  } else {
+    app[namespace] = api;
+  }
+
+}(this.applitude || this));
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/index.js":[function(require,module,exports){
+'use strict';
+
+var OneVersionConstraint = require('individual/one-version');
+
+var MY_VERSION = '7';
+OneVersionConstraint('ev-store', MY_VERSION);
+
+var hashKey = '__EV_STORE_KEY@' + MY_VERSION;
+
+module.exports = EvStore;
+
+function EvStore(elem) {
+    var hash = elem[hashKey];
+
+    if (!hash) {
+        hash = elem[hashKey] = {};
+    }
+
+    return hash;
 }
 
-},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
-module.exports = hiddenStore;
+},{"individual/one-version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/node_modules/individual/one-version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/node_modules/individual/index.js":[function(require,module,exports){
+(function (global){
+'use strict';
 
-function hiddenStore(obj, key) {
-    var store = { identity: key };
-    var valueOf = obj.valueOf;
+/*global window, global*/
 
-    Object.defineProperty(obj, "valueOf", {
-        value: function (value) {
-            return value !== key ?
-                valueOf.apply(this, arguments) : store;
-        },
-        writable: true
-    });
+var root = typeof window !== 'undefined' ?
+    window : typeof global !== 'undefined' ?
+    global : {};
 
-    return store;
+module.exports = Individual;
+
+function Individual(key, value) {
+    if (key in root) {
+        return root[key];
+    }
+
+    root[key] = value;
+
+    return value;
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js":[function(require,module,exports){
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/node_modules/individual/one-version.js":[function(require,module,exports){
+'use strict';
+
+var Individual = require('./index.js');
+
+module.exports = OneVersion;
+
+function OneVersion(moduleName, version, defaultValue) {
+    var key = '__INDIVIDUAL_ONE_VERSION_' + moduleName;
+    var enforceKey = key + '_ENFORCE_SINGLETON';
+
+    var versionValue = Individual(enforceKey, version);
+
+    if (versionValue !== version) {
+        throw new Error('Can only have one copy of ' +
+            moduleName + '.\n' +
+            'You already have version ' + versionValue +
+            ' installed.\n' +
+            'This means you cannot install version ' + version);
+    }
+
+    return Individual(key, defaultValue);
+}
+
+},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/node_modules/individual/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/global/document.js":[function(require,module,exports){
 (function (global){
 var topLevel = typeof global !== 'undefined' ? global :
     typeof window !== 'undefined' ? window : {}
@@ -4089,7 +8183,7 @@ if (typeof document !== 'undefined') {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"min-document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js":[function(require,module,exports){
+},{"min-document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/individual/index.js":[function(require,module,exports){
 (function (global){
 var root = typeof window !== 'undefined' ?
     window : typeof global !== 'undefined' ?
@@ -4111,32 +8205,9 @@ function Individual(key, value) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/inherits/inherits_browser.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/inherits/inherits_browser.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
 var hiddenStore = require('./hidden-store.js');
 
 module.exports = createStore;
@@ -4157,9 +8228,25 @@ function createStore() {
     };
 }
 
-},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/proxy-event.js":[function(require,module,exports){
+},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
+module.exports = hiddenStore;
+
+function hiddenStore(obj, key) {
+    var store = { identity: key };
+    var valueOf = obj.valueOf;
+
+    Object.defineProperty(obj, "valueOf", {
+        value: function (value) {
+            return value !== key ?
+                valueOf.apply(this, arguments) : store;
+        },
+        writable: true
+    });
+
+    return store;
+}
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/proxy-event.js":[function(require,module,exports){
 var inherits = require("inherits")
 
 var ALL_PROPS = [
@@ -4239,189 +8326,103 @@ function KeyEvent(ev) {
 
 inherits(KeyEvent, ProxyEvent)
 
-},{"inherits":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/inherits/inherits_browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/remove-event.js":[function(require,module,exports){
-var DataSet = require("data-set")
+},{"inherits":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/inherits/inherits_browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/remove-event.js":[function(require,module,exports){
+var EvStore = require("ev-store")
 
 module.exports = removeEvent
 
 function removeEvent(target, type, handler) {
-    var ds = DataSet(target)
-    var events = ds[type]
+    var events = EvStore(target)
+    var event = events[type]
 
-    if (!events) {
+    if (!event) {
         return
-    } else if (Array.isArray(events)) {
-        var index = events.indexOf(handler)
+    } else if (Array.isArray(event)) {
+        var index = event.indexOf(handler)
         if (index !== -1) {
-            events.splice(index, 1)
+            event.splice(index, 1)
         }
-    } else if (events === handler) {
-        ds[type] = null
+    } else if (event === handler) {
+        events[type] = null
     }
 }
 
-},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/event.js":[function(require,module,exports){
-module.exports = Event
+},{"ev-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
+var nargs = /\{([0-9a-zA-Z]+)\}/g
+var slice = Array.prototype.slice
 
-function Event() {
-    var listeners = []
+module.exports = template
 
-    return { broadcast: broadcast, listen: event }
+function template(string) {
+    var args
 
-    function broadcast(value) {
-        for (var i = 0; i < listeners.length; i++) {
-            listeners[i](value)
-        }
+    if (arguments.length === 2 && typeof arguments[1] === "object") {
+        args = arguments[1]
+    } else {
+        args = slice.call(arguments, 1)
     }
 
-    function event(listener) {
-        listeners.push(listener)
+    if (!args || !args.hasOwnProperty) {
+        args = {}
+    }
 
-        return removeListener
+    return string.replace(nargs, function replaceArg(match, i, index) {
+        var result
 
-        function removeListener() {
-            var index = listeners.indexOf(listener)
-            if (index !== -1) {
-                listeners.splice(index, 1)
+        if (string[index - 1] === "{" &&
+            string[index + match.length] === "}") {
+            return i
+        } else {
+            result = args.hasOwnProperty(i) ? args[i] : null
+            if (result === null || result === undefined) {
+                return ""
+            }
+
+            return result
+        }
+    })
+}
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/error/node_modules/xtend/mutable.js":[function(require,module,exports){
+module.exports = extend
+
+function extend(target) {
+    for (var i = 1; i < arguments.length; i++) {
+        var source = arguments[i]
+
+        for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+                target[key] = source[key]
             }
         }
     }
+
+    return target
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/multiple.js":[function(require,module,exports){
-var event = require("./single.js")
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/error/typed.js":[function(require,module,exports){
+'use strict';
 
-module.exports = multiple
+var template = require('string-template');
+var extend = require('xtend/mutable');
+var assert = require('assert');
 
-function multiple(names) {
-    return names.reduce(function (acc, name) {
-        acc[name] = event()
-        return acc
-    }, {})
-}
+var isWordBoundary = /[_.-](\w|$)/g;
 
-},{"./single.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/single.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/single.js":[function(require,module,exports){
-var Event = require('./event.js')
-
-module.exports = Single
-
-function Single() {
-    var tuple = Event()
-
-    return function event(value) {
-        if (typeof value === "function") {
-            return tuple.listen(value)
-        } else {
-            return tuple.broadcast(value)
-        }
-    }
-}
-
-},{"./event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/geval/event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/index.js":[function(require,module,exports){
-var raf = require("raf")
-var TypedError = require("error/typed")
-
-var InvalidUpdateInRender = TypedError({
-    type: "main-loop.invalid.update.in-render",
-    message: "main-loop: Unexpected update occurred in loop.\n" +
-        "We are currently rendering a view, " +
-            "you can't change state right now.\n" +
-        "The diff is: {stringDiff}.\n" +
-        "SUGGESTED FIX: find the state mutation in your view " +
-            "or rendering function and remove it.\n" +
-        "The view should not have any side effects.\n",
-    diff: null,
-    stringDiff: null
-})
-
-module.exports = main
-
-function main(initialState, view, opts) {
-    opts = opts || {}
-
-    var currentState = initialState
-    var create = opts.create
-    var diff = opts.diff
-    var patch = opts.patch
-    var redrawScheduled = false
-
-    var tree = opts.initialTree || view(currentState)
-    var target = opts.target || create(tree, opts)
-    var inRenderingTransaction = false
-
-    currentState = null
-
-    return {
-        target: target,
-        update: update
-    }
-
-    function update(state) {
-        if (inRenderingTransaction) {
-            throw InvalidUpdateInRender({
-                diff: state._diff,
-                stringDiff: JSON.stringify(state._diff)
-            })
-        }
-
-        if (currentState === null && !redrawScheduled) {
-            redrawScheduled = true
-            raf(redraw)
-        }
-
-        currentState = state
-    }
-
-    function redraw() {
-        redrawScheduled = false;
-        if (currentState === null) {
-            return
-        }
-
-        inRenderingTransaction = true
-        var newTree = view(currentState)
-
-        if (opts.createOnly) {
-            inRenderingTransaction = false
-            create(newTree, opts)
-        } else {
-            var patches = diff(tree, newTree, opts)
-            inRenderingTransaction = false
-            target = patch(target, patches, opts)
-        }
-
-        tree = newTree
-        currentState = null
-    }
-}
-
-},{"error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js","raf":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/camelize/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/error/node_modules/string-template/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js":[function(require,module,exports){
-var camelize = require("camelize")
-var template = require("string-template")
-var extend = require("xtend/mutable")
-
-module.exports = TypedError
+module.exports = TypedError;
 
 function TypedError(args) {
-    if (!args) {
-        throw new Error("args is required");
-    }
-    if (!args.type) {
-        throw new Error("args.type is required");
-    }
-    if (!args.message) {
-        throw new Error("args.message is required");
-    }
+    assert(args, 'TypedError: must specify options');
+    assert(args.type, 'TypedError: must specify options.type');
+    assert(args.message, 'TypedError: must specify options.message');
 
-    var message = args.message
+    assert(!has(args, 'fullType'),
+        'TypedError: fullType field is reserved');
 
+    var message = args.message;
     if (args.type && !args.name) {
-        var errorName = camelize(args.type) + "Error"
-        args.name = errorName[0].toUpperCase() + errorName.substr(1)
+        var errorName = camelCase(args.type) + 'Error';
+        args.name = errorName[0].toUpperCase() + errorName.substr(1);
     }
 
     extend(createError, args);
@@ -4430,33 +8431,102 @@ function TypedError(args) {
     return createError;
 
     function createError(opts) {
-        var result = new Error()
+        var result = new Error();
 
-        Object.defineProperty(result, "type", {
+        Object.defineProperty(result, 'type', {
             value: result.type,
             enumerable: true,
             writable: true,
             configurable: true
-        })
+        });
 
-        var options = extend({}, args, opts)
+        var options = extend({}, args, opts);
+        if (!options.fullType) {
+            options.fullType = options.type;
+        }
 
-        extend(result, options)
-        result.message = template(message, options)
+        extend(result, options);
+        if (opts && opts.message) {
+            result.message = template(opts.message, options);
+        } else if (message) {
+            result.message = template(message, options);
+        }
 
-        return result
+        return result;
     }
 }
 
+function camelCase(str) {
+    return str.replace(isWordBoundary, upperCase);
+}
 
-},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/index.js":[function(require,module,exports){
+function upperCase(_, x) {
+    return x.toUpperCase();
+}
+
+function has(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+},{"assert":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/assert/assert.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/error/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/immupdate/immupdate.js":[function(require,module,exports){
+
+function update(host, spec) {
+  // Single path string update like: update(obj, 'path1.path2.name', 'John');
+  if (arguments.length == 3) {
+    var value = arguments[2];
+    var paths = spec.split('.');
+    var specObj = {};
+    var currentObj = specObj;
+    paths.forEach(function(path, index) {
+      if (index == paths.length - 1) currentObj[path] = value;
+      else currentObj[path] = currentObj = {};
+    });
+    spec = specObj;
+  }
+
+  // If any of the branches of an object changed, then than object changed too: clone it.
+  // The type of the copy is inferred.
+  var copy = host
+    ? Array.isArray(host) ? host.slice() : clone(host)
+    : Array.isArray(spec) ? [] : {};
+
+  for (var key in spec) {
+    var specValue = spec[key];
+
+    // The spec continues deeper
+    if (isObject(specValue)) {
+      copy[key] = update(copy[key], specValue);
+    }
+    // Leaf update
+    else {
+      var newValue = (typeof specValue == 'function')
+        ? specValue(copy[key])
+        : specValue;
+
+      copy[key] = newValue;
+    }
+  }
+
+  return copy;
+}
+
+function clone(obj) {
+  var result = {};
+  Object.keys(obj).forEach(function(key) { result[key] = obj[key] });
+  return result;
+}
+
+function isObject(x) { return x && typeof x == 'object' && !Array.isArray(x) }
+
+
+module.exports = update;
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/raf/index.js":[function(require,module,exports){
 var now = require('performance-now')
   , global = typeof window === 'undefined' ? {} : window
   , vendors = ['moz', 'webkit']
   , suffix = 'AnimationFrame'
   , raf = global['request' + suffix]
   , caf = global['cancel' + suffix] || global['cancelRequest' + suffix]
-  , isNative = true
 
 for(var i = 0; i < vendors.length && !raf; i++) {
   raf = global[vendors[i] + 'Request' + suffix]
@@ -4466,8 +8536,6 @@ for(var i = 0; i < vendors.length && !raf; i++) {
 
 // Some versions of FF have rAF but not cAF
 if(!raf || !caf) {
-  isNative = false
-
   var last = 0
     , id = 0
     , queue = []
@@ -4516,22 +8584,13 @@ module.exports = function(fn) {
   // Wrap in a new function to prevent
   // `cancel` potentially being assigned
   // to the native rAF function
-  if(!isNative) {
-    return raf.call(global, fn)
-  }
-  return raf.call(global, function() {
-    try{
-      fn.apply(this, arguments)
-    } catch(e) {
-      setTimeout(function() { throw e }, 0)
-    }
-  })
+  return raf.call(global, fn)
 }
 module.exports.cancel = function() {
   caf.apply(global, arguments)
 }
 
-},{"performance-now":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/node_modules/performance-now/lib/performance-now.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/node_modules/performance-now/lib/performance-now.js":[function(require,module,exports){
+},{"performance-now":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/raf/node_modules/performance-now/lib/performance-now.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/raf/node_modules/performance-now/lib/performance-now.js":[function(require,module,exports){
 (function (process){
 // Generated by CoffeeScript 1.6.3
 (function() {
@@ -4567,1113 +8626,11 @@ module.exports.cancel = function() {
 }).call(this);
 
 /*
-//@ sourceMappingURL=performance-now.map
+
 */
 
 }).call(this,require('_process'))
-},{"_process":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js":[function(require,module,exports){
-var setNonEnumerable = require("./lib/set-non-enumerable.js");
-
-module.exports = addListener
-
-function addListener(observArray, observ) {
-    var list = observArray._list
-
-    return observ(function (value) {
-        var valueList =  observArray().slice()
-        var index = list.indexOf(observ)
-
-        // This code path should never hit. If this happens
-        // there's a bug in the cleanup code
-        if (index === -1) {
-            var message = "observ-array: Unremoved observ listener"
-            var err = new Error(message)
-            err.list = list
-            err.index = index
-            err.observ = observ
-            throw err
-        }
-
-        valueList.splice(index, 1, value)
-        setNonEnumerable(valueList, "_diff", [ [index, 1, value] ])
-
-        observArray._observSet(valueList)
-    })
-}
-
-},{"./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js":[function(require,module,exports){
-var addListener = require('./add-listener.js')
-
-module.exports = applyPatch
-
-function applyPatch (valueList, args) {
-    var obs = this
-    var valueArgs = args.map(unpack)
-
-    valueList.splice.apply(valueList, valueArgs)
-    obs._list.splice.apply(obs._list, args)
-
-    var extraRemoveListeners = args.slice(2).map(function (observ) {
-        return typeof observ === "function" ?
-            addListener(obs, observ) :
-            null
-    })
-
-    extraRemoveListeners.unshift(args[0], args[1])
-    var removedListeners = obs._removeListeners.splice
-        .apply(obs._removeListeners, extraRemoveListeners)
-
-    removedListeners.forEach(function (removeObservListener) {
-        if (removeObservListener) {
-            removeObservListener()
-        }
-    })
-
-    return valueArgs
-}
-
-function unpack(value, index){
-    if (index === 0 || index === 1) {
-        return value
-    }
-    return typeof value === "function" ? value() : value
-}
-
-},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-methods.js":[function(require,module,exports){
-var ObservArray = require("./index.js")
-
-var slice = Array.prototype.slice
-
-var ARRAY_METHODS = [
-    "concat", "slice", "every", "filter", "forEach", "indexOf",
-    "join", "lastIndexOf", "map", "reduce", "reduceRight",
-    "some", "toString", "toLocaleString"
-]
-
-var methods = ARRAY_METHODS.map(function (name) {
-    return [name, function () {
-        var res = this._list[name].apply(this._list, arguments)
-
-        if (res && Array.isArray(res)) {
-            res = ObservArray(res)
-        }
-
-        return res
-    }]
-})
-
-module.exports = ArrayMethods
-
-function ArrayMethods(obs) {
-    obs.push = observArrayPush
-    obs.pop = observArrayPop
-    obs.shift = observArrayShift
-    obs.unshift = observArrayUnshift
-    obs.reverse = require("./array-reverse.js")
-    obs.sort = require("./array-sort.js")
-
-    methods.forEach(function (tuple) {
-        obs[tuple[0]] = tuple[1]
-    })
-    return obs
-}
-
-
-
-function observArrayPush() {
-    var args = slice.call(arguments)
-    args.unshift(this._list.length, 0)
-    this.splice.apply(this, args)
-
-    return this._list.length
-}
-function observArrayPop() {
-    return this.splice(this._list.length - 1, 1)[0]
-}
-function observArrayShift() {
-    return this.splice(0, 1)[0]
-}
-function observArrayUnshift() {
-    var args = slice.call(arguments)
-    args.unshift(0, 0)
-    this.splice.apply(this, args)
-
-    return this._list.length
-}
-
-
-function notImplemented() {
-    throw new Error("Pull request welcome")
-}
-
-},{"./array-reverse.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-reverse.js","./array-sort.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-sort.js","./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-reverse.js":[function(require,module,exports){
-var applyPatch = require("./apply-patch.js")
-var setNonEnumerable = require('./lib/set-non-enumerable.js')
-
-module.exports = reverse
-
-function reverse() {
-    var obs = this
-    var changes = fakeDiff(obs._list.slice().reverse())
-    var valueList = obs().slice().reverse()
-
-    var valueChanges = changes.map(applyPatch.bind(obs, valueList))
-
-    setNonEnumerable(valueList, "_diff", valueChanges)
-
-    obs._observSet(valueList)
-    return changes
-}
-
-function fakeDiff(arr) {
-    var _diff
-    var len = arr.length
-
-    if(len % 2) {
-        var midPoint = (len -1) / 2
-        var a = [0, midPoint].concat(arr.slice(0, midPoint))
-        var b = [midPoint +1, midPoint].concat(arr.slice(midPoint +1, len))
-        var _diff = [a, b]
-    } else {
-        _diff = [ [0, len].concat(arr) ]
-    }
-
-    return _diff
-}
-
-},{"./apply-patch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-sort.js":[function(require,module,exports){
-var applyPatch = require("./apply-patch.js")
-var setNonEnumerable = require("./lib/set-non-enumerable.js")
-
-module.exports = sort
-
-function sort(compare) {
-    var obs = this
-    var list = obs._list.slice()
-
-    var unpacked = unpack(list)
-
-    var sorted = unpacked
-            .map(function(it) { return it.val })
-            .sort(compare)
-
-    var packed = repack(sorted, unpacked)
-
-    //fake diff - for perf
-    //adiff on 10k items === ~3200ms
-    //fake on 10k items === ~110ms
-    var changes = [ [ 0, packed.length ].concat(packed) ]
-
-    var valueChanges = changes.map(applyPatch.bind(obs, sorted))
-
-    setNonEnumerable(sorted, "_diff", valueChanges)
-
-    obs._observSet(sorted)
-    return changes
-}
-
-function unpack(list) {
-    var unpacked = []
-    for(var i = 0; i < list.length; i++) {
-        unpacked.push({
-            val: ("function" == typeof list[i]) ? list[i]() : list[i],
-            obj: list[i]
-        })
-    }
-    return unpacked
-}
-
-function repack(sorted, unpacked) {
-    var packed = []
-
-    while(sorted.length) {
-        var s = sorted.shift()
-        var indx = indexOf(s, unpacked)
-        if(~indx) packed.push(unpacked.splice(indx, 1)[0].obj)
-    }
-
-    return packed
-}
-
-function indexOf(n, h) {
-    for(var i = 0; i < h.length; i++) {
-        if(n === h[i].val) return i
-    }
-    return -1
-}
-
-},{"./apply-patch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/index.js":[function(require,module,exports){
-var Observ = require("observ")
-
-// circular dep between ArrayMethods & this file
-module.exports = ObservArray
-
-var splice = require("./splice.js")
-var put = require("./put.js")
-var set = require("./set.js")
-var transaction = require("./transaction.js")
-var ArrayMethods = require("./array-methods.js")
-var addListener = require("./add-listener.js")
-
-
-/*  ObservArray := (Array<T>) => Observ<
-        Array<T> & { _diff: Array }
-    > & {
-        splice: (index: Number, amount: Number, rest...: T) =>
-            Array<T>,
-        push: (values...: T) => Number,
-        filter: (lambda: Function, thisValue: Any) => Array<T>,
-        indexOf: (item: T, fromIndex: Number) => Number
-    }
-
-    Fix to make it more like ObservHash.
-
-    I.e. you write observables into it.
-        reading methods take plain JS objects to read
-        and the value of the array is always an array of plain
-        objsect.
-
-        The observ array instance itself would have indexed
-        properties that are the observables
-*/
-function ObservArray(initialList) {
-    // list is the internal mutable list observ instances that
-    // all methods on `obs` dispatch to.
-    var list = initialList
-    var initialState = []
-
-    // copy state out of initialList into initialState
-    list.forEach(function (observ, index) {
-        initialState[index] = typeof observ === "function" ?
-            observ() : observ
-    })
-
-    var obs = Observ(initialState)
-    obs.splice = splice
-
-    // override set and store original for later use
-    obs._observSet = obs.set
-    obs.set = set
-
-    obs.get = get
-    obs.getLength = getLength
-    obs.put = put
-    obs.transaction = transaction
-
-    // you better not mutate this list directly
-    // this is the list of observs instances
-    obs._list = list
-
-    var removeListeners = list.map(function (observ) {
-        return typeof observ === "function" ?
-            addListener(obs, observ) :
-            null
-    });
-    // this is a list of removal functions that must be called
-    // when observ instances are removed from `obs.list`
-    // not calling this means we do not GC our observ change
-    // listeners. Which causes rage bugs
-    obs._removeListeners = removeListeners
-
-    obs._type = "observ-array"
-    obs._version = "3"
-
-    return ArrayMethods(obs, list)
-}
-
-function get(index) {
-    return this._list[index]
-}
-
-function getLength() {
-    return this._list.length
-}
-
-},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js","./array-methods.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/array-methods.js","./put.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/put.js","./set.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/set.js","./splice.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/splice.js","./transaction.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/transaction.js","observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js":[function(require,module,exports){
-module.exports = setNonEnumerable;
-
-function setNonEnumerable(object, key, value) {
-    Object.defineProperty(object, key, {
-        value: value,
-        writable: true,
-        configurable: true,
-        enumerable: false
-    });
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/node_modules/adiff/index.js":[function(require,module,exports){
-function head (a) {
-  return a[0]
-}
-
-function last (a) {
-  return a[a.length - 1]
-}
-
-function tail(a) {
-  return a.slice(1)
-}
-
-function retreat (e) {
-  return e.pop()
-}
-
-function hasLength (e) {
-  return e.length
-}
-
-function any(ary, test) {
-  for(var i=0;i<ary.length;i++)
-    if(test(ary[i]))
-      return true
-  return false
-}
-
-function score (a) {
-  return a.reduce(function (s, a) {
-      return s + a.length + a[1] + 1
-  }, 0)
-}
-
-function best (a, b) {
-  return score(a) <= score(b) ? a : b
-}
-
-
-var _rules // set at the bottom  
-
-// note, naive implementation. will break on circular objects.
-
-function _equal(a, b) {
-  if(a && !b) return false
-  if(Array.isArray(a))
-    if(a.length != b.length) return false
-  if(a && 'object' == typeof a) {
-    for(var i in a)
-      if(!_equal(a[i], b[i])) return false
-    for(var i in b)
-      if(!_equal(a[i], b[i])) return false
-    return true
-  }
-  return a == b
-}
-
-function getArgs(args) {
-  return args.length == 1 ? args[0] : [].slice.call(args)
-}
-
-// return the index of the element not like the others, or -1
-function oddElement(ary, cmp) {
-  var c
-  function guess(a) {
-    var odd = -1
-    c = 0
-    for (var i = a; i < ary.length; i ++) {
-      if(!cmp(ary[a], ary[i])) {
-        odd = i, c++
-      }
-    }
-    return c > 1 ? -1 : odd
-  }
-  //assume that it is the first element.
-  var g = guess(0)
-  if(-1 != g) return g
-  //0 was the odd one, then all the other elements are equal
-  //else there more than one different element
-  guess(1)
-  return c == 0 ? 0 : -1
-}
-var exports = module.exports = function (deps, exports) {
-  var equal = (deps && deps.equal) || _equal
-  exports = exports || {} 
-  exports.lcs = 
-  function lcs() {
-    var cache = {}
-    var args = getArgs(arguments)
-    var a = args[0], b = args[1]
-
-    function key (a,b){
-      return a.length + ':' + b.length
-    }
-
-    //find length that matches at the head
-
-    if(args.length > 2) {
-      //if called with multiple sequences
-      //recurse, since lcs(a, b, c, d) == lcs(lcs(a,b), lcs(c,d))
-      args.push(lcs(args.shift(), args.shift()))
-      return lcs(args)
-    }
-    
-    //this would be improved by truncating input first
-    //and not returning an lcs as an intermediate step.
-    //untill that is a performance problem.
-
-    var start = 0, end = 0
-    for(var i = 0; i < a.length && i < b.length 
-      && equal(a[i], b[i])
-      ; i ++
-    )
-      start = i + 1
-
-    if(a.length === start)
-      return a.slice()
-
-    for(var i = 0;  i < a.length - start && i < b.length - start
-      && equal(a[a.length - 1 - i], b[b.length - 1 - i])
-      ; i ++
-    )
-      end = i
-
-    function recurse (a, b) {
-      if(!a.length || !b.length) return []
-      //avoid exponential time by caching the results
-      if(cache[key(a, b)]) return cache[key(a, b)]
-
-      if(equal(a[0], b[0]))
-        return [head(a)].concat(recurse(tail(a), tail(b)))
-      else { 
-        var _a = recurse(tail(a), b)
-        var _b = recurse(a, tail(b))
-        return cache[key(a,b)] = _a.length > _b.length ? _a : _b  
-      }
-    }
-    
-    var middleA = a.slice(start, a.length - end)
-    var middleB = b.slice(start, b.length - end)
-
-    return (
-      a.slice(0, start).concat(
-        recurse(middleA, middleB)
-      ).concat(a.slice(a.length - end))
-    )
-  }
-
-  // given n sequences, calc the lcs, and then chunk strings into stable and unstable sections.
-  // unstable chunks are passed to build
-  exports.chunk =
-  function (q, build) {
-    var q = q.map(function (e) { return e.slice() })
-    var lcs = exports.lcs.apply(null, q)
-    var all = [lcs].concat(q)
-
-    function matchLcs (e) {
-      if(e.length && !lcs.length || !e.length && lcs.length)
-        return false //incase the last item is null
-      return equal(last(e), last(lcs)) || ((e.length + lcs.length) === 0)
-    }
-
-    while(any(q, hasLength)) {
-      //if each element is at the lcs then this chunk is stable.
-      while(q.every(matchLcs) && q.every(hasLength))
-        all.forEach(retreat)
-      //collect the changes in each array upto the next match with the lcs
-      var c = false
-      var unstable = q.map(function (e) {
-        var change = []
-        while(!matchLcs(e)) {
-          change.unshift(retreat(e))
-          c = true
-        }
-        return change
-      })
-      if(c) build(q[0].length, unstable)
-    }
-  }
-
-  //calculate a diff this is only updates
-  exports.optimisticDiff =
-  function (a, b) {
-    var M = Math.max(a.length, b.length)
-    var m = Math.min(a.length, b.length)
-    var patch = []
-    for(var i = 0; i < M; i++)
-      if(a[i] !== b[i]) {
-        var cur = [i,0], deletes = 0
-        while(a[i] !== b[i] && i < m) {
-          cur[1] = ++deletes
-          cur.push(b[i++])
-        }
-        //the rest are deletes or inserts
-        if(i >= m) {
-          //the rest are deletes
-          if(a.length > b.length)
-            cur[1] += a.length - b.length
-          //the rest are inserts
-          else if(a.length < b.length)
-            cur = cur.concat(b.slice(a.length))
-        }
-        patch.push(cur)
-      }
-
-    return patch
-  }
-
-  exports.diff =
-  function (a, b) {
-    var optimistic = exports.optimisticDiff(a, b)
-    var changes = []
-    exports.chunk([a, b], function (index, unstable) {
-      var del = unstable.shift().length
-      var insert = unstable.shift()
-      changes.push([index, del].concat(insert))
-    })
-    return best(optimistic, changes)
-  }
-
-  exports.patch = function (a, changes, mutate) {
-    if(mutate !== true) a = a.slice(a)//copy a
-    changes.forEach(function (change) {
-      [].splice.apply(a, change)
-    })
-    return a
-  }
-
-  // http://en.wikipedia.org/wiki/Concestor
-  // me, concestor, you...
-  exports.merge = function () {
-    var args = getArgs(arguments)
-    var patch = exports.diff3(args)
-    return exports.patch(args[0], patch)
-  }
-
-  exports.diff3 = function () {
-    var args = getArgs(arguments)
-    var r = []
-    exports.chunk(args, function (index, unstable) {
-      var mine = unstable[0]
-      var insert = resolve(unstable)
-      if(equal(mine, insert)) return 
-      r.push([index, mine.length].concat(insert)) 
-    })
-    return r
-  }
-  exports.oddOneOut =
-    function oddOneOut (changes) {
-      changes = changes.slice()
-      //put the concestor first
-      changes.unshift(changes.splice(1,1)[0])
-      var i = oddElement(changes, equal)
-      if(i == 0) // concestor was different, 'false conflict'
-        return changes[1]
-      if (~i)
-        return changes[i] 
-    }
-  exports.insertMergeOverDelete = 
-    //i've implemented this as a seperate rule,
-    //because I had second thoughts about this.
-    function insertMergeOverDelete (changes) {
-      changes = changes.slice()
-      changes.splice(1,1)// remove concestor
-      
-      //if there is only one non empty change thats okay.
-      //else full confilct
-      for (var i = 0, nonempty; i < changes.length; i++)
-        if(changes[i].length) 
-          if(!nonempty) nonempty = changes[i]
-          else return // full conflict
-      return nonempty
-    }
-
-  var rules = (deps && deps.rules) || [exports.oddOneOut, exports.insertMergeOverDelete]
-
-  function resolve (changes) {
-    var l = rules.length
-    for (var i in rules) { // first
-      
-      var c = rules[i] && rules[i](changes)
-      if(c) return c
-    }
-    changes.splice(1,1) // remove concestor
-    //returning the conflicts as an object is a really bad idea,
-    // because == will not detect they are the same. and conflicts build.
-    // better to use
-    // '<<<<<<<<<<<<<'
-    // of course, i wrote this before i started on snob, so i didn't know that then.
-    /*var conflict = ['>>>>>>>>>>>>>>>>']
-    while(changes.length)
-      conflict = conflict.concat(changes.shift()).concat('============')
-    conflict.pop()
-    conflict.push          ('<<<<<<<<<<<<<<<')
-    changes.unshift       ('>>>>>>>>>>>>>>>')
-    return conflict*/
-    //nah, better is just to use an equal can handle objects
-    return {'?': changes}
-  }
-  return exports
-}
-exports(null, exports)
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/put.js":[function(require,module,exports){
-var addListener = require("./add-listener.js")
-var setNonEnumerable = require("./lib/set-non-enumerable.js");
-
-module.exports = put
-
-// `obs.put` is a mutable implementation of `array[index] = value`
-// that mutates both `list` and the internal `valueList` that
-// is the current value of `obs` itself
-function put(index, value) {
-    var obs = this
-    var valueList = obs().slice()
-
-    var originalLength = valueList.length
-    valueList[index] = typeof value === "function" ? value() : value
-
-    obs._list[index] = value
-
-    // remove past value listener if was observ
-    var removeListener = obs._removeListeners[index]
-    if (removeListener){
-        removeListener()
-    }
-
-    // add listener to value if observ
-    obs._removeListeners[index] = typeof value === "function" ?
-        addListener(obs, value) :
-        null
-
-    // fake splice diff
-    var valueArgs = index < originalLength ? 
-        [index, 1, valueList[index]] :
-        [index, 0, valueList[index]]
-
-    setNonEnumerable(valueList, "_diff", [valueArgs])
-
-    obs._observSet(valueList)
-    return value
-}
-},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/set.js":[function(require,module,exports){
-var applyPatch = require("./apply-patch.js")
-var setNonEnumerable = require("./lib/set-non-enumerable.js")
-var adiff = require("adiff")
-
-module.exports = set
-
-function set(rawList) {
-    if (!Array.isArray(rawList)) rawList = []
-
-    var obs = this
-    var changes = adiff.diff(obs._list, rawList)
-    var valueList = obs().slice()
-
-    var valueChanges = changes.map(applyPatch.bind(obs, valueList))
-
-    setNonEnumerable(valueList, "_diff", valueChanges)
-
-    obs._observSet(valueList)
-    return changes
-}
-
-},{"./apply-patch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/apply-patch.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js","adiff":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/node_modules/adiff/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/splice.js":[function(require,module,exports){
-var slice = Array.prototype.slice
-
-var addListener = require("./add-listener.js")
-var setNonEnumerable = require("./lib/set-non-enumerable.js");
-
-module.exports = splice
-
-// `obs.splice` is a mutable implementation of `splice()`
-// that mutates both `list` and the internal `valueList` that
-// is the current value of `obs` itself
-function splice(index, amount) {
-    var obs = this
-    var args = slice.call(arguments, 0)
-    var valueList = obs().slice()
-
-    // generate a list of args to mutate the internal
-    // list of only obs
-    var valueArgs = args.map(function (value, index) {
-        if (index === 0 || index === 1) {
-            return value
-        }
-
-        // must unpack observables that we are adding
-        return typeof value === "function" ? value() : value
-    })
-
-    valueList.splice.apply(valueList, valueArgs)
-    // we remove the observs that we remove
-    var removed = obs._list.splice.apply(obs._list, args)
-
-    var extraRemoveListeners = args.slice(2).map(function (observ) {
-        return typeof observ === "function" ?
-            addListener(obs, observ) :
-            null
-    })
-    extraRemoveListeners.unshift(args[0], args[1])
-    var removedListeners = obs._removeListeners.splice
-        .apply(obs._removeListeners, extraRemoveListeners)
-
-    removedListeners.forEach(function (removeObservListener) {
-        if (removeObservListener) {
-            removeObservListener()
-        }
-    })
-
-    setNonEnumerable(valueList, "_diff", [valueArgs])
-
-    obs._observSet(valueList)
-    return removed
-}
-
-},{"./add-listener.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/add-listener.js","./lib/set-non-enumerable.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/lib/set-non-enumerable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-array/transaction.js":[function(require,module,exports){
-module.exports = transaction
-
-function transaction (func) {
-    var obs = this
-    var rawList = obs._list.slice()
-
-    if (func(rawList) !== false){ // allow cancel
-        return obs.set(rawList)
-    }
-
-}
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/index.js":[function(require,module,exports){
-var Observ = require("observ")
-var extend = require("xtend")
-
-var blackList = ["name", "_diff", "_type", "_version"]
-var blackListReasons = {
-    "name": "Clashes with `Function.prototype.name`.\n",
-    "_diff": "_diff is reserved key of observ-struct.\n",
-    "_type": "_type is reserved key of observ-struct.\n",
-    "_version": "_version is reserved key of observ-struct.\n"
-}
-var NO_TRANSACTION = {}
-
-function setNonEnumerable(object, key, value) {
-    Object.defineProperty(object, key, {
-        value: value,
-        writable: true,
-        configurable: true,
-        enumerable: false
-    })
-}
-
-/* ObservStruct := (Object<String, Observ<T>>) => 
-    Object<String, Observ<T>> &
-        Observ<Object<String, T> & {
-            _diff: Object<String, Any>
-        }>
-
-*/
-module.exports = ObservStruct
-
-function ObservStruct(struct) {
-    var keys = Object.keys(struct)
-
-    var initialState = {}
-    var currentTransaction = NO_TRANSACTION
-    var nestedTransaction = NO_TRANSACTION
-
-    keys.forEach(function (key) {
-        if (blackList.indexOf(key) !== -1) {
-            throw new Error("cannot create an observ-struct " +
-                "with a key named '" + key + "'.\n" +
-                blackListReasons[key]);
-        }
-
-        var observ = struct[key]
-        initialState[key] = typeof observ === "function" ?
-            observ() : observ
-    })
-
-    var obs = Observ(initialState)
-    keys.forEach(function (key) {
-        var observ = struct[key]
-        obs[key] = observ
-
-        if (typeof observ === "function") {
-            observ(function (value) {
-                if (nestedTransaction === value) {
-                    return
-                }
-
-                var state = extend(obs())
-                state[key] = value
-                var diff = {}
-                diff[key] = value && value._diff ?
-                    value._diff : value
-
-                setNonEnumerable(state, "_diff", diff)
-                currentTransaction = state
-                obs.set(state)
-                currentTransaction = NO_TRANSACTION
-            })
-        }
-    })
-    var _set = obs.set
-    obs.set = function trackDiff(value) {
-        if (currentTransaction === value) {
-            return _set(value)
-        }
-
-        var newState = extend(value)
-        setNonEnumerable(newState, "_diff", value)
-        _set(newState)
-    }
-
-    obs(function (newState) {
-        if (currentTransaction === newState) {
-            return
-        }
-
-        keys.forEach(function (key) {
-            var observ = struct[key]
-            var newObservValue = newState[key]
-
-            if (typeof observ === "function" &&
-                observ() !== newObservValue
-            ) {
-                nestedTransaction = newObservValue
-                observ.set(newState[key])
-                nestedTransaction = NO_TRANSACTION
-            }
-        })
-    })
-
-    obs._type = "observ-struct"
-    obs._version = "5"
-
-    return obs
-}
-
-},{"observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js":[function(require,module,exports){
-module.exports = extend
-
-function extend() {
-    var target = {}
-
-    for (var i = 0; i < arguments.length; i++) {
-        var source = arguments[i]
-
-        for (var key in source) {
-            if (source.hasOwnProperty(key)) {
-                target[key] = source[key]
-            }
-        }
-    }
-
-    return target
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/index.js":[function(require,module,exports){
-var Observ = require('observ')
-var extend = require('xtend')
-
-var NO_TRANSACTION = {}
-
-module.exports = ObservVarhash
-
-function ObservVarhash (hash, createValue) {
-  createValue = createValue || function (obj) { return obj }
-
-  var initialState = {}
-  var currentTransaction = NO_TRANSACTION
-
-  var obs = Observ(initialState)
-  setNonEnumerable(obs, '_removeListeners', {})
-
-  setNonEnumerable(obs, 'set', obs.set)
-  setNonEnumerable(obs, 'get', get.bind(obs))
-  setNonEnumerable(obs, 'put', put.bind(obs, createValue))
-  setNonEnumerable(obs, 'delete', del.bind(obs))
-
-  for (var key in hash) {
-    obs[key] = typeof hash[key] === 'function' ?
-      hash[key] : createValue(hash[key], key)
-
-    if (isFn(obs[key])) {
-      obs._removeListeners[key] = obs[key](watch(obs, key, currentTransaction))
-    }
-  }
-
-  var newState = {}
-  for (key in hash) {
-    var observ = obs[key]
-    checkKey(key)
-    newState[key] = isFn(observ) ? observ() : observ
-  }
-  obs.set(newState)
-
-  obs(function (newState) {
-    if (currentTransaction === newState) {
-      return
-    }
-
-    for (var key in hash) {
-      var observ = hash[key]
-
-      if (isFn(observ) && observ() !== newState[key]) {
-        observ.set(newState[key])
-      }
-    }
-  })
-
-  return obs
-}
-
-// access and mutate
-function get (key) {
-  return this[key]
-}
-
-function put (createValue, key, val) {
-  checkKey(key)
-
-  if (val === undefined) {
-    throw new Error('cannot varhash.put(key, undefined).')
-  }
-
-  var observ = typeof val === 'function' ?
-    val : createValue(val, key)
-  var state = extend(this())
-
-  state[key] = isFn(observ) ? observ() : observ
-
-  if (isFn(this._removeListeners[key])) {
-    this._removeListeners[key]()
-  }
-
-  this._removeListeners[key] = isFn(observ) ?
-    observ(watch(this, key)) : null
-
-  setNonEnumerable(state, '_diff', diff(key, state[key]))
-
-  this[key] = observ
-  this.set(state)
-
-  return this
-}
-
-function del (key) {
-  var state = extend(this())
-  if (isFn(this._removeListeners[key])) {
-    this._removeListeners[key]()
-  }
-
-  delete this._removeListeners[key]
-  delete state[key]
-  delete this[key]
-
-  setNonEnumerable(state, '_diff', diff(key, undefined))
-  this.set(state)
-
-  return this
-}
-
-// processing
-function watch (obs, key, currentTransaction) {
-  return function (value) {
-    var state = extend(obs())
-    state[key] = value
-
-    setNonEnumerable(state, '_diff', diff(key, value))
-    currentTransaction = state
-    obs.set(state)
-    currentTransaction = NO_TRANSACTION
-  }
-}
-
-function diff (key, value) {
-  var obj = {}
-  obj[key] = value && value._diff ? value._diff : value
-  return obj
-}
-
-function isFn (obj) {
-  return typeof obj === 'function'
-}
-
-function setNonEnumerable(object, key, value) {
-  Object.defineProperty(object, key, {
-    value: value,
-    writable: true,
-    configurable: true,
-    enumerable: false
-  })
-}
-
-// errors
-var blacklist = {
-  name: 'Clashes with `Function.prototype.name`.',
-  get: 'get is a reserved key of observ-varhash method',
-  put: 'put is a reserved key of observ-varhash method',
-  delete: 'delete is a reserved key of observ-varhash method',
-  _diff: '_diff is a reserved key of observ-varhash method',
-  _removeListeners: '_removeListeners is a reserved key of observ-varhash'
-}
-
-function checkKey (key) {
-  if (!blacklist[key]) return
-  throw new Error(
-    'cannot create an observ-varhash with key `' + key + '`. ' + blacklist[key]
-  )
-}
-
-},{"observ":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/node_modules/xtend/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-struct/node_modules/xtend/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/computed.js":[function(require,module,exports){
-var Observable = require("./index.js")
-
-module.exports = computed
-
-function computed(observables, lambda) {
-    var values = observables.map(function (o) {
-        return o()
-    })
-    var result = Observable(lambda.apply(null, values))
-
-    observables.forEach(function (o, index) {
-        o(function (newValue) {
-            values[index] = newValue
-            result.set(lambda.apply(null, values))
-        })
-    })
-
-    return result
-}
-
-},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/index.js":[function(require,module,exports){
-module.exports = Observable
-
-function Observable(value) {
-    var listeners = []
-    value = value === undefined ? null : value
-
-    observable.set = function (v) {
-        value = v
-        listeners.forEach(function (f) {
-            f(v)
-        })
-    }
-
-    return observable
-
-    function observable(listener) {
-        if (!listener) {
-            return value
-        }
-
-        listeners.push(listener)
-
-        return function remove() {
-            listeners.splice(listeners.indexOf(listener), 1)
-        }
-    }
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ/watch.js":[function(require,module,exports){
-module.exports = watch
-
-function watch(observable, listener) {
-    var remove = observable(listener)
-    listener(observable())
-    return remove
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js":[function(require,module,exports){
+},{"_process":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/process/browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/base-event.js":[function(require,module,exports){
 var Delegator = require('dom-delegator')
 
 module.exports = BaseEvent
@@ -5684,7 +8641,7 @@ function BaseEvent(lambda) {
     function EventHandler(fn, data, opts) {
         var handler = {
             fn: fn,
-            data: data || {},
+            data: data !== undefined ? data : {},
             opts: opts || {},
             handleEvent: handleEvent
         }
@@ -5724,7 +8681,7 @@ function BaseEvent(lambda) {
     }
 }
 
-},{"dom-delegator":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/change.js":[function(require,module,exports){
+},{"dom-delegator":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/change.js":[function(require,module,exports){
 var extend = require('xtend')
 var getFormData = require('form-data-set/element')
 
@@ -5757,7 +8714,7 @@ function changeLambda(ev, broadcast) {
     broadcast(data)
 }
 
-},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/click.js":[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/click.js":[function(require,module,exports){
 var BaseEvent = require('./base-event.js');
 
 module.exports = BaseEvent(clickLambda);
@@ -5784,16 +8741,7 @@ function clickLambda(ev, broadcast) {
     broadcast(this.data);
 }
 
-},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/event.js":[function(require,module,exports){
-var BaseEvent = require('./base-event.js');
-
-module.exports = BaseEvent(eventLambda);
-
-function eventLambda(ev, broadcast) {
-    broadcast(this.data);
-}
-
-},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/key.js":[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/key.js":[function(require,module,exports){
 var BaseEvent = require('./base-event.js');
 
 module.exports = BaseEvent(keyLambda);
@@ -5806,7 +8754,7 @@ function keyLambda(ev, broadcast) {
     }
 }
 
-},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/dom-walk/index.js":[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/base-event.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/dom-walk/index.js":[function(require,module,exports){
 var slice = Array.prototype.slice
 
 module.exports = iterativelyWalk
@@ -5832,7 +8780,7 @@ function iterativelyWalk(nodes, cb) {
     }
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/form-data-set/element.js":[function(require,module,exports){
 var walk = require('dom-walk')
 
 var FormData = require('./index.js')
@@ -5861,7 +8809,7 @@ function getFormData(rootElem) {
     return FormData(elements)
 }
 
-},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/index.js","dom-walk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/dom-walk/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/index.js":[function(require,module,exports){
+},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/form-data-set/index.js","dom-walk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/dom-walk/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/form-data-set/index.js":[function(require,module,exports){
 /*jshint maxcomplexity: 10*/
 
 module.exports = FormData
@@ -5938,7 +8886,7 @@ function filterNull(val) {
     return val !== null
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/has-keys.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/xtend/has-keys.js":[function(require,module,exports){
 module.exports = hasKeys
 
 function hasKeys(source) {
@@ -5947,7 +8895,7 @@ function hasKeys(source) {
         typeof source === "function")
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/xtend/index.js":[function(require,module,exports){
 var hasKeys = require("./has-keys")
 
 module.exports = extend
@@ -5972,7 +8920,7 @@ function extend() {
     return target
 }
 
-},{"./has-keys":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/has-keys.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/submit.js":[function(require,module,exports){
+},{"./has-keys":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/xtend/has-keys.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/submit.js":[function(require,module,exports){
 var extend = require('xtend')
 var getFormData = require('form-data-set/element')
 
@@ -6011,7 +8959,7 @@ function submitLambda(ev, broadcast) {
     broadcast(data);
 }
 
-},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/value.js":[function(require,module,exports){
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/value.js":[function(require,module,exports){
 var extend = require('xtend')
 var getFormData = require('form-data-set/element')
 
@@ -6026,125 +8974,16 @@ function valueLambda(ev, broadcast) {
     broadcast(data);
 }
 
-},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/immutable-thunk.js":[function(require,module,exports){
-function Thunk(fn, args, key, eqArgs) {
-    this.fn = fn;
-    this.args = args;
-    this.key = key;
-    this.eqArgs = eqArgs;
-}
+},{"./base-event.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/base-event.js","form-data-set/element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/form-data-set/element.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/node_modules/xtend/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/global/document.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/global/document.js"][0].apply(exports,arguments)
+},{"min-document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/is-object/index.js":[function(require,module,exports){
+"use strict";
 
-Thunk.prototype.type = 'Thunk';
-Thunk.prototype.render = render;
-module.exports = Thunk;
+module.exports = function isObject(x) {
+	return typeof x === "object" && x !== null;
+};
 
-function shouldUpdate(current, previous) {
-    if (!current || !previous || current.fn !== previous.fn) {
-        return true;
-    }
-
-    var cargs = current.args;
-    var pargs = previous.args;
-
-    return !current.eqArgs(cargs, pargs);
-}
-
-function render(previous) {
-    if (shouldUpdate(this, previous)) {
-        return this.fn.apply(null, this.args);
-    } else {
-        return previous.vnode;
-    }
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/index.js":[function(require,module,exports){
-var Partial = require('./partial');
-
-module.exports = Partial();
-
-},{"./partial":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/partial.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/partial.js":[function(require,module,exports){
-var shallowEq = require('./shallow-eq');
-var Thunk = require('./immutable-thunk');
-
-module.exports = createPartial;
-
-function createPartial(eq) {
-    return function partial(fn) {
-        var args = copyOver(arguments, 1);
-        var firstArg = args[0];
-        var key;
-
-        var eqArgs = eq || shallowEq;
-
-        if (typeof firstArg === 'object' && firstArg !== null) {
-            if ('key' in firstArg) {
-                key = firstArg.key;
-            } else if ('id' in firstArg) {
-                key = firstArg.id;
-            }
-        }
-
-        return new Thunk(fn, args, key, eqArgs);
-    };
-}
-
-function copyOver(list, offset) {
-    var newList = [];
-    for (var i = list.length - 1; i >= offset; i--) {
-        newList[i - offset] = list[i];
-    }
-    return newList;
-}
-
-},{"./immutable-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/immutable-thunk.js","./shallow-eq":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/shallow-eq.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/vdom-thunk/shallow-eq.js":[function(require,module,exports){
-module.exports = shallowEq;
-
-function shallowEq(currentArgs, previousArgs) {
-    if (currentArgs.length === 0 && previousArgs.length === 0) {
-        return true;
-    }
-
-    if (currentArgs.length !== previousArgs.length) {
-        return false;
-    }
-
-    var len = currentArgs.length;
-
-    for (var i = 0; i < len; i++) {
-        if (currentArgs[i] !== previousArgs[i]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/create-hash.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/create-hash.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/index.js"][0].apply(exports,arguments)
-},{"./create-hash.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/create-hash.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/individual/index.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/individual/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/individual/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/data-set/node_modules/weakmap-shim/create-store.js"][0].apply(exports,arguments)
-},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/weakmap-shim/hidden-store.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/camelize/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/node_modules/string-template/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/typed.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/error/typed.js"][0].apply(exports,arguments)
-},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/global/document.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/dom-delegator/node_modules/global/document.js"][0].apply(exports,arguments)
-},{"min-document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/is-object/index.js":[function(require,module,exports){
-module.exports = isObject
-
-function isObject(x) {
-    return typeof x === "object" && x !== null
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/x-is-array/index.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/x-is-array/index.js":[function(require,module,exports){
 var nativeIsArray = Array.isArray
 var toString = Object.prototype.toString
 
@@ -6154,7 +8993,7 @@ function isArray(obj) {
     return toString.call(obj) === "[object Array]"
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/apply-properties.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/apply-properties.js":[function(require,module,exports){
 var isObject = require("is-object")
 var isHook = require("../vnode/is-vhook.js")
 
@@ -6165,22 +9004,25 @@ function applyProperties(node, props, previous) {
         var propValue = props[propName]
 
         if (propValue === undefined) {
-            removeProperty(node, props, previous, propName);
+            removeProperty(node, propName, propValue, previous);
         } else if (isHook(propValue)) {
-            propValue.hook(node,
-                propName,
-                previous ? previous[propName] : undefined)
+            removeProperty(node, propName, propValue, previous)
+            if (propValue.hook) {
+                propValue.hook(node,
+                    propName,
+                    previous ? previous[propName] : undefined)
+            }
         } else {
             if (isObject(propValue)) {
                 patchObject(node, props, previous, propName, propValue);
-            } else if (propValue !== undefined) {
+            } else {
                 node[propName] = propValue
             }
         }
     }
 }
 
-function removeProperty(node, props, previous, propName) {
+function removeProperty(node, propName, propValue, previous) {
     if (previous) {
         var previousValue = previous[propName]
 
@@ -6199,7 +9041,7 @@ function removeProperty(node, props, previous, propName) {
                 node[propName] = null
             }
         } else if (previousValue.unhook) {
-            previousValue.unhook(node, propName)
+            previousValue.unhook(node, propName, propValue)
         }
     }
 }
@@ -6250,7 +9092,7 @@ function getPrototype(value) {
     }
 }
 
-},{"../vnode/is-vhook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","is-object":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/is-object/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/create-element.js":[function(require,module,exports){
+},{"../vnode/is-vhook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vhook.js","is-object":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/is-object/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/create-element.js":[function(require,module,exports){
 var document = require("global/document")
 
 var applyProperties = require("./apply-properties")
@@ -6298,7 +9140,7 @@ function createElement(vnode, opts) {
     return node
 }
 
-},{"../vnode/handle-thunk.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/handle-thunk.js","../vnode/is-vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","./apply-properties":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/apply-properties.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/global/document.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/dom-index.js":[function(require,module,exports){
+},{"../vnode/handle-thunk.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/handle-thunk.js","../vnode/is-vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-widget.js","./apply-properties":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/apply-properties.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/global/document.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/dom-index.js":[function(require,module,exports){
 // Maps a virtual DOM tree onto a real DOM tree in an efficient manner.
 // We don't want to read all of the DOM nodes in the tree so we use
 // the in-order tree indexing to eliminate recursion down certain branches.
@@ -6385,7 +9227,7 @@ function ascending(a, b) {
     return a > b ? 1 : -1
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch-op.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/patch-op.js":[function(require,module,exports){
 var applyProperties = require("./apply-properties")
 
 var isWidget = require("../vnode/is-widget.js")
@@ -6458,7 +9300,7 @@ function stringPatch(domNode, leftVNode, vText, renderOptions) {
         var parentNode = domNode.parentNode
         newNode = render(vText, renderOptions)
 
-        if (parentNode) {
+        if (parentNode && newNode !== domNode) {
             parentNode.replaceChild(newNode, domNode)
         }
     }
@@ -6493,7 +9335,7 @@ function vNodePatch(domNode, leftVNode, vNode, renderOptions) {
     var parentNode = domNode.parentNode
     var newNode = render(vNode, renderOptions)
 
-    if (parentNode) {
+    if (parentNode && newNode !== domNode) {
         parentNode.replaceChild(newNode, domNode)
     }
 
@@ -6506,58 +9348,40 @@ function destroyWidget(domNode, w) {
     }
 }
 
-function reorderChildren(domNode, bIndex) {
-    var children = []
+function reorderChildren(domNode, moves) {
     var childNodes = domNode.childNodes
-    var len = childNodes.length
-    var i
-    var reverseIndex = bIndex.reverse
+    var keyMap = {}
+    var node
+    var remove
+    var insert
 
-    for (i = 0; i < len; i++) {
-        children.push(domNode.childNodes[i])
+    for (var i = 0; i < moves.removes.length; i++) {
+        remove = moves.removes[i]
+        node = childNodes[remove.from]
+        if (remove.key) {
+            keyMap[remove.key] = node
+        }
+        domNode.removeChild(node)
     }
 
-    var insertOffset = 0
-    var move
-    var node
-    var insertNode
-    for (i = 0; i < len; i++) {
-        move = bIndex[i]
-        if (move !== undefined && move !== i) {
-            // the element currently at this index will be moved later so increase the insert offset
-            if (reverseIndex[i] > i) {
-                insertOffset++
-            }
-
-            node = children[move]
-            insertNode = childNodes[i + insertOffset] || null
-            if (node !== insertNode) {
-                domNode.insertBefore(node, insertNode)
-            }
-
-            // the moved element came from the front of the array so reduce the insert offset
-            if (move < i) {
-                insertOffset--
-            }
-        }
-
-        // element at this index is scheduled to be removed so increase insert offset
-        if (i in bIndex.removes) {
-            insertOffset++
-        }
+    var length = childNodes.length
+    for (var j = 0; j < moves.inserts.length; j++) {
+        insert = moves.inserts[j]
+        node = keyMap[insert.key]
+        // this is the weirdest bug i've ever seen in webkit
+        domNode.insertBefore(node, insert.to >= length++ ? null : childNodes[insert.to])
     }
 }
 
 function replaceRoot(oldRoot, newRoot) {
     if (oldRoot && newRoot && oldRoot !== newRoot && oldRoot.parentNode) {
-        console.log(oldRoot)
         oldRoot.parentNode.replaceChild(newRoot, oldRoot)
     }
 
     return newRoot;
 }
 
-},{"../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vpatch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vpatch.js","./apply-properties":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/apply-properties.js","./create-element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/create-element.js","./update-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/update-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch.js":[function(require,module,exports){
+},{"../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vpatch.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/vpatch.js","./apply-properties":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/apply-properties.js","./create-element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/create-element.js","./update-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/update-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/patch.js":[function(require,module,exports){
 var document = require("global/document")
 var isArray = require("x-is-array")
 
@@ -6635,7 +9459,7 @@ function patchIndices(patches) {
     return indices
 }
 
-},{"./dom-index":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/dom-index.js","./patch-op":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/patch-op.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/global/document.js","x-is-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/x-is-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vdom/update-widget.js":[function(require,module,exports){
+},{"./dom-index":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/dom-index.js","./patch-op":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/patch-op.js","global/document":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/global/document.js","x-is-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/x-is-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/update-widget.js":[function(require,module,exports){
 var isWidget = require("../vnode/is-widget.js")
 
 module.exports = updateWidget
@@ -6652,305 +9476,7 @@ function updateWidget(a, b) {
     return false
 }
 
-},{"../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/data-set-hook.js":[function(require,module,exports){
-var DataSet = require("data-set")
-
-module.exports = DataSetHook;
-
-function DataSetHook(value) {
-    if (!(this instanceof DataSetHook)) {
-        return new DataSetHook(value);
-    }
-
-    this.value = value;
-}
-
-DataSetHook.prototype.hook = function (node, propertyName) {
-    var ds = DataSet(node)
-    var propName = propertyName.substr(5)
-
-    ds[propName] = this.value;
-};
-
-},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js":[function(require,module,exports){
-var DataSet = require("data-set")
-
-module.exports = DataSetHook;
-
-function DataSetHook(value) {
-    if (!(this instanceof DataSetHook)) {
-        return new DataSetHook(value);
-    }
-
-    this.value = value;
-}
-
-DataSetHook.prototype.hook = function (node, propertyName) {
-    var ds = DataSet(node)
-    var propName = propertyName.substr(3)
-
-    ds[propName] = this.value;
-};
-
-DataSetHook.prototype.unhook = function(node, propertyName) {
-    var ds = DataSet(node);
-    var propName = propertyName.substr(3);
-
-    ds[propName] = undefined;
-}
-
-},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js":[function(require,module,exports){
-module.exports = SoftSetHook;
-
-function SoftSetHook(value) {
-    if (!(this instanceof SoftSetHook)) {
-        return new SoftSetHook(value);
-    }
-
-    this.value = value;
-}
-
-SoftSetHook.prototype.hook = function (node, propertyName) {
-    if (node[propertyName] !== this.value) {
-        node[propertyName] = this.value;
-    }
-};
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/index.js":[function(require,module,exports){
-var TypedError = require("error/typed")
-
-var VNode = require("../vnode/vnode.js")
-var VText = require("../vnode/vtext.js")
-var isVNode = require("../vnode/is-vnode")
-var isVText = require("../vnode/is-vtext")
-var isWidget = require("../vnode/is-widget")
-var isHook = require("../vnode/is-vhook")
-var isVThunk = require("../vnode/is-thunk")
-
-var parseTag = require("./parse-tag.js")
-var softSetHook = require("./hooks/soft-set-hook.js")
-var dataSetHook = require("./hooks/data-set-hook.js")
-var evHook = require("./hooks/ev-hook.js")
-
-var UnexpectedVirtualElement = TypedError({
-    type: "virtual-hyperscript.unexpected.virtual-element",
-    message: "Unexpected virtual child passed to h().\n" +
-        "Expected a VNode / Vthunk / VWidget / string but:\n" +
-        "got a {foreignObjectStr}.\n" +
-        "The parent vnode is {parentVnodeStr}.\n" +
-        "Suggested fix: change your `h(..., [ ... ])` callsite.",
-    foreignObjectStr: null,
-    parentVnodeStr: null,
-    foreignObject: null,
-    parentVnode: null
-})
-
-module.exports = h
-
-function h(tagName, properties, children) {
-    var childNodes = []
-    var tag, props, key, namespace
-
-    if (!children && isChildren(properties)) {
-        children = properties
-        props = {}
-    }
-
-    props = props || properties || {}
-    tag = parseTag(tagName, props)
-
-    // support keys
-    if ("key" in props) {
-        key = props.key
-        props.key = undefined
-    }
-
-    // support namespace
-    if ("namespace" in props) {
-        namespace = props.namespace
-        props.namespace = undefined
-    }
-
-    // fix cursor bug
-    if (tag === "input" &&
-        "value" in props &&
-        props.value !== undefined &&
-        !isHook(props.value)
-    ) {
-        props.value = softSetHook(props.value)
-    }
-
-    var keys = Object.keys(props)
-    var propName, value
-    for (var j = 0; j < keys.length; j++) {
-        propName = keys[j]
-        value = props[propName]
-        if (isHook(value)) {
-            continue
-        }
-
-        // add data-foo support
-        if (propName.substr(0, 5) === "data-") {
-            props[propName] = dataSetHook(value)
-        }
-
-        // add ev-foo support
-        if (propName.substr(0, 3) === "ev-") {
-            props[propName] = evHook(value)
-        }
-    }
-
-    if (children !== undefined && children !== null) {
-        addChild(children, childNodes, tag, props)
-    }
-
-
-    var node = new VNode(tag, props, childNodes, key, namespace)
-
-    return node
-}
-
-function addChild(c, childNodes, tag, props) {
-    if (typeof c === "string") {
-        childNodes.push(new VText(c))
-    } else if (isChild(c)) {
-        childNodes.push(c)
-    } else if (Array.isArray(c)) {
-        for (var i = 0; i < c.length; i++) {
-            addChild(c[i], childNodes, tag, props)
-        }
-    } else if (c === null || c === undefined) {
-        return
-    } else {
-        throw UnexpectedVirtualElement({
-            foreignObjectStr: JSON.stringify(c),
-            foreignObject: c,
-            parentVnodeStr: JSON.stringify({
-                tagName: tag,
-                properties: props
-            }),
-            parentVnode: {
-                tagName: tag,
-                properties: props
-            }
-        })
-    }
-}
-
-function isChild(x) {
-    return isVNode(x) || isVText(x) || isWidget(x) || isVThunk(x)
-}
-
-function isChildren(x) {
-    return typeof x === "string" || Array.isArray(x) || isChild(x)
-}
-
-},{"../vnode/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","../vnode/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","../vnode/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vnode.js","../vnode/vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js","./hooks/data-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/data-set-hook.js","./hooks/ev-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js","./hooks/soft-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js","./parse-tag.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js","error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/typed.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js":[function(require,module,exports){
-var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/
-var notClassId = /^\.|#/
-
-module.exports = parseTag
-
-function parseTag(tag, props) {
-    if (!tag) {
-        return "div"
-    }
-
-    var noId = !("id" in props)
-
-    var tagParts = tag.split(classIdSplit)
-    var tagName = null
-
-    if (notClassId.test(tagParts[1])) {
-        tagName = "div"
-    }
-
-    var classes, part, type, i
-    for (i = 0; i < tagParts.length; i++) {
-        part = tagParts[i]
-
-        if (!part) {
-            continue
-        }
-
-        type = part.charAt(0)
-
-        if (!tagName) {
-            tagName = part
-        } else if (type === ".") {
-            classes = classes || []
-            classes.push(part.substring(1, part.length))
-        } else if (type === "#" && noId) {
-            props.id = part.substring(1, part.length)
-        }
-    }
-
-    if (classes) {
-        if (props.className) {
-            classes.push(props.className)
-        }
-
-        props.className = classes.join(" ")
-    }
-
-    return tagName ? tagName.toLowerCase() : "div"
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/svg.js":[function(require,module,exports){
-var h = require("./index.js")
-
-var BLACKLISTED_KEYS = {
-    "style": true,
-    "namespace": true,
-    "key": true
-}
-var SVG_NAMESPACE = "http://www.w3.org/2000/svg"
-
-module.exports = svg
-
-function svg(tagName, properties, children) {
-    if (!children && isChildren(properties)) {
-        children = properties
-        properties = {}
-    }
-
-    properties = properties || {}
-
-    // set namespace for svg
-    properties.namespace = SVG_NAMESPACE
-
-    var attributes = properties.attributes || (properties.attributes = {})
-
-    // for each key, if attribute & string, bool or number then
-    // convert it into a setAttribute hook
-    for (var key in properties) {
-        if (!properties.hasOwnProperty(key)) {
-            continue
-        }
-
-        if (BLACKLISTED_KEYS[key]) {
-            continue
-        }
-
-        var value = properties[key]
-        if (typeof value !== "string" &&
-            typeof value !== "number" &&
-            typeof value !== "boolean"
-        ) {
-            continue
-        }
-
-        attributes[key] = value
-    }
-
-    return h(tagName, properties, children)
-}
-
-function isChildren(x) {
-    return typeof x === "string" || Array.isArray(x)
-}
-
-},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/handle-thunk.js":[function(require,module,exports){
+},{"../vnode/is-widget.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/handle-thunk.js":[function(require,module,exports){
 var isVNode = require("./is-vnode")
 var isVText = require("./is-vtext")
 var isWidget = require("./is-widget")
@@ -6992,22 +9518,23 @@ function renderThunk(thunk, previous) {
     return renderedThunk
 }
 
-},{"./is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","./is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js":[function(require,module,exports){
+},{"./is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-thunk.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vnode.js","./is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vtext.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-widget.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-thunk.js":[function(require,module,exports){
 module.exports = isThunk
 
 function isThunk(t) {
     return t && t.type === "Thunk"
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vhook.js":[function(require,module,exports){
 module.exports = isHook
 
 function isHook(hook) {
-    return hook && typeof hook.hook === "function" &&
-        !hook.hasOwnProperty("hook")
+    return hook &&
+      (typeof hook.hook === "function" && !hook.hasOwnProperty("hook") ||
+       typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"))
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vnode.js":[function(require,module,exports){
 var version = require("./version")
 
 module.exports = isVirtualNode
@@ -7016,7 +9543,7 @@ function isVirtualNode(x) {
     return x && x.type === "VirtualNode" && x.version === version
 }
 
-},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js":[function(require,module,exports){
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vtext.js":[function(require,module,exports){
 var version = require("./version")
 
 module.exports = isVirtualText
@@ -7025,17 +9552,1194 @@ function isVirtualText(x) {
     return x && x.type === "VirtualText" && x.version === version
 }
 
-},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js":[function(require,module,exports){
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-widget.js":[function(require,module,exports){
 module.exports = isWidget
 
 function isWidget(w) {
     return w && w.type === "Widget"
 }
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js":[function(require,module,exports){
-module.exports = "1"
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/version.js":[function(require,module,exports){
+module.exports = "2"
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vnode.js":[function(require,module,exports){
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/vpatch.js":[function(require,module,exports){
+var version = require("./version")
+
+VirtualPatch.NONE = 0
+VirtualPatch.VTEXT = 1
+VirtualPatch.VNODE = 2
+VirtualPatch.WIDGET = 3
+VirtualPatch.PROPS = 4
+VirtualPatch.ORDER = 5
+VirtualPatch.INSERT = 6
+VirtualPatch.REMOVE = 7
+VirtualPatch.THUNK = 8
+
+module.exports = VirtualPatch
+
+function VirtualPatch(type, vNode, patch) {
+    this.type = Number(type)
+    this.vNode = vNode
+    this.patch = patch
+}
+
+VirtualPatch.prototype.version = version
+VirtualPatch.prototype.type = "VirtualPatch"
+
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vtree/diff-props.js":[function(require,module,exports){
+var isObject = require("is-object")
+var isHook = require("../vnode/is-vhook")
+
+module.exports = diffProps
+
+function diffProps(a, b) {
+    var diff
+
+    for (var aKey in a) {
+        if (!(aKey in b)) {
+            diff = diff || {}
+            diff[aKey] = undefined
+        }
+
+        var aValue = a[aKey]
+        var bValue = b[aKey]
+
+        if (aValue === bValue) {
+            continue
+        } else if (isObject(aValue) && isObject(bValue)) {
+            if (getPrototype(bValue) !== getPrototype(aValue)) {
+                diff = diff || {}
+                diff[aKey] = bValue
+            } else if (isHook(bValue)) {
+                 diff = diff || {}
+                 diff[aKey] = bValue
+            } else {
+                var objectDiff = diffProps(aValue, bValue)
+                if (objectDiff) {
+                    diff = diff || {}
+                    diff[aKey] = objectDiff
+                }
+            }
+        } else {
+            diff = diff || {}
+            diff[aKey] = bValue
+        }
+    }
+
+    for (var bKey in b) {
+        if (!(bKey in a)) {
+            diff = diff || {}
+            diff[bKey] = b[bKey]
+        }
+    }
+
+    return diff
+}
+
+function getPrototype(value) {
+  if (Object.getPrototypeOf) {
+    return Object.getPrototypeOf(value)
+  } else if (value.__proto__) {
+    return value.__proto__
+  } else if (value.constructor) {
+    return value.constructor.prototype
+  }
+}
+
+},{"../vnode/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vhook.js","is-object":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/is-object/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vtree/diff.js":[function(require,module,exports){
+var isArray = require("x-is-array")
+
+var VPatch = require("../vnode/vpatch")
+var isVNode = require("../vnode/is-vnode")
+var isVText = require("../vnode/is-vtext")
+var isWidget = require("../vnode/is-widget")
+var isThunk = require("../vnode/is-thunk")
+var handleThunk = require("../vnode/handle-thunk")
+
+var diffProps = require("./diff-props")
+
+module.exports = diff
+
+function diff(a, b) {
+    var patch = { a: a }
+    walk(a, b, patch, 0)
+    return patch
+}
+
+function walk(a, b, patch, index) {
+    if (a === b) {
+        return
+    }
+
+    var apply = patch[index]
+    var applyClear = false
+
+    if (isThunk(a) || isThunk(b)) {
+        thunks(a, b, patch, index)
+    } else if (b == null) {
+
+        // If a is a widget we will add a remove patch for it
+        // Otherwise any child widgets/hooks must be destroyed.
+        // This prevents adding two remove patches for a widget.
+        if (!isWidget(a)) {
+            clearState(a, patch, index)
+            apply = patch[index]
+        }
+
+        apply = appendPatch(apply, new VPatch(VPatch.REMOVE, a, b))
+    } else if (isVNode(b)) {
+        if (isVNode(a)) {
+            if (a.tagName === b.tagName &&
+                a.namespace === b.namespace &&
+                a.key === b.key) {
+                var propsPatch = diffProps(a.properties, b.properties)
+                if (propsPatch) {
+                    apply = appendPatch(apply,
+                        new VPatch(VPatch.PROPS, a, propsPatch))
+                }
+                apply = diffChildren(a, b, patch, apply, index)
+            } else {
+                apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
+                applyClear = true
+            }
+        } else {
+            apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
+            applyClear = true
+        }
+    } else if (isVText(b)) {
+        if (!isVText(a)) {
+            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
+            applyClear = true
+        } else if (a.text !== b.text) {
+            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
+        }
+    } else if (isWidget(b)) {
+        if (!isWidget(a)) {
+            applyClear = true
+        }
+
+        apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
+    }
+
+    if (apply) {
+        patch[index] = apply
+    }
+
+    if (applyClear) {
+        clearState(a, patch, index)
+    }
+}
+
+function diffChildren(a, b, patch, apply, index) {
+    var aChildren = a.children
+    var orderedSet = reorder(aChildren, b.children)
+    var bChildren = orderedSet.children
+
+    var aLen = aChildren.length
+    var bLen = bChildren.length
+    var len = aLen > bLen ? aLen : bLen
+
+    for (var i = 0; i < len; i++) {
+        var leftNode = aChildren[i]
+        var rightNode = bChildren[i]
+        index += 1
+
+        if (!leftNode) {
+            if (rightNode) {
+                // Excess nodes in b need to be added
+                apply = appendPatch(apply,
+                    new VPatch(VPatch.INSERT, null, rightNode))
+            }
+        } else {
+            walk(leftNode, rightNode, patch, index)
+        }
+
+        if (isVNode(leftNode) && leftNode.count) {
+            index += leftNode.count
+        }
+    }
+
+    if (orderedSet.moves) {
+        // Reorder nodes last
+        apply = appendPatch(apply, new VPatch(
+            VPatch.ORDER,
+            a,
+            orderedSet.moves
+        ))
+    }
+
+    return apply
+}
+
+function clearState(vNode, patch, index) {
+    // TODO: Make this a single walk, not two
+    unhook(vNode, patch, index)
+    destroyWidgets(vNode, patch, index)
+}
+
+// Patch records for all destroyed widgets must be added because we need
+// a DOM node reference for the destroy function
+function destroyWidgets(vNode, patch, index) {
+    if (isWidget(vNode)) {
+        if (typeof vNode.destroy === "function") {
+            patch[index] = appendPatch(
+                patch[index],
+                new VPatch(VPatch.REMOVE, vNode, null)
+            )
+        }
+    } else if (isVNode(vNode) && (vNode.hasWidgets || vNode.hasThunks)) {
+        var children = vNode.children
+        var len = children.length
+        for (var i = 0; i < len; i++) {
+            var child = children[i]
+            index += 1
+
+            destroyWidgets(child, patch, index)
+
+            if (isVNode(child) && child.count) {
+                index += child.count
+            }
+        }
+    } else if (isThunk(vNode)) {
+        thunks(vNode, null, patch, index)
+    }
+}
+
+// Create a sub-patch for thunks
+function thunks(a, b, patch, index) {
+    var nodes = handleThunk(a, b)
+    var thunkPatch = diff(nodes.a, nodes.b)
+    if (hasPatches(thunkPatch)) {
+        patch[index] = new VPatch(VPatch.THUNK, null, thunkPatch)
+    }
+}
+
+function hasPatches(patch) {
+    for (var index in patch) {
+        if (index !== "a") {
+            return true
+        }
+    }
+
+    return false
+}
+
+// Execute hooks when two nodes are identical
+function unhook(vNode, patch, index) {
+    if (isVNode(vNode)) {
+        if (vNode.hooks) {
+            patch[index] = appendPatch(
+                patch[index],
+                new VPatch(
+                    VPatch.PROPS,
+                    vNode,
+                    undefinedKeys(vNode.hooks)
+                )
+            )
+        }
+
+        if (vNode.descendantHooks || vNode.hasThunks) {
+            var children = vNode.children
+            var len = children.length
+            for (var i = 0; i < len; i++) {
+                var child = children[i]
+                index += 1
+
+                unhook(child, patch, index)
+
+                if (isVNode(child) && child.count) {
+                    index += child.count
+                }
+            }
+        }
+    } else if (isThunk(vNode)) {
+        thunks(vNode, null, patch, index)
+    }
+}
+
+function undefinedKeys(obj) {
+    var result = {}
+
+    for (var key in obj) {
+        result[key] = undefined
+    }
+
+    return result
+}
+
+// List diff, naive left to right reordering
+function reorder(aChildren, bChildren) {
+    // O(M) time, O(M) memory
+    var bChildIndex = keyIndex(bChildren)
+    var bKeys = bChildIndex.keys
+    var bFree = bChildIndex.free
+
+    if (bFree.length === bChildren.length) {
+        return {
+            children: bChildren,
+            moves: null
+        }
+    }
+
+    // O(N) time, O(N) memory
+    var aChildIndex = keyIndex(aChildren)
+    var aKeys = aChildIndex.keys
+    var aFree = aChildIndex.free
+
+    if (aFree.length === aChildren.length) {
+        return {
+            children: bChildren,
+            moves: null
+        }
+    }
+
+    // O(MAX(N, M)) memory
+    var newChildren = []
+
+    var freeIndex = 0
+    var freeCount = bFree.length
+    var deletedItems = 0
+
+    // Iterate through a and match a node in b
+    // O(N) time,
+    for (var i = 0 ; i < aChildren.length; i++) {
+        var aItem = aChildren[i]
+        var itemIndex
+
+        if (aItem.key) {
+            if (bKeys.hasOwnProperty(aItem.key)) {
+                // Match up the old keys
+                itemIndex = bKeys[aItem.key]
+                newChildren.push(bChildren[itemIndex])
+
+            } else {
+                // Remove old keyed items
+                itemIndex = i - deletedItems++
+                newChildren.push(null)
+            }
+        } else {
+            // Match the item in a with the next free item in b
+            if (freeIndex < freeCount) {
+                itemIndex = bFree[freeIndex++]
+                newChildren.push(bChildren[itemIndex])
+            } else {
+                // There are no free items in b to match with
+                // the free items in a, so the extra free nodes
+                // are deleted.
+                itemIndex = i - deletedItems++
+                newChildren.push(null)
+            }
+        }
+    }
+
+    var lastFreeIndex = freeIndex >= bFree.length ?
+        bChildren.length :
+        bFree[freeIndex]
+
+    // Iterate through b and append any new keys
+    // O(M) time
+    for (var j = 0; j < bChildren.length; j++) {
+        var newItem = bChildren[j]
+
+        if (newItem.key) {
+            if (!aKeys.hasOwnProperty(newItem.key)) {
+                // Add any new keyed items
+                // We are adding new items to the end and then sorting them
+                // in place. In future we should insert new items in place.
+                newChildren.push(newItem)
+            }
+        } else if (j >= lastFreeIndex) {
+            // Add any leftover non-keyed items
+            newChildren.push(newItem)
+        }
+    }
+
+    var simulate = newChildren.slice()
+    var simulateIndex = 0
+    var removes = []
+    var inserts = []
+    var simulateItem
+
+    for (var k = 0; k < bChildren.length;) {
+        var wantedItem = bChildren[k]
+        simulateItem = simulate[simulateIndex]
+
+        // remove items
+        while (simulateItem === null && simulate.length) {
+            removes.push(remove(simulate, simulateIndex, null))
+            simulateItem = simulate[simulateIndex]
+        }
+
+        if (!simulateItem || simulateItem.key !== wantedItem.key) {
+            // if we need a key in this position...
+            if (wantedItem.key) {
+                if (simulateItem && simulateItem.key) {
+                    // if an insert doesn't put this key in place, it needs to move
+                    if (bKeys[simulateItem.key] !== k + 1) {
+                        removes.push(remove(simulate, simulateIndex, simulateItem.key))
+                        simulateItem = simulate[simulateIndex]
+                        // if the remove didn't put the wanted item in place, we need to insert it
+                        if (!simulateItem || simulateItem.key !== wantedItem.key) {
+                            inserts.push({key: wantedItem.key, to: k})
+                        }
+                        // items are matching, so skip ahead
+                        else {
+                            simulateIndex++
+                        }
+                    }
+                    else {
+                        inserts.push({key: wantedItem.key, to: k})
+                    }
+                }
+                else {
+                    inserts.push({key: wantedItem.key, to: k})
+                }
+                k++
+            }
+            // a key in simulate has no matching wanted key, remove it
+            else if (simulateItem && simulateItem.key) {
+                removes.push(remove(simulate, simulateIndex, simulateItem.key))
+            }
+        }
+        else {
+            simulateIndex++
+            k++
+        }
+    }
+
+    // remove all the remaining nodes from simulate
+    while(simulateIndex < simulate.length) {
+        simulateItem = simulate[simulateIndex]
+        removes.push(remove(simulate, simulateIndex, simulateItem && simulateItem.key))
+    }
+
+    // If the only moves we have are deletes then we can just
+    // let the delete patch remove these items.
+    if (removes.length === deletedItems && !inserts.length) {
+        return {
+            children: newChildren,
+            moves: null
+        }
+    }
+
+    return {
+        children: newChildren,
+        moves: {
+            removes: removes,
+            inserts: inserts
+        }
+    }
+}
+
+function remove(arr, index, key) {
+    arr.splice(index, 1)
+
+    return {
+        from: index,
+        key: key
+    }
+}
+
+function keyIndex(children) {
+    var keys = {}
+    var free = []
+    var length = children.length
+
+    for (var i = 0; i < length; i++) {
+        var child = children[i]
+
+        if (child.key) {
+            keys[child.key] = i
+        } else {
+            free.push(i)
+        }
+    }
+
+    return {
+        keys: keys,     // A hash of key name to index
+        free: free,     // An array of unkeyed item indices
+    }
+}
+
+function appendPatch(apply, patch) {
+    if (apply) {
+        if (isArray(apply)) {
+            apply.push(patch)
+        } else {
+            apply = [apply, patch]
+        }
+
+        return apply
+    } else {
+        return patch
+    }
+}
+
+},{"../vnode/handle-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/handle-thunk.js","../vnode/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-thunk.js","../vnode/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vpatch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/vpatch.js","./diff-props":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vtree/diff-props.js","x-is-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/x-is-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/xtend/immutable.js":[function(require,module,exports){
+module.exports = extend
+
+function extend() {
+    var target = {}
+
+    for (var i = 0; i < arguments.length; i++) {
+        var source = arguments[i]
+
+        for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+                target[key] = source[key]
+            }
+        }
+    }
+
+    return target
+}
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/talio.coffee":[function(require,module,exports){
+var Delegator, InvalidUpdateInRender, TalioState, TypedError, extend, immupdate, mainloop, raf;
+
+Delegator = require('dom-delegator');
+
+extend = require('xtend');
+
+immupdate = require('immupdate');
+
+module.exports.sendValue = require('value-event/value');
+
+module.exports.sendClick = require('value-event/click');
+
+module.exports.sendSubmit = require('value-event/submit');
+
+module.exports.sendChange = require('value-event/change');
+
+module.exports.sendKey = require('value-event/key');
+
+module.exports.sendDetail = (require('value-event/base-event'))(function(ev, broadcast) {
+  var data, detail;
+  detail = ev._rawEvent.detail;
+  data = extend(detail, this.data);
+  return broadcast(data);
+});
+
+TalioState = (function() {
+  TalioState.prototype.type = 'TalioState';
+
+  function TalioState(state1) {
+    this.state = state1;
+  }
+
+  TalioState.prototype.silentlyUpdate = function() {
+    var u;
+    u = immupdate.bind(this, this.state);
+    return this.state = u.apply(this, arguments);
+  };
+
+  TalioState.prototype.change = function() {
+    this.silentlyUpdate.apply(this, arguments);
+    return this.cb(this.state);
+  };
+
+  TalioState.prototype.subscribe = function(cb) {
+    return this.cb = cb;
+  };
+
+  TalioState.prototype.itself = function() {
+    return this.state;
+  };
+
+  TalioState.prototype.get = function(prop) {
+    var degree, i, len, ref, ret;
+    ret = this.state;
+    ref = prop.split('.');
+    for (i = 0, len = ref.length; i < len; i++) {
+      degree = ref[i];
+      ret = ret[degree];
+    }
+    return ret;
+  };
+
+  return TalioState;
+
+})();
+
+module.exports.StateFactory = function(dict) {
+  return new TalioState(dict);
+};
+
+raf = require('raf');
+
+TypedError = require('error/typed');
+
+InvalidUpdateInRender = TypedError({
+  type: 'talio.invalid.update.in-render',
+  message: 'talio: Unexpected update occurred in loop.\n' + 'We are currently rendering a view, ' + 'you can\'t change state right now.\n' + 'The diff is: {stringDiff}.\n' + 'SUGGESTED FIX: find the state mutation in your view ' + 'or rendering function and remove it.\n' + 'The view should not have any side effects.\n',
+  diff: null,
+  stringDiff: null
+});
+
+mainloop = function(initialState, view, channels, opts) {
+  var create, currentState, diff, inRenderingTransaction, patch, redraw, redrawScheduled, target, tree, update;
+  opts = opts || {};
+  currentState = initialState;
+  create = opts.create;
+  diff = opts.diff;
+  patch = opts.patch;
+  redrawScheduled = false;
+  tree = opts.initialTree || view(currentState, channels);
+  target = opts.target || create(tree, opts);
+  inRenderingTransaction = false;
+  currentState = null;
+  update = function(state) {
+    if (inRenderingTransaction) {
+      throw InvalidUpdateInRender({
+        diff: state._diff,
+        stringDiff: JSON.stringify(state._diff)
+      });
+    }
+    if (currentState === null && !redrawScheduled) {
+      redrawScheduled = true;
+      raf(redraw);
+    }
+    currentState = state;
+  };
+  redraw = function() {
+    var e, newTree, patches;
+    redrawScheduled = false;
+    if (currentState === null) {
+      return;
+    }
+    inRenderingTransaction = true;
+    try {
+      newTree = view(currentState, channels);
+    } catch (_error) {
+      e = _error;
+      console.error("We had a problem while rendering the tree with the following state:", currentState);
+      console.debug("Aborting the render.");
+      inRenderingTransaction = false;
+      newTree = tree;
+      console.debug(e.stack);
+    }
+    if (opts.createOnly) {
+      inRenderingTransaction = false;
+      create(newTree, opts);
+    } else {
+      patches = diff(tree, newTree, opts);
+      inRenderingTransaction = false;
+      target = patch(target, patches, opts);
+    }
+    tree = newTree;
+    currentState = null;
+  };
+  return {
+    target: target,
+    update: update
+  };
+};
+
+module.exports.Delegator = Delegator;
+
+module.exports.delegator = Delegator();
+
+module.exports.run = function(domnode, vrender, handlers, BaseState) {
+  var channels, createChannel, theloop;
+  if (!BaseState || BaseState.type !== 'TalioState') {
+    BaseState = new State({});
+  }
+  createChannel = function(acc, name) {
+    acc[name] = Delegator.allocateHandle(handlers[name].bind(handlers, BaseState));
+    return acc;
+  };
+  channels = Object.keys(handlers).reduce(createChannel, {});
+  theloop = mainloop(BaseState.itself(), vrender, channels, {
+    diff: require('virtual-dom/vtree/diff'),
+    patch: require('virtual-dom/vdom/patch'),
+    create: require('virtual-dom/vdom/create-element')
+  });
+  domnode.appendChild(theloop.target);
+  return BaseState.subscribe(function(state) {
+    return theloop.update(state);
+  });
+};
+
+
+},{"dom-delegator":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/index.js","error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/error/typed.js","immupdate":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/immupdate/immupdate.js","raf":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/raf/index.js","value-event/base-event":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/base-event.js","value-event/change":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/change.js","value-event/click":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/click.js","value-event/key":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/key.js","value-event/submit":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/submit.js","value-event/value":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/value-event/value.js","virtual-dom/vdom/create-element":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/create-element.js","virtual-dom/vdom/patch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vdom/patch.js","virtual-dom/vtree/diff":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vtree/diff.js","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/xtend/immutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/titulo/minusculas.js":[function(require,module,exports){
+module.exports = [
+  'um',
+  'uma',
+  'e',
+  'de',
+  'da',
+  'do',
+  'no',
+  'na',
+  'em',
+  'mas',
+  'por',
+  'para',
+  'como',
+  'se',
+  'nem',
+  'tampouco',
+  'sobre',
+  'sob',
+  'a',
+  'à',
+  'o',
+  'ao',
+  'ou',
+  'então',
+  'que',
+  'este',
+  'esta',
+  'isto',
+  'esse',
+  'este',
+  'isso',
+  'aquele',
+  'àquele',
+  'aquela',
+  'àquela',
+  'aquilo',
+  'àquilo',
+  'o',
+  'até',
+  'desde',
+  'versus',
+  'vs',
+  'vs.',
+  'através',
+  'quando',
+  'com',
+  'sem',
+  'ainda'
+];
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/titulo/to-title-case.js":[function(require,module,exports){
+/* 
+  * To Title Case 2.1 – http://individed.com/code/to-title-case/
+  * Copyright © 2008–2013 David Gouch. Licensed under the MIT License.
+ */
+
+/*
+ * modifications by @rvagg Apr-2014
+ */
+
+/*
+ * portuguese version by fiatjaf Nov-2014
+ */
+
+//String.prototype.toTitleCase = function(){
+
+
+var smallWords = /^(a|an|and|as|at|but|by|en|for|if|in|nor|of|on|or|per|the|to|vs?\.?|via)$/i;
+module.exports = function toTitleCase(str){
+  return titleCase(str, smallWords)
+}
+module.exports.toTitleCase = module.exports
+
+var laxWords = require('./minusculas.js')
+      .concat(smallWords.source.replace(/(^\^\(|\)\$$)/g, '').split('|'))
+      .concat(['is']) // a personal preference
+  , laxWordsRe = new RegExp('^(' + laxWords.join('|') + ')$', 'i')
+
+module.exports.toLaxTitleCase = function toLaxTitleCase(str){
+  return titleCase(str, laxWordsRe)
+}
+
+
+function titleCase (str, smallWords) {
+  if (!str)
+    return str
+  return str.replace(/[A-Za-z0-9\u00C0-\u00FF]+[^\s-]*/g, function(match, index, title){
+    if (index > 0 && index + match.length !== title.length &&
+      match.search(smallWords) > -1 && title.charAt(index - 2) !== ':' &&
+      (title.charAt(index + match.length) !== '-' || title.charAt(index - 1) === '-') &&
+      title.charAt(index - 1).search(/[^\s-]/) < 0) {
+      return match.toLowerCase();
+    }
+
+    if (match.substr(1).search(/[A-Z]|\../) > -1) {
+      return match;
+    }
+
+    return match.charAt(0).toUpperCase() + match.substr(1);
+  });
+}
+
+},{"./minusculas.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/titulo/minusculas.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/h.js":[function(require,module,exports){
+var h = require("./virtual-hyperscript/index.js")
+
+module.exports = h
+
+},{"./virtual-hyperscript/index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/browser-split/index.js":[function(require,module,exports){
+/*!
+ * Cross-Browser Split 1.1.1
+ * Copyright 2007-2012 Steven Levithan <stevenlevithan.com>
+ * Available under the MIT License
+ * ECMAScript compliant, uniform cross-browser split method
+ */
+
+/**
+ * Splits a string into an array of strings using a regex or string separator. Matches of the
+ * separator are not included in the result array. However, if `separator` is a regex that contains
+ * capturing groups, backreferences are spliced into the result each time `separator` is matched.
+ * Fixes browser bugs compared to the native `String.prototype.split` and can be used reliably
+ * cross-browser.
+ * @param {String} str String to split.
+ * @param {RegExp|String} separator Regex or string to use for separating the string.
+ * @param {Number} [limit] Maximum number of items to include in the result array.
+ * @returns {Array} Array of substrings.
+ * @example
+ *
+ * // Basic use
+ * split('a b c d', ' ');
+ * // -> ['a', 'b', 'c', 'd']
+ *
+ * // With limit
+ * split('a b c d', ' ', 2);
+ * // -> ['a', 'b']
+ *
+ * // Backreferences in result array
+ * split('..word1 word2..', /([a-z]+)(\d+)/i);
+ * // -> ['..', 'word', '1', ' ', 'word', '2', '..']
+ */
+module.exports = (function split(undef) {
+
+  var nativeSplit = String.prototype.split,
+    compliantExecNpcg = /()??/.exec("")[1] === undef,
+    // NPCG: nonparticipating capturing group
+    self;
+
+  self = function(str, separator, limit) {
+    // If `separator` is not a regex, use `nativeSplit`
+    if (Object.prototype.toString.call(separator) !== "[object RegExp]") {
+      return nativeSplit.call(str, separator, limit);
+    }
+    var output = [],
+      flags = (separator.ignoreCase ? "i" : "") + (separator.multiline ? "m" : "") + (separator.extended ? "x" : "") + // Proposed for ES6
+      (separator.sticky ? "y" : ""),
+      // Firefox 3+
+      lastLastIndex = 0,
+      // Make `global` and avoid `lastIndex` issues by working with a copy
+      separator = new RegExp(separator.source, flags + "g"),
+      separator2, match, lastIndex, lastLength;
+    str += ""; // Type-convert
+    if (!compliantExecNpcg) {
+      // Doesn't need flags gy, but they don't hurt
+      separator2 = new RegExp("^" + separator.source + "$(?!\\s)", flags);
+    }
+    /* Values for `limit`, per the spec:
+     * If undefined: 4294967295 // Math.pow(2, 32) - 1
+     * If 0, Infinity, or NaN: 0
+     * If positive number: limit = Math.floor(limit); if (limit > 4294967295) limit -= 4294967296;
+     * If negative number: 4294967296 - Math.floor(Math.abs(limit))
+     * If other: Type-convert, then use the above rules
+     */
+    limit = limit === undef ? -1 >>> 0 : // Math.pow(2, 32) - 1
+    limit >>> 0; // ToUint32(limit)
+    while (match = separator.exec(str)) {
+      // `separator.lastIndex` is not reliable cross-browser
+      lastIndex = match.index + match[0].length;
+      if (lastIndex > lastLastIndex) {
+        output.push(str.slice(lastLastIndex, match.index));
+        // Fix browsers whose `exec` methods don't consistently return `undefined` for
+        // nonparticipating capturing groups
+        if (!compliantExecNpcg && match.length > 1) {
+          match[0].replace(separator2, function() {
+            for (var i = 1; i < arguments.length - 2; i++) {
+              if (arguments[i] === undef) {
+                match[i] = undef;
+              }
+            }
+          });
+        }
+        if (match.length > 1 && match.index < str.length) {
+          Array.prototype.push.apply(output, match.slice(1));
+        }
+        lastLength = match[0].length;
+        lastLastIndex = lastIndex;
+        if (output.length >= limit) {
+          break;
+        }
+      }
+      if (separator.lastIndex === match.index) {
+        separator.lastIndex++; // Avoid an infinite loop
+      }
+    }
+    if (lastLastIndex === str.length) {
+      if (lastLength || !separator.test("")) {
+        output.push("");
+      }
+    } else {
+      output.push(str.slice(lastLastIndex));
+    }
+    return output.length > limit ? output.slice(0, limit) : output;
+  };
+
+  return self;
+})();
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/ev-store/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/index.js"][0].apply(exports,arguments)
+},{"individual/one-version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/ev-store/node_modules/individual/one-version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/ev-store/node_modules/individual/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/node_modules/individual/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/ev-store/node_modules/individual/one-version.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/dom-delegator/node_modules/ev-store/node_modules/individual/one-version.js"][0].apply(exports,arguments)
+},{"./index.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/ev-store/node_modules/individual/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/x-is-array/index.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/node_modules/x-is-array/index.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js":[function(require,module,exports){
+'use strict';
+
+var EvStore = require('ev-store');
+
+module.exports = EvHook;
+
+function EvHook(value) {
+    if (!(this instanceof EvHook)) {
+        return new EvHook(value);
+    }
+
+    this.value = value;
+}
+
+EvHook.prototype.hook = function (node, propertyName) {
+    var es = EvStore(node);
+    var propName = propertyName.substr(3);
+
+    es[propName] = this.value;
+};
+
+EvHook.prototype.unhook = function(node, propertyName) {
+    var es = EvStore(node);
+    var propName = propertyName.substr(3);
+
+    es[propName] = undefined;
+};
+
+},{"ev-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/ev-store/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js":[function(require,module,exports){
+'use strict';
+
+module.exports = SoftSetHook;
+
+function SoftSetHook(value) {
+    if (!(this instanceof SoftSetHook)) {
+        return new SoftSetHook(value);
+    }
+
+    this.value = value;
+}
+
+SoftSetHook.prototype.hook = function (node, propertyName) {
+    if (node[propertyName] !== this.value) {
+        node[propertyName] = this.value;
+    }
+};
+
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/index.js":[function(require,module,exports){
+'use strict';
+
+var isArray = require('x-is-array');
+
+var VNode = require('../vnode/vnode.js');
+var VText = require('../vnode/vtext.js');
+var isVNode = require('../vnode/is-vnode');
+var isVText = require('../vnode/is-vtext');
+var isWidget = require('../vnode/is-widget');
+var isHook = require('../vnode/is-vhook');
+var isVThunk = require('../vnode/is-thunk');
+
+var parseTag = require('./parse-tag.js');
+var softSetHook = require('./hooks/soft-set-hook.js');
+var evHook = require('./hooks/ev-hook.js');
+
+module.exports = h;
+
+function h(tagName, properties, children) {
+    var childNodes = [];
+    var tag, props, key, namespace;
+
+    if (!children && isChildren(properties)) {
+        children = properties;
+        props = {};
+    }
+
+    props = props || properties || {};
+    tag = parseTag(tagName, props);
+
+    // support keys
+    if (props.hasOwnProperty('key')) {
+        key = props.key;
+        props.key = undefined;
+    }
+
+    // support namespace
+    if (props.hasOwnProperty('namespace')) {
+        namespace = props.namespace;
+        props.namespace = undefined;
+    }
+
+    // fix cursor bug
+    if (tag === 'INPUT' &&
+        !namespace &&
+        props.hasOwnProperty('value') &&
+        props.value !== undefined &&
+        !isHook(props.value)
+    ) {
+        props.value = softSetHook(props.value);
+    }
+
+    transformProperties(props);
+
+    if (children !== undefined && children !== null) {
+        addChild(children, childNodes, tag, props);
+    }
+
+
+    return new VNode(tag, props, childNodes, key, namespace);
+}
+
+function addChild(c, childNodes, tag, props) {
+    if (typeof c === 'string') {
+        childNodes.push(new VText(c));
+    } else if (isChild(c)) {
+        childNodes.push(c);
+    } else if (isArray(c)) {
+        for (var i = 0; i < c.length; i++) {
+            addChild(c[i], childNodes, tag, props);
+        }
+    } else if (c === null || c === undefined) {
+        return;
+    } else {
+        throw UnexpectedVirtualElement({
+            foreignObject: c,
+            parentVnode: {
+                tagName: tag,
+                properties: props
+            }
+        });
+    }
+}
+
+function transformProperties(props) {
+    for (var propName in props) {
+        if (props.hasOwnProperty(propName)) {
+            var value = props[propName];
+
+            if (isHook(value)) {
+                continue;
+            }
+
+            if (propName.substr(0, 3) === 'ev-') {
+                // add ev-foo support
+                props[propName] = evHook(value);
+            }
+        }
+    }
+}
+
+function isChild(x) {
+    return isVNode(x) || isVText(x) || isWidget(x) || isVThunk(x);
+}
+
+function isChildren(x) {
+    return typeof x === 'string' || isArray(x) || isChild(x);
+}
+
+function UnexpectedVirtualElement(data) {
+    var err = new Error();
+
+    err.type = 'virtual-hyperscript.unexpected.virtual-element';
+    err.message = 'Unexpected virtual child passed to h().\n' +
+        'Expected a VNode / Vthunk / VWidget / string but:\n' +
+        'got:\n' +
+        errorString(data.foreignObject) +
+        '.\n' +
+        'The parent vnode is:\n' +
+        errorString(data.parentVnode)
+        '\n' +
+        'Suggested fix: change your `h(..., [ ... ])` callsite.';
+    err.foreignObject = data.foreignObject;
+    err.parentVnode = data.parentVnode;
+
+    return err;
+}
+
+function errorString(obj) {
+    try {
+        return JSON.stringify(obj, null, '    ');
+    } catch (e) {
+        return String(obj);
+    }
+}
+
+},{"../vnode/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-thunk.js","../vnode/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vhook.js","../vnode/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/vnode.js","../vnode/vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/vtext.js","./hooks/ev-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js","./hooks/soft-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js","./parse-tag.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js","x-is-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/x-is-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js":[function(require,module,exports){
+'use strict';
+
+var split = require('browser-split');
+
+var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
+var notClassId = /^\.|#/;
+
+module.exports = parseTag;
+
+function parseTag(tag, props) {
+    if (!tag) {
+        return 'DIV';
+    }
+
+    var noId = !(props.hasOwnProperty('id'));
+
+    var tagParts = split(tag, classIdSplit);
+    var tagName = null;
+
+    if (notClassId.test(tagParts[1])) {
+        tagName = 'DIV';
+    }
+
+    var classes, part, type, i;
+
+    for (i = 0; i < tagParts.length; i++) {
+        part = tagParts[i];
+
+        if (!part) {
+            continue;
+        }
+
+        type = part.charAt(0);
+
+        if (!tagName) {
+            tagName = part;
+        } else if (type === '.') {
+            classes = classes || [];
+            classes.push(part.substring(1, part.length));
+        } else if (type === '#' && noId) {
+            props.id = part.substring(1, part.length);
+        }
+    }
+
+    if (classes) {
+        if (props.className) {
+            classes.push(props.className);
+        }
+
+        props.className = classes.join(' ');
+    }
+
+    return props.namespace ? tagName : tagName.toUpperCase();
+}
+
+},{"browser-split":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/node_modules/browser-split/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-thunk.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-thunk.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vhook.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vhook.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vnode.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vnode.js"][0].apply(exports,arguments)
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vtext.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-vtext.js"][0].apply(exports,arguments)
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-widget.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/is-widget.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/version.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/virtual-dom/vnode/version.js"][0].apply(exports,arguments)
+},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/vnode.js":[function(require,module,exports){
 var version = require("./version")
 var isVNode = require("./is-vnode")
 var isWidget = require("./is-widget")
@@ -7109,31 +10813,7 @@ function VirtualNode(tagName, properties, children, key, namespace) {
 VirtualNode.prototype.version = version
 VirtualNode.prototype.type = "VirtualNode"
 
-},{"./is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","./is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vpatch.js":[function(require,module,exports){
-var version = require("./version")
-
-VirtualPatch.NONE = 0
-VirtualPatch.VTEXT = 1
-VirtualPatch.VNODE = 2
-VirtualPatch.WIDGET = 3
-VirtualPatch.PROPS = 4
-VirtualPatch.ORDER = 5
-VirtualPatch.INSERT = 6
-VirtualPatch.REMOVE = 7
-VirtualPatch.THUNK = 8
-
-module.exports = VirtualPatch
-
-function VirtualPatch(type, vNode, patch) {
-    this.type = Number(type)
-    this.vNode = vNode
-    this.patch = patch
-}
-
-VirtualPatch.prototype.version = version
-VirtualPatch.prototype.type = "VirtualPatch"
-
-},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js":[function(require,module,exports){
+},{"./is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-thunk.js","./is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vhook.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-vnode.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/is-widget.js","./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/vtext.js":[function(require,module,exports){
 var version = require("./version")
 
 module.exports = VirtualText
@@ -7145,399 +10825,20 @@ function VirtualText(text) {
 VirtualText.prototype.version = version
 VirtualText.prototype.type = "VirtualText"
 
-},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vtree/diff.js":[function(require,module,exports){
-var isArray = require("x-is-array")
-var isObject = require("is-object")
+},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/vnode/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js":[function(require,module,exports){
+var h = require('virtual-dom/h')
 
-var VPatch = require("../vnode/vpatch")
-var isVNode = require("../vnode/is-vnode")
-var isVText = require("../vnode/is-vtext")
-var isWidget = require("../vnode/is-widget")
-var isThunk = require("../vnode/is-thunk")
-var isHook = require("../vnode/is-vhook")
-var handleThunk = require("../vnode/handle-thunk")
-
-module.exports = diff
-
-function diff(a, b) {
-    var patch = { a: a }
-    walk(a, b, patch, 0)
-    return patch
-}
-
-function walk(a, b, patch, index) {
-    if (a === b) {
-        return
-    }
-
-    var apply = patch[index]
-
-    if (isThunk(a) || isThunk(b)) {
-        thunks(a, b, patch, index)
-    } else if (b == null) {
-
-        // If a is a widget we will add a remove patch for it
-        // Otherwise any child widgets/hooks must be destroyed.
-        // This prevents adding two remove patches for a widget.
-        if (!isWidget(a)) {
-            clearState(a, patch, index)
-            apply = patch[index]
-        }
-
-        apply = appendPatch(apply, new VPatch(VPatch.REMOVE, a, b))
-    } else if (isVNode(b)) {
-        if (isVNode(a)) {
-            if (a.tagName === b.tagName &&
-                a.namespace === b.namespace &&
-                a.key === b.key) {
-                var propsPatch = diffProps(a.properties, b.properties)
-                if (propsPatch) {
-                    apply = appendPatch(apply,
-                        new VPatch(VPatch.PROPS, a, propsPatch))
-                }
-                apply = diffChildren(a, b, patch, apply, index)
-            } else {
-                clearState(a, patch, index)
-                apply = patch[index]
-                apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
-            }
-        } else {
-            clearState(a, patch, index)
-            apply = patch[index]
-            apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
-        }
-    } else if (isVText(b)) {
-        if (!isVText(a)) {
-            clearState(a, patch, index)
-            apply = patch[index]
-            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
-        } else if (a.text !== b.text) {
-            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
-        }
-    } else if (isWidget(b)) {
-        if (!isWidget(a)) {
-            clearState(a, patch, index)
-            apply = patch[index]
-        }
-
-        apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
-    }
-
-    if (apply) {
-        patch[index] = apply
-    }
-}
-
-function diffProps(a, b) {
-    var diff
-
-    for (var aKey in a) {
-        if (!(aKey in b)) {
-            diff = diff || {}
-            diff[aKey] = undefined
-        }
-
-        var aValue = a[aKey]
-        var bValue = b[aKey]
-
-        if (aValue === bValue) {
-            continue
-        } else if (isObject(aValue) && isObject(bValue)) {
-            if (getPrototype(bValue) !== getPrototype(aValue)) {
-                diff = diff || {}
-                diff[aKey] = bValue
-            } else if (isHook(bValue)) {
-                 diff = diff || {}
-                 diff[aKey] = bValue
-            } else {
-                var objectDiff = diffProps(aValue, bValue)
-                if (objectDiff) {
-                    diff = diff || {}
-                    diff[aKey] = objectDiff
-                }
-            }
-        } else {
-            diff = diff || {}
-            diff[aKey] = bValue
-        }
-    }
-
-    for (var bKey in b) {
-        if (!(bKey in a)) {
-            diff = diff || {}
-            diff[bKey] = b[bKey]
-        }
-    }
-
-    return diff
-}
-
-function getPrototype(value) {
-    if (Object.getPrototypeOf) {
-        return Object.getPrototypeOf(value)
-    } else if (value.__proto__) {
-        return value.__proto__
-    } else if (value.constructor) {
-        return value.constructor.prototype
-    }
-}
-
-function diffChildren(a, b, patch, apply, index) {
-    var aChildren = a.children
-    var bChildren = reorder(aChildren, b.children)
-
-    var aLen = aChildren.length
-    var bLen = bChildren.length
-    var len = aLen > bLen ? aLen : bLen
-
-    for (var i = 0; i < len; i++) {
-        var leftNode = aChildren[i]
-        var rightNode = bChildren[i]
-        index += 1
-
-        if (!leftNode) {
-            if (rightNode) {
-                // Excess nodes in b need to be added
-                apply = appendPatch(apply,
-                    new VPatch(VPatch.INSERT, null, rightNode))
-            }
-        } else {
-            walk(leftNode, rightNode, patch, index)
-        }
-
-        if (isVNode(leftNode) && leftNode.count) {
-            index += leftNode.count
-        }
-    }
-
-    if (bChildren.moves) {
-        // Reorder nodes last
-        apply = appendPatch(apply, new VPatch(VPatch.ORDER, a, bChildren.moves))
-    }
-
-    return apply
-}
-
-function clearState(vNode, patch, index) {
-    // TODO: Make this a single walk, not two
-    unhook(vNode, patch, index)
-    destroyWidgets(vNode, patch, index)
-}
-
-// Patch records for all destroyed widgets must be added because we need
-// a DOM node reference for the destroy function
-function destroyWidgets(vNode, patch, index) {
-    if (isWidget(vNode)) {
-        if (typeof vNode.destroy === "function") {
-            patch[index] = appendPatch(
-                patch[index],
-                new VPatch(VPatch.REMOVE, vNode, null)
-            )
-        }
-    } else if (isVNode(vNode) && (vNode.hasWidgets || vNode.hasThunks)) {
-        var children = vNode.children
-        var len = children.length
-        for (var i = 0; i < len; i++) {
-            var child = children[i]
-            index += 1
-
-            destroyWidgets(child, patch, index)
-
-            if (isVNode(child) && child.count) {
-                index += child.count
-            }
-        }
-    } else if (isThunk(vNode)) {
-        thunks(vNode, null, patch, index)
-    }
-}
-
-// Create a sub-patch for thunks
-function thunks(a, b, patch, index) {
-    var nodes = handleThunk(a, b);
-    var thunkPatch = diff(nodes.a, nodes.b)
-    if (hasPatches(thunkPatch)) {
-        patch[index] = new VPatch(VPatch.THUNK, null, thunkPatch)
-    }
-}
-
-function hasPatches(patch) {
-    for (var index in patch) {
-        if (index !== "a") {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-// Execute hooks when two nodes are identical
-function unhook(vNode, patch, index) {
-    if (isVNode(vNode)) {
-        if (vNode.hooks) {
-            patch[index] = appendPatch(
-                patch[index],
-                new VPatch(
-                    VPatch.PROPS,
-                    vNode,
-                    undefinedKeys(vNode.hooks)
-                )
-            )
-        }
-
-        if (vNode.descendantHooks || vNode.hasThunks) {
-            var children = vNode.children
-            var len = children.length
-            for (var i = 0; i < len; i++) {
-                var child = children[i]
-                index += 1
-
-                unhook(child, patch, index)
-
-                if (isVNode(child) && child.count) {
-                    index += child.count
-                }
-            }
-        }
-    } else if (isThunk(vNode)) {
-        thunks(vNode, null, patch, index)
-    }
-}
-
-function undefinedKeys(obj) {
-    var result = {}
-
-    for (var key in obj) {
-        result[key] = undefined
-    }
-
-    return result
-}
-
-// List diff, naive left to right reordering
-function reorder(aChildren, bChildren) {
-
-    var bKeys = keyIndex(bChildren)
-
-    if (!bKeys) {
-        return bChildren
-    }
-
-    var aKeys = keyIndex(aChildren)
-
-    if (!aKeys) {
-        return bChildren
-    }
-
-    var bMatch = {}, aMatch = {}
-
-    for (var aKey in bKeys) {
-        bMatch[bKeys[aKey]] = aKeys[aKey]
-    }
-
-    for (var bKey in aKeys) {
-        aMatch[aKeys[bKey]] = bKeys[bKey]
-    }
-
-    var aLen = aChildren.length
-    var bLen = bChildren.length
-    var len = aLen > bLen ? aLen : bLen
-    var shuffle = []
-    var freeIndex = 0
-    var i = 0
-    var moveIndex = 0
-    var moves = {}
-    var removes = moves.removes = {}
-    var reverse = moves.reverse = {}
-    var hasMoves = false
-
-    while (freeIndex < len) {
-        var move = aMatch[i]
-        if (move !== undefined) {
-            shuffle[i] = bChildren[move]
-            if (move !== moveIndex) {
-                moves[move] = moveIndex
-                reverse[moveIndex] = move
-                hasMoves = true
-            }
-            moveIndex++
-        } else if (i in aMatch) {
-            shuffle[i] = undefined
-            removes[i] = moveIndex++
-            hasMoves = true
-        } else {
-            while (bMatch[freeIndex] !== undefined) {
-                freeIndex++
-            }
-
-            if (freeIndex < len) {
-                var freeChild = bChildren[freeIndex]
-                if (freeChild) {
-                    shuffle[i] = freeChild
-                    if (freeIndex !== moveIndex) {
-                        hasMoves = true
-                        moves[freeIndex] = moveIndex
-                        reverse[moveIndex] = freeIndex
-                    }
-                    moveIndex++
-                }
-                freeIndex++
-            }
-        }
-        i++
-    }
-
-    if (hasMoves) {
-        shuffle.moves = moves
-    }
-
-    return shuffle
-}
-
-function keyIndex(children) {
-    var i, keys
-
-    for (i = 0; i < children.length; i++) {
-        var child = children[i]
-
-        if (child.key !== undefined) {
-            keys = keys || {}
-            keys[child.key] = i
-        }
-    }
-
-    return keys
-}
-
-function appendPatch(apply, patch) {
-    if (apply) {
-        if (isArray(apply)) {
-            apply.push(patch)
-        } else {
-            apply = [apply, patch]
-        }
-
-        return apply
-    } else {
-        return patch
-    }
-}
-
-},{"../vnode/handle-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/handle-thunk.js","../vnode/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js","../vnode/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js","../vnode/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js","../vnode/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js","../vnode/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js","../vnode/vpatch":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vpatch.js","is-object":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/is-object/index.js","x-is-array":"/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/x-is-array/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/index.js"][0].apply(exports,arguments)
-},{"performance-now":"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/node_modules/performance-now/lib/performance-now.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/raf/node_modules/performance-now/lib/performance-now.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/main-loop/node_modules/raf/node_modules/performance-now/lib/performance-now.js"][0].apply(exports,arguments)
-},{"_process":"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js":[function(require,module,exports){
 var tags = ['a', 'abbr', 'acronym', 'address', 'applet', 'area', 'article', 'aside', 'audio', 'b', 'base', 'basefont', 'bdi', 'bdo', 'big', 'blockquote', 'body', 'br', 'button', 'canvas', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'datalist', 'dd', 'del', 'details', 'dfn', 'dialog', 'dir', 'div', 'dl', 'dt', 'em', 'embed', 'fieldset', 'figcaption', 'figure', 'font', 'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'i', 'iframe', 'img', 'input', 'ins', 'kbd', 'keygen', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark', 'menu', 'menuitem', 'meta', 'meter', 'nav', 'noframes', 'noscript', 'object', 'ol', 'optgroup', 'option', 'output', 'p', 'param', 'pre', 'progress', 'q', 'rp', 'rt', 'ruby', 's', 'samp', 'script', 'section', 'select', 'small', 'source', 'span', 'strike', 'strong', 'style', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'textarea', 'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'tt', 'u', 'ul', 'var', 'video', 'wbr']
-
-module.exports = {}
-var flatten = require('flatten')
-var h = require('virtual-hyperscript')
-var _slice = [].slice
 
 var createElement = module.exports.createElement = function (tagName) {
   return function () {
-    return h(tagName, arguments[0], flatten(_slice.call(arguments, 1)))
+    try {
+      return h(tagName, arguments[0], [].slice.call(arguments, 1))
+    } catch (e) {
+      if (e.foreignObject && typeof e.foreignObject == 'number') {
+        return h(tagName, arguments[0], '' + arguments[1])
+      }
+    }
   }
 }
 
@@ -7546,364 +10847,61 @@ for (var i = 0; i < tags.length; i++) {
   module.exports[tag] = createElement(tag)
 }
 
-},{"flatten":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/flatten/index.js","virtual-hyperscript":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/flatten/index.js":[function(require,module,exports){
-module.exports = function flatten(list, depth) {
-  depth = (typeof depth == 'number') ? depth : Infinity;
+},{"virtual-dom/h":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-dom/h.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/vrender-table/vrender-table.coffee":[function(require,module,exports){
+var ref, table, tbody, td, th, thead, tr;
 
-  return _flatten(list, 1);
+ref = require('virtual-elements'), table = ref.table, thead = ref.thead, tr = ref.tr, th = ref.th, tbody = ref.tbody, td = ref.td;
 
-  function _flatten(list, d) {
-    return list.reduce(function (acc, item) {
-      if (Array.isArray(item) && d < depth) {
-        return acc.concat(_flatten(item, d + 1));
+module.exports = function(tableDefinition) {
+  var col, columns, data, i, j, k, len, len1, newdata, newrow, point, row, rowIndex, style;
+  data = tableDefinition.data, columns = tableDefinition.columns, style = tableDefinition.style;
+  if (!Array.isArray(data[0])) {
+    newdata = [];
+    for (rowIndex = i = 0, len = data.length; i < len; rowIndex = ++i) {
+      row = data[rowIndex];
+      newrow = [];
+      for (j = 0, len1 = columns.length; j < len1; j++) {
+        k = columns[j];
+        newrow.push(row[k] || (k === '#' ? rowIndex + 1 : ''));
       }
-      else {
-        return acc.concat(item);
-      }
-    }, []);
+      newdata.push(newrow);
+    }
+    data = newdata;
   }
+  return table({
+    className: 'table table-bordered table-hover table-stripped'
+  }, thead({}, tr({
+    className: style
+  }, (function() {
+    var l, len2, results;
+    results = [];
+    for (l = 0, len2 = columns.length; l < len2; l++) {
+      col = columns[l];
+      results.push(th({}, col));
+    }
+    return results;
+  })())), tbody({}, (function() {
+    var l, len2, results;
+    results = [];
+    for (l = 0, len2 = data.length; l < len2; l++) {
+      row = data[l];
+      results.push(tr({
+        attributes: '_title' in row ? {
+          title: row['_title']
+        } : void 0
+      }, (function() {
+        var len3, m, results1;
+        results1 = [];
+        for (m = 0, len3 = row.length; m < len3; m++) {
+          point = row[m];
+          results1.push(td({}, ("" + point) || ''));
+        }
+        return results1;
+      })()));
+    }
+    return results;
+  })()));
 };
 
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/data-set-hook.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/data-set-hook.js"][0].apply(exports,arguments)
-},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/ev-hook.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/ev-hook.js"][0].apply(exports,arguments)
-},{"data-set":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/soft-set-hook.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/index.js":[function(require,module,exports){
-var TypedError = require("error/typed")
 
-var VNode = require("vtree/vnode.js")
-var VText = require("vtree/vtext.js")
-var isVNode = require("vtree/is-vnode")
-var isVText = require("vtree/is-vtext")
-var isWidget = require("vtree/is-widget")
-var isHook = require("vtree/is-vhook")
-var isVThunk = require("vtree/is-thunk")
-
-var parseTag = require("./parse-tag.js")
-var softSetHook = require("./hooks/soft-set-hook.js")
-var dataSetHook = require("./hooks/data-set-hook.js")
-var evHook = require("./hooks/ev-hook.js")
-
-var UnexpectedVirtualElement = TypedError({
-    type: "virtual-hyperscript.unexpected.virtual-element",
-    message: "Unexpected virtual child passed to h().\n" +
-        "Expected a VNode / Vthunk / VWidget / string but:\n" +
-        "got a {foreignObjectStr}.\n" +
-        "The parent vnode is {parentVnodeStr}.\n" +
-        "Suggested fix: change your `h(..., [ ... ])` callsite.",
-    foreignObjectStr: null,
-    parentVnodeStr: null,
-    foreignObject: null,
-    parentVnode: null
-})
-
-module.exports = h
-
-function h(tagName, properties, children) {
-    var childNodes = []
-    var tag, props, key, namespace
-
-    if (!children && isChildren(properties)) {
-        children = properties
-        props = {}
-    }
-
-    props = props || properties || {}
-    tag = parseTag(tagName, props)
-
-    // support keys
-    if ("key" in props) {
-        key = props.key
-        props.key = undefined
-    }
-
-    // support namespace
-    if ("namespace" in props) {
-        namespace = props.namespace
-        props.namespace = undefined
-    }
-
-    // fix cursor bug
-    if (tag === "input" &&
-        "value" in props &&
-        props.value !== undefined &&
-        !isHook(props.value)
-    ) {
-        props.value = softSetHook(props.value)
-    }
-
-    var keys = Object.keys(props)
-    var propName, value
-    for (var j = 0; j < keys.length; j++) {
-        propName = keys[j]
-        value = props[propName]
-        if (isHook(value)) {
-            continue
-        }
-
-        // add data-foo support
-        if (propName.substr(0, 5) === "data-") {
-            props[propName] = dataSetHook(value)
-        }
-
-        // add ev-foo support
-        if (propName.substr(0, 3) === "ev-") {
-            props[propName] = evHook(value)
-        }
-    }
-
-    if (children !== undefined && children !== null) {
-        addChild(children, childNodes, tag, props)
-    }
-
-
-    var node = new VNode(tag, props, childNodes, key, namespace)
-
-    return node
-}
-
-function addChild(c, childNodes, tag, props) {
-    if (typeof c === "string") {
-        childNodes.push(new VText(c))
-    } else if (isChild(c)) {
-        childNodes.push(c)
-    } else if (Array.isArray(c)) {
-        for (var i = 0; i < c.length; i++) {
-            addChild(c[i], childNodes, tag, props)
-        }
-    } else if (c === null || c === undefined) {
-        return
-    } else {
-        throw UnexpectedVirtualElement({
-            foreignObjectStr: JSON.stringify(c),
-            foreignObject: c,
-            parentVnodeStr: JSON.stringify({
-                tagName: tag,
-                properties: props
-            }),
-            parentVnode: {
-                tagName: tag,
-                properties: props
-            }
-        })
-    }
-}
-
-function isChild(x) {
-    return isVNode(x) || isVText(x) || isWidget(x) || isVThunk(x)
-}
-
-function isChildren(x) {
-    return typeof x === "string" || Array.isArray(x) || isChild(x)
-}
-
-},{"./hooks/data-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/data-set-hook.js","./hooks/ev-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/ev-hook.js","./hooks/soft-set-hook.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/hooks/soft-set-hook.js","./parse-tag.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/parse-tag.js","error/typed":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/typed.js","vtree/is-thunk":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-thunk.js","vtree/is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vhook.js","vtree/is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vnode.js","vtree/is-vtext":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vtext.js","vtree/is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-widget.js","vtree/vnode.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vnode.js","vtree/vtext.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vtext.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/create-hash.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/create-hash.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/index.js"][0].apply(exports,arguments)
-},{"./create-hash.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/create-hash.js","individual":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/individual/index.js","weakmap-shim/create-store":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/create-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/individual/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/individual/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/create-store.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/create-store.js"][0].apply(exports,arguments)
-},{"./hidden-store.js":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/data-set/node_modules/weakmap-shim/hidden-store.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/camelize/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/camelize/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/string-template/index.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/node_modules/error/node_modules/string-template/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/xtend/mutable.js":[function(require,module,exports){
-module.exports = extend
-
-function extend(target) {
-    for (var i = 1; i < arguments.length; i++) {
-        var source = arguments[i]
-
-        for (var key in source) {
-            if (source.hasOwnProperty(key)) {
-                target[key] = source[key]
-            }
-        }
-    }
-
-    return target
-}
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/typed.js":[function(require,module,exports){
-var camelize = require("camelize")
-var template = require("string-template")
-var extend = require("xtend/mutable")
-
-module.exports = TypedError
-
-function TypedError(args) {
-    if (!args) {
-        throw new Error("args is required");
-    }
-    if (!args.type) {
-        throw new Error("args.type is required");
-    }
-    if (!args.message) {
-        throw new Error("args.message is required");
-    }
-
-    var message = args.message
-
-    if (args.type && !args.name) {
-        var errorName = camelize(args.type) + "Error"
-        args.name = errorName[0].toUpperCase() + errorName.substr(1)
-    }
-
-    createError.type = args.type;
-    createError._name = args.name;
-
-    return createError;
-
-    function createError(opts) {
-        var result = new Error()
-
-        Object.defineProperty(result, "type", {
-            value: result.type,
-            enumerable: true,
-            writable: true,
-            configurable: true
-        })
-
-        var options = extend({}, args, opts)
-
-        extend(result, options)
-        result.message = template(message, options)
-
-        return result
-    }
-}
-
-
-},{"camelize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/camelize/index.js","string-template":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/string-template/index.js","xtend/mutable":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/xtend/mutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-thunk.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-thunk.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vhook.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vhook.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vnode.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vnode.js"][0].apply(exports,arguments)
-},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vtext.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-vtext.js"][0].apply(exports,arguments)
-},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-widget.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/is-widget.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/version.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vnode.js":[function(require,module,exports){
-var version = require("./version")
-var isVNode = require("./is-vnode")
-var isWidget = require("./is-widget")
-var isVHook = require("./is-vhook")
-
-module.exports = VirtualNode
-
-var noProperties = {}
-var noChildren = []
-
-function VirtualNode(tagName, properties, children, key, namespace) {
-    this.tagName = tagName
-    this.properties = properties || noProperties
-    this.children = children || noChildren
-    this.key = key != null ? String(key) : undefined
-    this.namespace = (typeof namespace === "string") ? namespace : null
-
-    var count = (children && children.length) || 0
-    var descendants = 0
-    var hasWidgets = false
-
-    for (var i = 0; i < count; i++) {
-        var child = children[i]
-        if (isVNode(child)) {
-            descendants += child.count || 0
-
-            if (!hasWidgets && child.hasWidgets) {
-                hasWidgets = true
-            }
-        } else if (!hasWidgets && isWidget(child)) {
-            if (typeof child.destroy === "function") {
-                hasWidgets = true
-            }
-        }
-    }
-
-    this.count = count + descendants
-    this.hasWidgets = hasWidgets
-}
-
-VirtualNode.prototype.version = version
-VirtualNode.prototype.type = "VirtualNode"
-
-},{"./is-vhook":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vhook.js","./is-vnode":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-vnode.js","./is-widget":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/is-widget.js","./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/vtext.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/vnode/vtext.js"][0].apply(exports,arguments)
-},{"./version":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/vtree/version.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/parse-tag.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/virtual-dom/virtual-hyperscript/parse-tag.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/browser-resolve/empty.js":[function(require,module,exports){
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/watchify/node_modules/browserify/node_modules/process/browser.js":[function(require,module,exports){
-// shim for using process in browser
-
-var process = module.exports = {};
-var queue = [];
-var draining = false;
-
-function drainQueue() {
-    if (draining) {
-        return;
-    }
-    draining = true;
-    var currentQueue;
-    var len = queue.length;
-    while(len) {
-        currentQueue = queue;
-        queue = [];
-        var i = -1;
-        while (++i < len) {
-            currentQueue[i]();
-        }
-        len = queue.length;
-    }
-    draining = false;
-}
-process.nextTick = function (fun) {
-    queue.push(fun);
-    if (!draining) {
-        setTimeout(drainQueue, 0);
-    }
-};
-
-process.title = 'browser';
-process.browser = true;
-process.env = {};
-process.argv = [];
-process.version = ''; // empty string to avoid regexp issues
-process.versions = {};
-
-function noop() {}
-
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-
-process.binding = function (name) {
-    throw new Error('process.binding is not supported');
-};
-
-// TODO(shtylman)
-process.cwd = function () { return '/' };
-process.chdir = function (dir) {
-    throw new Error('process.chdir is not supported');
-};
-process.umask = function() { return 0; };
-
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/immutable.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/mercury/node_modules/observ-varhash/node_modules/xtend/index.js"][0].apply(exports,arguments)
-},{}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/mutable.js":[function(require,module,exports){
-arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/node_modules/virtual-hyperscript/node_modules/error/node_modules/xtend/mutable.js"][0].apply(exports,arguments)
-},{}]},{},["/home/fiatjaf/comp/alquimiaorganica/app.coffee"]);
+},{"virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js"}]},{},["/home/fiatjaf/comp/alquimiaorganica/app.coffee"]);

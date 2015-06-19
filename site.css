@@ -1,3 +1,17 @@
+#map {
+  width: 100% !important;
+  height: 600px !important;
+  display: block;
+}
+.overlay {
+  color: black;
+  background: rgba(255, 163, 163, 0.5);
+  padding: 3px;
+  border-radius: 2px;
+  font-weight: 400;
+  font-size: 12px;
+}
+
 button.add-new {
   margin: 10px auto;
   display: block;
