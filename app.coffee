@@ -31,8 +31,8 @@ State = talio.StateFactory
   order:
     subject: localStorage.getItem 'lastNome'
     replyto: localStorage.getItem 'lastReplyTo'
-    description: localStorage.getItem 'lastPedido'
-    addr: localStorage.getItem 'lastAddr'
+    text: localStorage.getItem 'lastPedido'
+    description: localStorage.getItem 'lastAddr'
   items: []
   startFrom: 0
   show: 25
@@ -49,19 +49,21 @@ handlers =
         items: -> res.body.items
     )
   sendOrder: (State, order) ->
+    here = @
     localStorage.setItem 'lastNome', order.subject
     localStorage.setItem 'lastReplyTo', order.replyto
-    localStorage.setItem 'lastPedido', order.description
-    localStorage.setItem 'lastAddr', order.addr
+    localStorage.setItem 'lastPedido', order.text
+    localStorage.setItem 'lastAddr', order.description
 
     superagent
       .post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e')
       .set('Content-Type': 'application/json')
+      .set('Accept': 'application/json')
       .send(order)
       .end()
     .then((res) ->
       console.log res.body
-      here.openModal 'order-posted'
+      here.openModal State, 'order-posted'
     ).catch(console.log.bind console)
   findOrders: (State, orders) ->
   openModal: (State, modalName) -> State.change 'modalOpened', modalName
@@ -120,6 +122,7 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'subject'
               placeholder: "Nome"
+              value: state.order.subject
             )
           )
           (div className: "form-group",
@@ -128,22 +131,25 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'replyto'
               placeholder: "Celular ou email"
+              value: state.order.replyto
             )
           )
           (div className: "form-group",
             (textarea
               type: "text"
               className: "form-control"
-              name: 'addr'
+              name: 'description'
               placeholder: "Endereço e observações para entrega"
+              value: state.order.description
             )
           )
           (div className: "form-group",
             (textarea
               type: "text"
-              name: 'description'
+              name: 'text'
               className: "form-control"
               placeholder: "Pedido"
+              value: state.order.text
             )
           )
           (button

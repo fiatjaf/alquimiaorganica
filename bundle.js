@@ -30,8 +30,8 @@ State = talio.StateFactory({
   order: {
     subject: localStorage.getItem('lastNome'),
     replyto: localStorage.getItem('lastReplyTo'),
-    description: localStorage.getItem('lastPedido'),
-    addr: localStorage.getItem('lastAddr')
+    text: localStorage.getItem('lastPedido'),
+    description: localStorage.getItem('lastAddr')
   },
   items: [],
   startFrom: 0,
@@ -52,15 +52,19 @@ handlers = {
     });
   },
   sendOrder: function(State, order) {
+    var here;
+    here = this;
     localStorage.setItem('lastNome', order.subject);
     localStorage.setItem('lastReplyTo', order.replyto);
-    localStorage.setItem('lastPedido', order.description);
-    localStorage.setItem('lastAddr', order.addr);
+    localStorage.setItem('lastPedido', order.text);
+    localStorage.setItem('lastAddr', order.description);
     return superagent.post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e').set({
       'Content-Type': 'application/json'
+    }).set({
+      'Accept': 'application/json'
     }).send(order).end().then(function(res) {
       console.log(res.body);
-      return here.openModal('order-posted');
+      return here.openModal(State, 'order-posted');
     })["catch"](console.log.bind(console));
   },
   findOrders: function(State, orders) {},
@@ -125,28 +129,32 @@ vrenderMain = function(state, channels) {
     type: "text",
     className: "form-control",
     name: 'subject',
-    placeholder: "Nome"
+    placeholder: "Nome",
+    value: state.order.subject
   })), div({
     className: "form-group"
   }, input({
     type: "text",
     className: "form-control",
     name: 'replyto',
-    placeholder: "Celular ou email"
+    placeholder: "Celular ou email",
+    value: state.order.replyto
   })), div({
     className: "form-group"
   }, textarea({
     type: "text",
     className: "form-control",
-    name: 'addr',
-    placeholder: "Endereço e observações para entrega"
-  })), div({
-    className: "form-group"
-  }, textarea({
-    type: "text",
     name: 'description',
+    placeholder: "Endereço e observações para entrega",
+    value: state.order.description
+  })), div({
+    className: "form-group"
+  }, textarea({
+    type: "text",
+    name: 'text',
     className: "form-control",
-    placeholder: "Pedido"
+    placeholder: "Pedido",
+    value: state.order.text
   })), button({
     type: "submit",
     className: "btn btn-success btn-lg btn-block"
