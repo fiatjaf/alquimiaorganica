@@ -77,15 +77,21 @@ vrenderMain = function(state, channels) {
   return div({
     className: 'container'
   }, div({
-    className: 'row'
+    className: 'row header'
   }, div({
     className: 'col-md-2'
   }, img({
     className: 'logo',
     src: 'img/logo-folha-alpha.png'
   })), div({
-    className: 'col-md-10'
-  }, h1({}, 'Alquimia Orgânica na sua casa'), h2({}, "> pedidos para terça, dia " + (state.nextTuesday.format('DD/MM'))))), div({
+    className: 'col-md-6'
+  }, h1({}, 'Alquimia Orgânica na sua casa'), h2({}, "> pedidos para terça, dia " + (state.nextTuesday.format('DD/MM')))), div({
+    className: 'col-md-4'
+  }, a({
+    className: 'btn btn-danger btn-lg btn-block',
+    target: '_blank',
+    href: 'como-funciona.html'
+  }, 'Como funciona?'))), div({
     className: 'row pedido-row'
   }, div({
     className: 'col-md-6'
@@ -109,10 +115,7 @@ vrenderMain = function(state, channels) {
     className: 'col-md-6'
   }, h1({}, 'Faça seu pedido online, receba na sua casa! ', span({
     className: 'label label-danger'
-  }, moment().day() < 6 && moment().day() > 2 ? "você tem " + state.timeLeft + " para fazer um bom pedido (até sexta)" : void 0)), button({
-    className: 'btn btn-info',
-    'ev-click': talio.sendClick(channels.openModal, 'como-funciona')
-  }, 'Como funciona?'), form({
+  }, moment().day() < 6 && moment().day() > 2 ? "você tem " + state.timeLeft + " para fazer um bom pedido (até sexta)" : void 0)), form({
     action: "http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e",
     method: 'POST',
     'ev-submit': talio.sendSubmit(channels.sendOrder)
@@ -146,7 +149,7 @@ vrenderMain = function(state, channels) {
     placeholder: "Pedido"
   })), button({
     type: "submit",
-    className: "btn btn-success"
+    className: "btn btn-success btn-lg btn-block"
   }, "Fazer pedido")), h1({
     id: "area"
   }, 'Área de entrega e taxas'), link({
@@ -167,27 +170,6 @@ vrenderMain = function(state, channels) {
   }, div({
     className: 'col-md-12'
   })), div({
-    className: 'modal fade ' + (state.modalOpened === 'como-funciona' ? 'in' : ''),
-    style: {
-      display: state.modalOpened === 'como-funciona' ? 'block' : 'none'
-    }
-  }, div({
-    className: 'modal-dialog'
-  }, div({
-    className: 'modal-content'
-  }, div({
-    className: 'modal-header'
-  }, h2({}, 'Como funciona o serviço de entregas da Alquimia Orgânica'), button({
-    className: 'close',
-    'ev-click': talio.sendClick(channels.closeModal)
-  }, '×')), div({
-    className: 'modal-body'
-  }, p({}, 'Se você mora na região de Lagoa Santa, quer nossos produtos orgânicos ou outros, mas não tem como vir até nossa loja física, nós entregamos semanalmente na sua casa os produtos que você desejar.'), p({}, 'O procedimento é o seguinte:'), ul({}, li({}, 'Você escreve o seu pedido aí na caixa de texto, de forma livre. Pedidos do tipo "tal fruta se estiver madura" e "mais ou menos tanto" são válidos.'), li({}, 'Na caixa "endereço" você escreve seu endereço, também de forma livre, e nos dá indicações de qual é o melhor horário para entregar ou com quem vamos deixar o pacote.'), li({}, 'Assim que tivermos os produtos em mãos, enviaremos um email ou SMS confirmando o seu pedido.'), li({}, 'Na terça-feira à tarde ou à noite passamos na sua casa e entregamos.'), li({}, 'O pagamento, por enquanto, é apenas em dinheiro, no ato da entrega. Num futuro bem próximo aceitaremos cartões no ato da entrega também.')), p({}, 'Nenhuma entrega está garantida até o momento da confirmação, já que trabalhamos com produtos sazonais e perecíveis e que podem, numa semana ou noutra, não estar disponíveis.'), p({}, 'Da mesma forma, pode ser que um produto ou outro esteja em quantidade não-nula, mas insuficiente para todos os pedidos. Se isto ocorrer, daremos preferência a quem fez o pedido antes, mas tudo será conversado.'), p({}, 'Pedidos feitos até a manhã de sexta-feita têm mais chance de serem entregues completos ou até mesmo com produtos que não costumamos vender na loja, pois com este prazo nos é possível trazer direto dos nossos fornecedores os produtos pedidos -- se for possível, é claro.'), p({}, 'A taxa de entrega varia de acordo com a localidade, você pode conferir qual é a sua taxa no mapa abaixo.')), div({
-    className: 'modal-footer'
-  }, button({
-    className: 'btn btn-default',
-    'ev-click': talio.sendClick(channels.closeModal)
-  }, 'Fechar'))))), div({
     className: 'modal fade ' + (state.modalOpened === 'order-posted' ? 'in' : ''),
     style: {
       display: state.modalOpened === 'order-posted' ? 'block' : 'none'

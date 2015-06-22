@@ -21,6 +21,10 @@ h3 .label {
   text-shadow: none;
   font-size: 0.4em;
 }
+.header .btn {
+  font-size: 3em;
+  margin: 20px auto;
+}
 .modal h1,
 .modal h2,
 .modal h3 {

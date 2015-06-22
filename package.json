@@ -6,6 +6,7 @@
   "dependencies": {
     "countdown": "git://github.com/mckamey/countdownjs.git",
     "lie": "^2.9.1",
+    "marked": "^0.3.3",
     "moment": "^2.10.3",
     "moment-weekdays": "git://github.com/kelonye/moment-weekdays.git",
     "reais": "0.0.4",

@@ -15,3 +15,18 @@ css:
     - bundle.css
   formula: >
     ./node_modules/.bin/lessc style.less > bundle.css
+
+html:
+  help: turn .md files into .html files
+  dependencies:
+    - '*.md'
+    - template.html
+  formula: >
+    for md in *.md; do
+      fname=$(echo $md | py -x 'x[:-3] + ".html"');
+      content=$(cat $md | ./node_modules/.bin/marked --gfm --breaks --tables --sanitize --smart-lists);
+      cat template.html > $fname;
+      echo $content >> $fname;
+    done;
+  output:
+    - '*.html'
