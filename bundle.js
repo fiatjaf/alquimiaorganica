@@ -1,5 +1,5 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/home/fiatjaf/comp/alquimiaorganica/app.coffee":[function(require,module,exports){
-var Promise, Reais, State, Titulo, a, button, countdown, div, fieldset, form, h1, h2, h3, h4, handlers, i, iframe, img, input, legend, li, link, moment, nav, nextFriday, p, pre, ref, script, select, small, span, superagent, table, talio, tbody, td, textarea, tfoot, th, thead, tr, ul, vrenderMain, vrenderTable;
+var Promise, Reais, State, Titulo, a, button, countdown, div, fieldset, form, h1, h2, h3, h4, handlers, i, iframe, img, input, legend, li, link, moment, nav, nextFriday, nextMonday, nextTuesday, p, pre, ref, script, select, small, span, superagent, table, talio, tbody, td, textarea, tfoot, th, thead, tr, ul, vrenderMain, vrenderTable, weekday;
 
 Titulo = require('titulo').toLaxTitleCase;
 
@@ -15,17 +15,21 @@ moment = require('moment');
 
 countdown = require('countdown');
 
-countdown.setLabels(' milissegundo| segundo| minuto| hora| dia| semana| mês| ano| década| século| milênio', ' milissegundos| segundos| minutos| horas| dias| semanas| meses| anos| décadas| séculos| milênios', ' e ', ' + ', 'agora');
+countdown.setLabels('ms|s|m|h| dia| semana| mês| ano| década| século| milênio', 'ms|s|m|h| dias| semanas| meses| anos| décadas| séculos| milênios', ' e ', ', ', 'agora');
 
 ref = require('virtual-elements'), div = ref.div, span = ref.span, pre = ref.pre, nav = ref.nav, script = ref.script, link = ref.link, iframe = ref.iframe, small = ref.small, i = ref.i, p = ref.p, a = ref.a, button = ref.button, h1 = ref.h1, h2 = ref.h2, h3 = ref.h3, h4 = ref.h4, img = ref.img, form = ref.form, legend = ref.legend, fieldset = ref.fieldset, input = ref.input, textarea = ref.textarea, select = ref.select, table = ref.table, thead = ref.thead, tbody = ref.tbody, tfoot = ref.tfoot, tr = ref.tr, th = ref.th, td = ref.td, ul = ref.ul, li = ref.li;
 
 vrenderTable = require('vrender-table');
 
-nextFriday = moment().day(6).startOf('day').add(5, 'hours');
+weekday = moment().isoWeekday();
+
+nextFriday = moment().isoWeekday(weekday <= 5 ? 5 : 1).startOf('day').add(5, 'hours');
+
+nextMonday = moment().isoWeekday(weekday <= 1 ? 1 : 8).startOf('day');
+
+nextTuesday = moment().isoWeekday(weekday <= 2 ? 2 : 9);
 
 State = talio.StateFactory({
-  nextTuesday: moment().day(3),
-  nextFriday: nextFriday,
   timeLeft: null,
   order: {
     subject: localStorage.getItem('lastNome'),
@@ -89,7 +93,7 @@ vrenderMain = function(state, channels) {
     src: 'img/logo-folha-alpha.png'
   })), div({
     className: 'col-md-6'
-  }, h1({}, 'Alquimia Orgânica na sua casa'), h2({}, "> pedidos para terça, dia " + (state.nextTuesday.format('DD/MM')))), div({
+  }, h1({}, 'Alquimia Orgânica na sua casa'), h2({}, "> pedidos para terça, dia " + (nextTuesday.format('DD/MM')))), div({
     className: 'col-md-4'
   }, a({
     className: 'btn btn-danger btn-lg btn-block',
@@ -117,9 +121,9 @@ vrenderMain = function(state, channels) {
     columns: ['Produto', 'Preço']
   }), h3({}, 'Os preços apresentados acima são estimados com base em vendas passadas e podem estar muito errados, portanto são meramente ilustrativos.')), div({
     className: 'col-md-6'
-  }, h1({}, 'Faça seu pedido online, receba na sua casa! ', span({
+  }, h1({}, 'Faça seu pedido online, receba na sua casa! ', state.timeLeft ? span({
     className: 'label label-danger'
-  }, moment().day() < 6 && moment().day() > 2 ? "você tem " + state.timeLeft + " para fazer um bom pedido (até sexta)" : void 0)), form({
+  }, "você tem " + state.timeLeft.string + " para fazer seu pedido até " + (state.timeLeft.to === nextFriday ? 'sexta' : 'segunda')) : void 0), form({
     action: "http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e",
     method: 'POST',
     'ev-submit': talio.sendSubmit(channels.sendOrder)
@@ -227,8 +231,23 @@ handlers.findOrders(State, localStorage.getItem('my-orders'));
 })('img/organicos-sobre-madeira-deitado.jpg');
 
 setTimeout(function() {
-  return countdown(State.get('nextFriday'), function(ts) {
-    return State.change('timeLeft', ts.toString());
+  var now, target;
+  now = moment();
+  if (now.isBefore(nextFriday) && now.isAfter(moment().isoWeekday(2))) {
+    target = nextFriday;
+  } else if (now.isBefore(nextMonday)) {
+    target = nextMonday;
+  } else {
+    State.change('timeLeft', null);
+    return;
+  }
+  return countdown(target, function(ts) {
+    return State.change('timeLeft', function() {
+      return {
+        string: ts.toString(),
+        to: target
+      };
+    });
   }, countdown.DAYS | countdown.HOURS | countdown.MINUTES | countdown.SECONDS);
 }, 10);
 
@@ -10232,7 +10251,7 @@ module.exports.delegator = Delegator();
 module.exports.run = function(domnode, vrender, handlers, BaseState) {
   var channels, createChannel, theloop;
   if (!BaseState || BaseState.type !== 'TalioState') {
-    BaseState = new State({});
+    BaseState = new TalioState({});
   }
   createChannel = function(acc, name) {
     acc[name] = Delegator.allocateHandle(handlers[name].bind(handlers, BaseState));

@@ -7,10 +7,10 @@ moment     = require 'moment'
 countdown  = require 'countdown'
 
 countdown.setLabels(
-  ' milissegundo| segundo| minuto| hora| dia| semana| mês| ano| década| século| milênio'
-  ' milissegundos| segundos| minutos| horas| dias| semanas| meses| anos| décadas| séculos| milênios'
+  'ms|s|m|h| dia| semana| mês| ano| década| século| milênio'
+  'ms|s|m|h| dias| semanas| meses| anos| décadas| séculos| milênios'
   ' e '
-  ' + '
+  ', '
   'agora'
 )
 
@@ -23,10 +23,11 @@ countdown.setLabels(
 
 vrenderTable = require 'vrender-table'
 
-nextFriday = moment().day(6).startOf('day').add(5, 'hours')
+weekday = moment().isoWeekday()
+nextFriday = moment().isoWeekday(if weekday <= 5 then 5 else 1).startOf('day').add(5, 'hours')
+nextMonday = moment().isoWeekday(if weekday <= 1 then 1 else 8).startOf('day')
+nextTuesday = moment().isoWeekday(if weekday <= 2 then 2 else 9)
 State = talio.StateFactory
-  nextTuesday: moment().day(3)
-  nextFriday: nextFriday
   timeLeft: null
   order:
     subject: localStorage.getItem 'lastNome'
@@ -80,7 +81,7 @@ vrenderMain = (state, channels) ->
       )
       (div className: 'col-md-6',
         (h1 {}, 'Alquimia Orgânica na sua casa')
-        (h2 {}, "> pedidos para terça, dia #{state.nextTuesday.format 'DD/MM'}")
+        (h2 {}, "> pedidos para terça, dia #{nextTuesday.format 'DD/MM'}")
       )
       (div className: 'col-md-4',
         (a
@@ -108,8 +109,8 @@ vrenderMain = (state, channels) ->
         (h1 {},
           'Faça seu pedido online, receba na sua casa! '
           (span {className: 'label label-danger'},
-            "você tem #{state.timeLeft} para fazer um bom pedido (até sexta)" if moment().day() < 6 and moment().day() > 2
-          )
+            "você tem #{state.timeLeft.string} para fazer seu pedido até #{if state.timeLeft.to is nextFriday then 'sexta' else 'segunda'}"
+          ) if state.timeLeft
         )
         (form
           action: "http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e"
@@ -227,8 +228,19 @@ handlers.findOrders State, localStorage.getItem 'my-orders'
   bg.onload = -> document.body.style.backgroundImage = "url(#{src})"
 )('img/organicos-sobre-madeira-deitado.jpg') # background image
 (setTimeout ->
-  countdown State.get('nextFriday'), (ts) ->
-    State.change 'timeLeft', ts.toString()
+  now = moment()
+  if now.isBefore(nextFriday) and now.isAfter(moment().isoWeekday(2))
+    target = nextFriday
+  else if now.isBefore(nextMonday)
+    target = nextMonday
+  else
+    State.change 'timeLeft', null
+    return
+
+  countdown target, (ts) ->
+    State.change 'timeLeft', ->
+      string: ts.toString()
+      to: target
   , countdown.DAYS | countdown.HOURS | countdown.MINUTES | countdown.SECONDS
 , 10) # clock
 # ~

@@ -42,7 +42,19 @@ textarea {
   min-height: 100px;
 }
 table {
-  background: azure;
+  color: #2b1201;
+  font-family: helvetica, verdana, arial;
+  text-shadow: 1px 1px 3px whitesmoke;
+  font-weight: bold;
+  font-size: 1.3em;
+}
+table th {
+  background-color: #f5f5f5;
+  font-size: 0.8em;
+}
+table td {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 #pedido-row {
   padding: 0px 0 267px 0;
