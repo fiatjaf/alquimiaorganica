@@ -62,7 +62,7 @@ handlers = {
     localStorage.setItem('lastReplyTo', order.replyto);
     localStorage.setItem('lastPedido', order.text);
     localStorage.setItem('lastAddr', order.description);
-    return superagent.post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e').set({
+    return superagent.post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e').withCredentials().set({
       'Content-Type': 'application/json'
     }).set({
       'Accept': 'application/json'
@@ -123,7 +123,7 @@ vrenderMain = function(state, channels) {
     className: 'col-md-6'
   }, h1({}, 'Faça seu pedido online, receba na sua casa! ', state.timeLeft ? span({
     className: 'label label-danger'
-  }, "você tem " + state.timeLeft.string + " para fazer seu pedido até " + (state.timeLeft.to === nextFriday ? 'sexta' : 'segunda')) : void 0), form({
+  }, "você tem " + state.timeLeft.string + " para fazer seu pedido (até " + (state.timeLeft.to === nextFriday ? 'sexta' : 'segunda') + ")") : void 0), form({
     action: "http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e",
     method: 'POST',
     'ev-submit': talio.sendSubmit(channels.sendOrder)
@@ -134,7 +134,7 @@ vrenderMain = function(state, channels) {
     className: "form-control",
     name: 'subject',
     placeholder: "Nome",
-    value: state.order.subject
+    defaultValue: state.order.subject
   })), div({
     className: "form-group"
   }, input({
@@ -142,7 +142,7 @@ vrenderMain = function(state, channels) {
     className: "form-control",
     name: 'replyto',
     placeholder: "Celular ou email",
-    value: state.order.replyto
+    defaultValue: state.order.replyto
   })), div({
     className: "form-group"
   }, textarea({
@@ -150,7 +150,7 @@ vrenderMain = function(state, channels) {
     className: "form-control",
     name: 'description',
     placeholder: "Endereço e observações para entrega",
-    value: state.order.description
+    defaultValue: state.order.description
   })), div({
     className: "form-group"
   }, textarea({
@@ -158,7 +158,7 @@ vrenderMain = function(state, channels) {
     name: 'text',
     className: "form-control",
     placeholder: "Pedido",
-    value: state.order.text
+    defaultValue: state.order.text
   })), button({
     type: "submit",
     className: "btn btn-success btn-lg btn-block"
@@ -197,7 +197,7 @@ vrenderMain = function(state, channels) {
     'ev-click': talio.sendClick(channels.closeModal)
   }, '×')), div({
     className: 'modal-body'
-  }, p({}, 'Sua ordem foi enviada.'), p({}, 'Entraremos em contato ')), div({
+  }, p({}, 'Seu pedido foi enviado.'), p({}, 'Em algum momento nós entraremos em contato para confirmar o valor e a entrega.'), p({}, 'Se você tiver mais alguma coisa a acrescentar ou alterar no pedido, envie de novo explicando suas alterações.')), div({
     className: 'modal-footer'
   }, button({
     className: 'btn btn-default',

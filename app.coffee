@@ -58,6 +58,7 @@ handlers =
 
     superagent
       .post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e')
+      .withCredentials()
       .set('Content-Type': 'application/json')
       .set('Accept': 'application/json')
       .send(order)
@@ -109,7 +110,7 @@ vrenderMain = (state, channels) ->
         (h1 {},
           'Faça seu pedido online, receba na sua casa! '
           (span {className: 'label label-danger'},
-            "você tem #{state.timeLeft.string} para fazer seu pedido até #{if state.timeLeft.to is nextFriday then 'sexta' else 'segunda'}"
+            "você tem #{state.timeLeft.string} para fazer seu pedido (até #{if state.timeLeft.to is nextFriday then 'sexta' else 'segunda'})"
           ) if state.timeLeft
         )
         (form
@@ -123,7 +124,7 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'subject'
               placeholder: "Nome"
-              value: state.order.subject
+              defaultValue: state.order.subject
             )
           )
           (div className: "form-group",
@@ -132,7 +133,7 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'replyto'
               placeholder: "Celular ou email"
-              value: state.order.replyto
+              defaultValue: state.order.replyto
             )
           )
           (div className: "form-group",
@@ -141,7 +142,7 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'description'
               placeholder: "Endereço e observações para entrega"
-              value: state.order.description
+              defaultValue: state.order.description
             )
           )
           (div className: "form-group",
@@ -150,7 +151,7 @@ vrenderMain = (state, channels) ->
               name: 'text'
               className: "form-control"
               placeholder: "Pedido"
-              value: state.order.text
+              defaultValue: state.order.text
             )
           )
           (button
@@ -196,8 +197,9 @@ vrenderMain = (state, channels) ->
             , '×')
           )
           (div className: 'modal-body',
-            (p {}, 'Sua ordem foi enviada.')
-            (p {}, 'Entraremos em contato ')
+            (p {}, 'Seu pedido foi enviado.')
+            (p {}, 'Em algum momento nós entraremos em contato para confirmar o valor e a entrega.')
+            (p {}, 'Se você tiver mais alguma coisa a acrescentar ou alterar no pedido, envie de novo explicando suas alterações.')
           )
           (div className: 'modal-footer',
             (button
