@@ -9,12 +9,11 @@ O procedimento é o seguinte:
   * Assim que tivermos os produtos em mãos enviaremos um email ou SMS confirmando o seu pedido.
   * Na terça-feira à tarde ou à noite passamos na sua casa e entregamos.
   * O pagamento por enquanto é apenas em dinheiro no ato da entrega. Num futuro bem próximo aceitaremos cartões no ato da entrega também.
-            
 
-Nenhuma entrega está garantida até o momento da confirmação já que trabalhamos com produtos sazonais e perecíveis e que podem numa semana ou noutra não estar disponíveis.
+Nenhuma entrega está garantida até o momento da confirmação, já que trabalhamos com produtos sazonais e perecíveis e que podem numa semana ou noutra não estar disponíveis.
 
-Da mesma forma pode ser que um produto ou outro esteja em quantidade não-nula mas insuficiente para todos os pedidos. Se isto ocorrer daremos preferência a quem fez o pedido antes mas tudo será conversado.
+Da mesma forma, pode ser que um produto ou outro esteja em quantidade não-nula mas insuficiente para suprir todos os pedidos. Se isto ocorrer daremos preferência a quem fez o pedido antes, mas tudo será conversado.
 
-Pedidos feitos até a manhã de sexta-feita têm mais chance de serem entregues completos ou até mesmo com produtos que não costumamos vender na loja pois com este prazo nos é possível trazer direto dos nossos fornecedores os produtos pedidos -- se for possível é claro.
+Pedidos feitos até a manhã de sexta-feita têm mais chance de serem entregues completos. Aliás, pedidos até a manhã de sexta podem até mesmo incluir produtos que não costumamos vender na loja, porque com esse prazo nos permite trazer direto dos nossos fornecedores os itens almejados -- se for possível, é claro.
 
-A taxa de entrega varia de acordo com a localidade você pode conferir qual é a sua taxa no mapa abaixo.
+A taxa de entrega varia de acordo com a localidade. Você pode conferir qual é a sua taxa no [mapa](https://render.githubusercontent.com/view/geojson?url=https://gist.githubusercontent.com/fiatjaf/f3fb3621dbeb38717431/raw/alquimia.geojson).
