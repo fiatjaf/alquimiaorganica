@@ -66,6 +66,8 @@ handlers =
     .then((res) ->
       console.log res.body
       here.openModal State, 'order-posted'
+      window._fbq.push(['track', '6032144402955', {'value':'0.00','currency':'BRL'}])
+      ma('pedido', order.subject)
     ).catch(console.log.bind console)
   findOrders: (State, orders) ->
   openModal: (State, modalName) -> State.change 'modalOpened', modalName
