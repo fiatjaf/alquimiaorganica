@@ -126,7 +126,7 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'subject'
               placeholder: "Nome"
-              defaultValue: state.order.subject
+              defaultValue: state.order.subject or ''
             )
           )
           (div className: "form-group",
@@ -135,7 +135,7 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'replyto'
               placeholder: "Celular ou email"
-              defaultValue: state.order.replyto
+              defaultValue: state.order.replyto or ''
             )
           )
           (div className: "form-group",
@@ -144,7 +144,7 @@ vrenderMain = (state, channels) ->
               className: "form-control"
               name: 'description'
               placeholder: "Endereço e observações para entrega"
-              defaultValue: state.order.description
+              defaultValue: state.order.description or ''
             )
           )
           (div className: "form-group",
@@ -153,7 +153,7 @@ vrenderMain = (state, channels) ->
               name: 'text'
               className: "form-control"
               placeholder: "Pedido"
-              defaultValue: state.order.text
+              defaultValue: state.order.text or ''
             )
           )
           (button

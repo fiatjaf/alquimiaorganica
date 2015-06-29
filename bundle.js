@@ -68,7 +68,14 @@ handlers = {
       'Accept': 'application/json'
     }).send(order).end().then(function(res) {
       console.log(res.body);
-      return here.openModal(State, 'order-posted');
+      here.openModal(State, 'order-posted');
+      window._fbq.push([
+        'track', '6032144402955', {
+          'value': '0.00',
+          'currency': 'BRL'
+        }
+      ]);
+      return ma('pedido', order.subject);
     })["catch"](console.log.bind(console));
   },
   findOrders: function(State, orders) {},
@@ -134,7 +141,7 @@ vrenderMain = function(state, channels) {
     className: "form-control",
     name: 'subject',
     placeholder: "Nome",
-    defaultValue: state.order.subject
+    defaultValue: state.order.subject || ''
   })), div({
     className: "form-group"
   }, input({
@@ -142,7 +149,7 @@ vrenderMain = function(state, channels) {
     className: "form-control",
     name: 'replyto',
     placeholder: "Celular ou email",
-    defaultValue: state.order.replyto
+    defaultValue: state.order.replyto || ''
   })), div({
     className: "form-group"
   }, textarea({
@@ -150,7 +157,7 @@ vrenderMain = function(state, channels) {
     className: "form-control",
     name: 'description',
     placeholder: "Endereço e observações para entrega",
-    defaultValue: state.order.description
+    defaultValue: state.order.description || ''
   })), div({
     className: "form-group"
   }, textarea({
@@ -158,7 +165,7 @@ vrenderMain = function(state, channels) {
     name: 'text',
     className: "form-control",
     placeholder: "Pedido",
-    defaultValue: state.order.text
+    defaultValue: state.order.text || ''
   })), button({
     type: "submit",
     className: "btn btn-success btn-lg btn-block"
