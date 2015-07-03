@@ -59,3 +59,6 @@ table td {
 #pedido-row {
   padding: 0px 0 267px 0;
 }
+.selectize-input {
+  min-height: 100px;
+}

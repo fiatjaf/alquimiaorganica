@@ -5,11 +5,12 @@
   "main": "app.coffee",
   "dependencies": {
     "countdown": "git://github.com/mckamey/countdownjs.git",
+    "jquery": "^2.1.4",
     "lie": "^2.9.1",
     "marked": "^0.3.3",
     "moment": "^2.10.3",
-    "moment-weekdays": "git://github.com/kelonye/moment-weekdays.git",
     "reais": "0.0.4",
+    "selectize": "^0.12.1",
     "superagent": "^1.2.0",
     "superagent-promise": "^1.0.0",
     "titulo": "0.0.1",

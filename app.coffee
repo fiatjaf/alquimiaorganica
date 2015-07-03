@@ -6,6 +6,11 @@ talio      = require 'talio'
 moment     = require 'moment'
 countdown  = require 'countdown'
 
+window.selectize = require 'selectize'
+window.$ = require 'jquery'
+Selectize = require 'talio-selectize'
+Selectize.init talio.delegator
+
 countdown.setLabels(
   'ms|s|m|h| dia| semana| mês| ano| década| século| milênio'
   'ms|s|m|h| dias| semanas| meses| anos| décadas| séculos| milênios'
@@ -43,12 +48,12 @@ handlers =
   fetchItems: (State) ->
     superagent
       .get('http://items.vendasalva.com.br/alquimia/items')
-      .query(limit: 100)
+      .query(limit: 200)
       .end()
     .then((res) ->
       State.change
         items: -> res.body.items
-    )
+    ).catch(console.log.bind console)
   sendOrder: (State, order) ->
     here = @
     localStorage.setItem 'lastNome', order.subject
@@ -148,12 +153,31 @@ vrenderMain = (state, channels) ->
             )
           )
           (div className: "form-group",
-            (textarea
+            (Selectize
+              plugins: ['remove_button', 'restore_on_backspace']
+              value: state.order.text or ''
               type: "text"
               name: 'text'
               className: "form-control"
-              placeholder: "Pedido"
-              defaultValue: state.order.text or ''
+              placeholder: "Seu pedido aqui"
+              options: state.items
+              create: true
+              createOnBlur: true
+              maxItems: 500
+              maxOptions: 200
+              selectOnTab: true
+              addPrecedence: true
+              persist: true
+              valueField: 'name'
+              labelField: 'name'
+              searchField: ['name']
+              addPrecedence: true
+              closeAfterSelect: false
+              openOnFocus: false
+              render:
+                option_create: (data, escape) ->
+                  "<div class='create'><strong>#{escape data.input}</strong></div>"
+              #'ev-change': tl.sendDetail channels.addedPedido
             )
           )
           (button
