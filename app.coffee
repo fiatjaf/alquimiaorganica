@@ -4,6 +4,7 @@ Promise    = require 'lie'
 superagent = (require 'superagent-promise')((require 'superagent'), Promise)
 talio      = require 'talio'
 moment     = require 'moment'
+extend     = require 'xtend'
 countdown  = require 'countdown'
 
 window.selectize = require 'selectize'
@@ -32,13 +33,17 @@ weekday = moment().isoWeekday()
 nextFriday = moment().isoWeekday(if weekday <= 5 then 5 else 1).startOf('day').add(5, 'hours')
 nextMonday = moment().isoWeekday(if weekday <= 1 then 1 else 8).startOf('day')
 nextTuesday = moment().isoWeekday(if weekday <= 2 then 2 else 9)
+try
+  pedido = JSON.parse localStorage.getItem('lastPedido')
+catch e
+  pedido = []
 State = talio.StateFactory
   timeLeft: null
   order:
-    subject: localStorage.getItem 'lastNome'
+    name: localStorage.getItem 'lastName'
     replyto: localStorage.getItem 'lastReplyTo'
-    text: localStorage.getItem 'lastPedido'
-    description: localStorage.getItem 'lastAddr'
+    pedido: pedido
+    addr: localStorage.getItem 'lastAddr'
   items: []
   startFrom: 0
   show: 25
@@ -54,19 +59,34 @@ handlers =
       State.change
         items: -> res.body.items
     ).catch(console.log.bind console)
+  updatePedido: (State, data) ->
+    localStorage.setItem 'lastPedido', JSON.stringify data.value
+    State.change 'order.pedido', data.value
   sendOrder: (State, order) ->
     here = @
-    localStorage.setItem 'lastNome', order.subject
+
+    delete order.pedido # provisoriamente estamos controlando este valor manualmente.
+    order = extend State.get('order'), order
+
+    if not (order.name and order.replyto)
+      return
+
+    localStorage.setItem 'lastName', order.name
     localStorage.setItem 'lastReplyTo', order.replyto
-    localStorage.setItem 'lastPedido', order.text
-    localStorage.setItem 'lastAddr', order.description
+    localStorage.setItem 'lastPedido', JSON.stringify order.pedido
+    localStorage.setItem 'lastAddr', order.addr
 
     superagent
       .post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e')
       .withCredentials()
       .set('Content-Type': 'application/json')
       .set('Accept': 'application/json')
-      .send(order)
+      .send(
+        subject: order.name
+        replyto: order.replyto
+        text: if order.pedido.length then ('Pedido:\n\n  * ' + order.pedido.join('\n  * ') + '\n') else order.addr
+        description: if not order.pedido.length then order.addr else null
+      )
       .end()
     .then((res) ->
       console.log res.body
@@ -129,9 +149,10 @@ vrenderMain = (state, channels) ->
             (input
               type: "text"
               className: "form-control"
-              name: 'subject'
+              name: 'name'
               placeholder: "Nome"
-              defaultValue: state.order.subject or ''
+              defaultValue: state.order.name or ''
+              required: true
             )
           )
           (div className: "form-group",
@@ -141,23 +162,24 @@ vrenderMain = (state, channels) ->
               name: 'replyto'
               placeholder: "Celular ou email"
               defaultValue: state.order.replyto or ''
+              required: true
             )
           )
           (div className: "form-group",
             (textarea
               type: "text"
               className: "form-control"
-              name: 'description'
+              name: 'addr'
               placeholder: "Endereço e observações para entrega"
-              defaultValue: state.order.description or ''
+              defaultValue: state.order.addr or ''
             )
           )
           (div className: "form-group",
             (Selectize
               plugins: ['remove_button', 'restore_on_backspace']
-              value: state.order.text or ''
+              value: state.order.pedido or ''
               type: "text"
-              name: 'text'
+              name: 'pedido'
               className: "form-control"
               placeholder: "Seu pedido aqui"
               options: state.items
@@ -172,12 +194,12 @@ vrenderMain = (state, channels) ->
               labelField: 'name'
               searchField: ['name']
               addPrecedence: true
-              closeAfterSelect: false
+              closeAfterSelect: true
               openOnFocus: false
               render:
                 option_create: (data, escape) ->
                   "<div class='create'><strong>#{escape data.input}</strong></div>"
-              #'ev-change': tl.sendDetail channels.addedPedido
+              'ev-change': talio.sendDetail channels.updatePedido
             )
           )
           (button

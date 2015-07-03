@@ -1,5 +1,5 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({"/home/fiatjaf/comp/alquimiaorganica/app.coffee":[function(require,module,exports){
-var Promise, Reais, Selectize, State, Titulo, a, button, countdown, div, fieldset, form, h1, h2, h3, h4, handlers, i, iframe, img, input, legend, li, link, moment, nav, nextFriday, nextMonday, nextTuesday, p, pre, ref, script, select, small, span, superagent, table, talio, tbody, td, textarea, tfoot, th, thead, tr, ul, vrenderMain, vrenderTable, weekday;
+var Promise, Reais, Selectize, State, Titulo, a, button, countdown, div, e, extend, fieldset, form, h1, h2, h3, h4, handlers, i, iframe, img, input, legend, li, link, moment, nav, nextFriday, nextMonday, nextTuesday, p, pedido, pre, ref, script, select, small, span, superagent, table, talio, tbody, td, textarea, tfoot, th, thead, tr, ul, vrenderMain, vrenderTable, weekday;
 
 Titulo = require('titulo').toLaxTitleCase;
 
@@ -12,6 +12,8 @@ superagent = (require('superagent-promise'))(require('superagent'), Promise);
 talio = require('talio');
 
 moment = require('moment');
+
+extend = require('xtend');
 
 countdown = require('countdown');
 
@@ -37,13 +39,20 @@ nextMonday = moment().isoWeekday(weekday <= 1 ? 1 : 8).startOf('day');
 
 nextTuesday = moment().isoWeekday(weekday <= 2 ? 2 : 9);
 
+try {
+  pedido = JSON.parse(localStorage.getItem('lastPedido'));
+} catch (_error) {
+  e = _error;
+  pedido = [];
+}
+
 State = talio.StateFactory({
   timeLeft: null,
   order: {
-    subject: localStorage.getItem('lastNome'),
+    name: localStorage.getItem('lastName'),
     replyto: localStorage.getItem('lastReplyTo'),
-    text: localStorage.getItem('lastPedido'),
-    description: localStorage.getItem('lastAddr')
+    pedido: pedido,
+    addr: localStorage.getItem('lastAddr')
   },
   items: [],
   startFrom: 0,
@@ -63,18 +72,32 @@ handlers = {
       });
     })["catch"](console.log.bind(console));
   },
+  updatePedido: function(State, data) {
+    localStorage.setItem('lastPedido', JSON.stringify(data.value));
+    return State.change('order.pedido', data.value);
+  },
   sendOrder: function(State, order) {
     var here;
     here = this;
-    localStorage.setItem('lastNome', order.subject);
+    delete order.pedido;
+    order = extend(State.get('order'), order);
+    if (!(order.name && order.replyto)) {
+      return;
+    }
+    localStorage.setItem('lastName', order.name);
     localStorage.setItem('lastReplyTo', order.replyto);
-    localStorage.setItem('lastPedido', order.text);
-    localStorage.setItem('lastAddr', order.description);
+    localStorage.setItem('lastPedido', JSON.stringify(order.pedido));
+    localStorage.setItem('lastAddr', order.addr);
     return superagent.post('http://api.boardthreads.com/ticket/55742915dd98c4a3aba3315e').withCredentials().set({
       'Content-Type': 'application/json'
     }).set({
       'Accept': 'application/json'
-    }).send(order).end().then(function(res) {
+    }).send({
+      subject: order.name,
+      replyto: order.replyto,
+      text: order.pedido.length ? 'Pedido:\n\n  * ' + order.pedido.join('\n  * ') + '\n' : order.addr,
+      description: !order.pedido.length ? order.addr : null
+    }).end().then(function(res) {
       console.log(res.body);
       here.openModal(State, 'order-posted');
       window._fbq.push([
@@ -147,9 +170,10 @@ vrenderMain = function(state, channels) {
   }, input({
     type: "text",
     className: "form-control",
-    name: 'subject',
+    name: 'name',
     placeholder: "Nome",
-    defaultValue: state.order.subject || ''
+    defaultValue: state.order.name || '',
+    required: true
   })), div({
     className: "form-group"
   }, input({
@@ -157,22 +181,23 @@ vrenderMain = function(state, channels) {
     className: "form-control",
     name: 'replyto',
     placeholder: "Celular ou email",
-    defaultValue: state.order.replyto || ''
+    defaultValue: state.order.replyto || '',
+    required: true
   })), div({
     className: "form-group"
   }, textarea({
     type: "text",
     className: "form-control",
-    name: 'description',
+    name: 'addr',
     placeholder: "Endereço e observações para entrega",
-    defaultValue: state.order.description || ''
+    defaultValue: state.order.addr || ''
   })), div({
     className: "form-group"
   }, Selectize({
     plugins: ['remove_button', 'restore_on_backspace'],
-    value: state.order.text || '',
+    value: state.order.pedido || '',
     type: "text",
-    name: 'text',
+    name: 'pedido',
     className: "form-control",
     placeholder: "Seu pedido aqui",
     options: state.items,
@@ -187,13 +212,14 @@ vrenderMain = function(state, channels) {
     labelField: 'name',
     searchField: ['name'],
     addPrecedence: true,
-    closeAfterSelect: false,
+    closeAfterSelect: true,
     openOnFocus: false,
     render: {
       option_create: function(data, escape) {
         return "<div class='create'><strong>" + (escape(data.input)) + "</strong></div>";
       }
-    }
+    },
+    'ev-change': talio.sendDetail(channels.updatePedido)
   })), button({
     type: "submit",
     className: "btn btn-success btn-lg btn-block"
@@ -289,7 +315,7 @@ setTimeout(function() {
 talio.run(document.body, vrenderMain, handlers, State);
 
 
-},{"countdown":"/home/fiatjaf/comp/alquimiaorganica/node_modules/countdown/countdown.js","jquery":"/home/fiatjaf/comp/alquimiaorganica/node_modules/jquery/dist/jquery.js","lie":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/index.js","moment":"/home/fiatjaf/comp/alquimiaorganica/node_modules/moment/moment.js","reais":"/home/fiatjaf/comp/alquimiaorganica/node_modules/reais/reais.js","selectize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/selectize/dist/js/selectize.js","superagent":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/lib/client.js","superagent-promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent-promise/index.js","talio":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/talio.coffee","talio-selectize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio-selectize/index.coffee","titulo":"/home/fiatjaf/comp/alquimiaorganica/node_modules/titulo/to-title-case.js","virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js","vrender-table":"/home/fiatjaf/comp/alquimiaorganica/node_modules/vrender-table/vrender-table.coffee"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/assert/assert.js":[function(require,module,exports){
+},{"countdown":"/home/fiatjaf/comp/alquimiaorganica/node_modules/countdown/countdown.js","jquery":"/home/fiatjaf/comp/alquimiaorganica/node_modules/jquery/dist/jquery.js","lie":"/home/fiatjaf/comp/alquimiaorganica/node_modules/lie/lib/index.js","moment":"/home/fiatjaf/comp/alquimiaorganica/node_modules/moment/moment.js","reais":"/home/fiatjaf/comp/alquimiaorganica/node_modules/reais/reais.js","selectize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/selectize/dist/js/selectize.js","superagent":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent/lib/client.js","superagent-promise":"/home/fiatjaf/comp/alquimiaorganica/node_modules/superagent-promise/index.js","talio":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/talio.coffee","talio-selectize":"/home/fiatjaf/comp/alquimiaorganica/node_modules/talio-selectize/index.coffee","titulo":"/home/fiatjaf/comp/alquimiaorganica/node_modules/titulo/to-title-case.js","virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js","vrender-table":"/home/fiatjaf/comp/alquimiaorganica/node_modules/vrender-table/vrender-table.coffee","xtend":"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/immutable.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/browserify/node_modules/assert/assert.js":[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -20666,6 +20692,9 @@ SelectizeWidget = (function() {
     container = document.createElement('div');
     elem = document.createElement('select');
     elem.name = this.opts.name || null;
+    if (this.opts.maxItems > 1) {
+      elem.multiple = true;
+    }
     container.appendChild(elem);
     if (this.opts['ev-change']) {
       delegator.addEventListener(elem, 'change', this.opts['ev-change']);
@@ -20688,7 +20717,7 @@ SelectizeWidget = (function() {
   };
 
   SelectizeWidget.prototype.update = function(prev, container) {
-    var elem, selectize;
+    var elem, optionsChanged, selectize;
     elem = container.firstChild;
     if (this.opts.key !== prev.opts.key) {
       elem.selectize.destroy();
@@ -20710,8 +20739,9 @@ SelectizeWidget = (function() {
       selectize = $(elem)[0].selectize;
       selectize.addOption(this.opts.options);
       selectize.refreshOptions(!!this.opts.openOnFocus);
+      optionsChanged = true;
     }
-    if (this.opts.value !== prev.opts.value) {
+    if (this.opts.value !== prev.opts.value || optionsChanged) {
       selectize = $(elem)[0].selectize;
       selectize.setValue(this.opts.value, true);
     }
@@ -23934,4 +23964,6 @@ module.exports = function(tableDefinition) {
 };
 
 
-},{"virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js"}]},{},["/home/fiatjaf/comp/alquimiaorganica/app.coffee"]);
+},{"virtual-elements":"/home/fiatjaf/comp/alquimiaorganica/node_modules/virtual-elements/index.js"}],"/home/fiatjaf/comp/alquimiaorganica/node_modules/xtend/immutable.js":[function(require,module,exports){
+arguments[4]["/home/fiatjaf/comp/alquimiaorganica/node_modules/talio/node_modules/xtend/immutable.js"][0].apply(exports,arguments)
+},{}]},{},["/home/fiatjaf/comp/alquimiaorganica/app.coffee"]);
