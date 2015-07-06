@@ -272,9 +272,11 @@ handlers.findOrders(State, localStorage.getItem('my-orders'));
   var updateItems;
   updateItems = function() {
     return setTimeout(function() {
-      State.change({
-        startFrom: ((State.get('startFrom')) + (State.get('show'))) % (State.get('items').length)
-      });
+      var nitems;
+      nitems = State.get('items').length;
+      if (nitems) {
+        State.change('startFrom', ((State.get('startFrom')) + (State.get('show'))) % nitems);
+      }
       return updateItems();
     }, 8000);
   };

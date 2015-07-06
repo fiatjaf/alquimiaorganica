@@ -265,8 +265,9 @@ handlers.findOrders State, localStorage.getItem 'my-orders'
 (->
   updateItems = ->
     setTimeout ->
-      State.change
-        startFrom: ((State.get 'startFrom') + (State.get 'show')) % (State.get('items').length)
+      nitems = State.get('items').length
+      if nitems
+        State.change 'startFrom', ((State.get 'startFrom') + (State.get 'show')) % nitems
       updateItems()
     , 8000
   updateItems()
