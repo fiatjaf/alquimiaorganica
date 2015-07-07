@@ -84,8 +84,7 @@ handlers =
       .send(
         subject: order.name
         replyto: order.replyto
-        text: if order.pedido.length then ('Pedido:\n\n  * ' + order.pedido.join('\n  * ') + '\n') else order.addr
-        description: if not order.pedido.length then order.addr else null
+        text: order.addr + '\n\n---\n\n' + if order.pedido.length then ('Pedido:\n\n  * ' + order.pedido.join('\n  * ') + '\n') else ''
       )
       .end()
     .then((res) ->

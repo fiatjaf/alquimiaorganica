@@ -95,8 +95,7 @@ handlers = {
     }).send({
       subject: order.name,
       replyto: order.replyto,
-      text: order.pedido.length ? 'Pedido:\n\n  * ' + order.pedido.join('\n  * ') + '\n' : order.addr,
-      description: !order.pedido.length ? order.addr : null
+      text: order.addr + '\n\n---\n\n' + (order.pedido.length ? 'Pedido:\n\n  * ' + order.pedido.join('\n  * ') + '\n' : '')
     }).end().then(function(res) {
       console.log(res.body);
       here.openModal(State, 'order-posted');
