@@ -207,6 +207,11 @@ vrenderMain = (state, channels) ->
             className: "btn btn-success btn-lg btn-block"
           , "Fazer pedido")
         )
+        (h3 {},
+          'Você faz o seu pedido agora e nós entregaremos em alguns horários previamente marcados. Para entender melhor como funciona'
+          (a {href: 'como-funciona.html'}, 'clique aqui')
+          '. As regiões e horários de entrega estão especificados no mapa abaixo (se você não gosta de mapas, só faça o seu pedido e nós ligamos pra te explicar direito).'
+        )
         (h1 {id: "area"}, 'Área de entrega e taxas')
         (link
           rel: "stylesheet"
