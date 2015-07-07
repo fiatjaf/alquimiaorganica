@@ -32,7 +32,7 @@ vrenderTable = require 'vrender-table'
 weekday = moment().isoWeekday()
 nextFriday = moment().isoWeekday(if weekday <= 5 then 5 else 1).startOf('day').add(5, 'hours')
 nextMonday = moment().isoWeekday(if weekday <= 1 then 1 else 8).startOf('day')
-nextTuesday = moment().isoWeekday(if weekday <= 2 then 2 else 9)
+nextTuesday = moment().isoWeekday(if weekday < 2 then 2 else 9) # if today is tuesday, the next is not today
 try
   pedido = JSON.parse localStorage.getItem('lastPedido')
 catch e

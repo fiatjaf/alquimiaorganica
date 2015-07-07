@@ -37,7 +37,7 @@ nextFriday = moment().isoWeekday(weekday <= 5 ? 5 : 1).startOf('day').add(5, 'ho
 
 nextMonday = moment().isoWeekday(weekday <= 1 ? 1 : 8).startOf('day');
 
-nextTuesday = moment().isoWeekday(weekday <= 2 ? 2 : 9);
+nextTuesday = moment().isoWeekday(weekday < 2 ? 2 : 9);
 
 try {
   pedido = JSON.parse(localStorage.getItem('lastPedido'));
