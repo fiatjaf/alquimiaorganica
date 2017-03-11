@@ -10,8 +10,7 @@
 (function (d, s, c) {
   var x, h, n = Date.now()
   tc = function (p) {
-    p = p || 1
-    m = s.getItem('_tcx') > n ? s.getItem('_tch') : 'vucovuco'
+    m = s.getItem('_tcx') > n ? s.getItem('_tch') : 'porreta-periclitante'
     x = new XMLHttpRequest()
     x.addEventListener('load', function () {
       if (x.status == 200) {
@@ -19,7 +18,7 @@
         s.setItem('_tcx', n + 14400000)
       }
     })
-    x.open('GET', 'https://visitantes.alhur.es/' + m + '.xml?r=' + d.referrer + '&c=' + c + '&p=' + p)
+    x.open('GET', 'https://visitantes.alhur.es/'+m+'.xml?r='+d.referrer+'&c='+c+(p?'&p='+p:''))
     x.send()
   }
   tc()
